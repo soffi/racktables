@@ -1,0 +1,158 @@
+#!/bin/sh
+
+[ $# = 7 ] || exit 1
+
+ENDPOINT=$1
+HW=$2
+SW=$3
+COMMAND=$4
+FILE1=$5
+FILE2=$6
+FILE3=$7
+
+prepare_connect_commands()
+{
+	[ $# = 1 ] || exit 2
+	local skip=yes cval found=no
+	while read line; do
+		if [ "$skip" = "yes" -a "$line" = "# S-T-A-R-T" ]; then
+			skip=no
+			continue
+		fi
+		if [ "$skip" = "no" -a "$line" = "# S-T-O-P" ]; then
+			skip=yes
+			continue
+		fi
+		[ "$skip" = "yes" ] && continue
+		# Allow comments.
+		[ -z "${line###*}" ] && continue
+
+		# First endpoint string/regexp match is sufficient for us.
+		cval=`echo $line | cut -s -d' ' -f1`
+		if [ -z "${1##$cval}" ]; then
+			found=yes
+			# Don't be too smart at the moment, just be able to handle
+			# the known-good case ;-)
+
+			echo $line | cut -s -d' ' -f6 > $CMDS1
+			echo en >> $CMDS1
+			echo $line | cut -s -d' ' -f7 >> $CMDS1
+			# same for ports
+			cat "$CMDS1" > "$CMDS2"
+			# ...and MAC addresses
+			cat "$CMDS1" > "$CMDS3"
+			break
+		fi
+	done < `dirname $0`/cisco.secrets.php
+	[ "$found" = "yes" ] && return
+	echo "E!connector could not find credentials for $1" >> "$FILE2"
+	exit 3
+}
+
+prepare_fetch_commands()
+{
+	printf 'term len 0\nshow vlan brief\nquit\n' >> $CMDS1
+	printf 'term len 0\nshow int status\nquit\n' >> $CMDS2
+	printf 'term len 0\nshow mac-address-table dynamic\nquit\n' >> $CMDS3
+}
+
+prepare_push_commands()
+{
+	printf 'term len 0\nconf t\n' >> $CMDS1
+	while read portname vlanid; do
+		if [ -z "$portname" -o -z "$vlanid" ]; then
+			echo "E!could not parse input in connector" >> "$FILE2"
+			continue
+		fi
+		if [ "$vlanid" = "trunk" ]; then
+			echo "E!trunking is not allowed" >> "$FILE2"
+			continue
+		fi
+		printf "int $portname\nswi access vlan $vlanid\nexit\n" >> $CMDS1
+		echo "I!Port $portname@$ENDPOINT has been assigned to VLAN $vlanid" >> "$FILE2"
+	done < "$FILE1"
+	printf "end\nwri\nquit\n" >> $CMDS1
+}
+
+do_fetch()
+{
+	nc $ENDPOINT 23 < $CMDS1 > "$OUT1"
+	if fgrep -q '% Bad passwords' "$OUT1"; then
+		echo "E!password mismatch while trying to connect to $ENDPOINT" >> "$FILE2"
+		exit 4
+	fi
+	nc $ENDPOINT 23 < $CMDS2 > "$OUT2"
+	nc $ENDPOINT 23 < $CMDS3 > "$OUT3"
+	cat "$OUT1" | fgrep ' active    ' | sed -E 's/^([[:digit:]]+)[[:space:]]+(.+)[[:space:]]+active    (.*)/\1=\2/;s/[[:space:]]+$//' > $FILE1
+	cat "$OUT2" | egrep '^(Et|Fa|Gi|Te)' | sed -E 's/^([A-Za-z/0-9]+).+(connected|notconnect|disabled|monitoring) +/\1=\2,/;s/,(trunk|([0-9]+)) .*$/,\1/;s/=monitoring,/=connected,/' > $FILE2
+	# FIXME
+	# Here we need to distinguish between different platforms and IOS version,
+	# cause they produce output in different formats.
+	if [ "$SW" = "Cisco+IOS+12.0" ]; then
+		cat "$OUT3" | tr -d '\r' | fgrep Dynamic | sed -E 's/ +Dynamic +([0-9]+) +(.+)/=\1@\2/;s/FastEthernet/Fa/;s/GigabitEthernet/Gi/' > "$FILE3"
+	elif [ "$SW" = "Cisco+IOS+12.2" ]; then
+		case "$HW" in
+			Cisco+Catalyst+35*|Cisco+Catalyst+37*|Cisco+Catalyst+29*|Cisco+Catalyst+49*)
+				cat "$OUT3" | tr -d '\r' | fgrep DYNAMIC | \
+				sed -E 's/ +([0-9]+) +(.+)    DYNAMIC +(.+)/\2=\1@\3/;s/FastEthernet/Fa/;s/GigabitEthernet/Gi/' > "$FILE3"
+			;;
+		esac
+	fi
+}
+
+do_push()
+{
+	nc $ENDPOINT 23 < $CMDS1 >/dev/null
+}
+
+remove_tempfiles()
+{
+	[ -f "$CMDS1" ] && rm -f "$CMDS1"
+	[ -f "$CMDS2" ] && rm -f "$CMDS2"
+	[ -f "$CMDS3" ] && rm -f "$CMDS3"
+	[ -f "$OUT1" ] && rm -f "$OUT1"
+	[ -f "$OUT2" ] && rm -f "$OUT2"
+	[ -f "$OUT3" ] && rm -f "$OUT3"
+}
+
+create_tempfiles()
+{
+	# This one is for VLAN list.
+	CMDS1=`mktemp /tmp/cisco.connector.XXXX`
+	# And this one holds ports list...
+	CMDS2=`mktemp /tmp/cisco.connector.XXXX`
+	# ...and one more for MAC address table
+	CMDS3=`mktemp /tmp/cisco.connector.XXXX`
+	# The following are buffers to hold the whole switch output
+	# before filtering.
+	OUT1=`mktemp /tmp/cisco.connector.XXXX`
+	OUT2=`mktemp /tmp/cisco.connector.XXXX`
+	OUT3=`mktemp /tmp/cisco.connector.XXXX`
+	[ -f "$CMDS1" -a -f "$CMDS2" -a -f "$CMDS3" -a -f "$OUT1" -a -f "$OUT2" -a -f "$OUT3" ] && return
+	echo "E!connector cannot create tempfiles" >> "$FILE2"
+	remove_tempfiles
+	exit 5
+}
+
+case $COMMAND in
+	fetch)
+		create_tempfiles
+		prepare_connect_commands $ENDPOINT
+		prepare_fetch_commands
+		do_fetch
+		remove_tempfiles
+	;;
+	push)
+		create_tempfiles
+		prepare_connect_commands $ENDPOINT
+		prepare_push_commands
+		do_push
+		remove_tempfiles
+	;;
+	*)
+		echo "E!unknown command for connector" >> "$FILE2"
+		exit 6
+	;;
+esac
+
+exit 0

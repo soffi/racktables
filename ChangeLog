@@ -1,0 +1,41 @@
+0.14.7 2007-12-05
+	bugfix: provide better SQL dumps for new installations
+	bugfix: gateways/switchvlans minor updates
+	bugfix: logout link could fail sometimes
+	bugfix: avoid short PHP tags for better compatibility across
+	  different PHP installations (reported by Tom Laermans)
+	bugfix: remove odd records from IPAddress once more
+	bugfix: fixed IPv4 address browsing for MySQL-4 DB
+	update: better attributes edit form by Aaron Dummer
+	update: numerous UI adjustments across all pages
+	update: new Dell, Foundry and Cisco records in the dictionary
+	new feature: more cisco models support in gateways/switchvlans
+	new feature: initial implementation of SNMP port data importer
+	new feature: UI configuration reset tab
+	new feature: initial reports code
+0.14.6 2007-10-15
+	new feature: browser-side validation for a new IPv4 network
+	  (contributed by Aaron Dummer)
+	new feature: logout link (same author)
+	new feature: key hint in dictionary browser
+	new feature: switch VLANs gateway with Cisco connector (others to come)
+	new feature: one more form for objects mass-creation
+	new feature: automatic database upgrades
+	bugfix: don't hide IPv4 address name for a free address
+	update: new stock values in dictionary chapters: server OS type,
+		PortType, switch models
+	update: make GigE default port type
+	update: configuration is now stored in the database
+0.14.5 2007-03-08
+	bugfix: lots of adjustments to allow database be MySQL 4.0
+0.14.4 2007-02-21
+	bugfix: provide proper SQL init files
+	bugfix: produce less PHP warnings
+	bugfix: corrected error messages
+	bugfix: don't fail on an empty database
+	bugfix: multi-object form works again
+	bugfix: fixed CSS errors
+	bugfix: don't list the same port more than once in pop-up list
+	bugfix: don't allow to ban admin access
+0.14.3 2007-02-15
+	initial release
