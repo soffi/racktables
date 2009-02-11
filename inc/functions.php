@@ -24,6 +24,18 @@ $templateWidth[3] = 1;
 $templateWidth[4] = 1;
 $templateWidth[5] = 1;
 
+// Entity type by page number mapping is 1:1 atm, but may change later.
+$etype_by_pageno = array
+(
+	'ipv4net' => 'ipv4net',
+	'ipv4rspool' => 'ipv4rspool',
+	'ipv4vs' => 'ipv4vs',
+	'object' => 'object',
+	'rack' => 'rack',
+	'user' => 'user',
+	'file' => 'file',
+);
+
 // Objects of some types should be explicitly shown as
 // anonymous (labelless). This function is a single place where the
 // decision about displayed name is made.
@@ -57,6 +69,10 @@ function rectHeight ($rackData, $startRow, $template_idx)
 			{
 				if (isset ($rackData[$startRow - $height][$locidx]['skipped']))
 					break 2;
+				if (isset ($rackData[$startRow - $height][$locidx]['rowspan']))
+					break 2;
+				if (isset ($rackData[$startRow - $height][$locidx]['colspan']))
+					break 2;
 				if ($rackData[$startRow - $height][$locidx]['state'] != 'T')
 					break 2;
 				if ($object_id == 0)
@@ -71,7 +87,9 @@ function rectHeight ($rackData, $startRow, $template_idx)
 		$height++;
 	}
 	while ($startRow - $height > 0);
-//	echo "for startRow==${startRow} and template==(${template[0]}, ${template[1]}, ${template[2]}) height==${height}<br>\n";
+#	echo "for startRow==${startRow} and template==(" . ($template[$template_idx][0] ? 'T' : 'F');
+#	echo ', ' . ($template[$template_idx][1] ? 'T' : 'F') . ', ' . ($template[$template_idx][2] ? 'T' : 'F');
+#	echo ") height==${height}<br>\n";
 	return $height;
 }
 
@@ -88,14 +106,16 @@ function markSpan (&$rackData, $startRow, $maxheight, $template_idx)
 			if ($template[$template_idx][$locidx])
 			{
 				// Add colspan/rowspan to the first row met and mark the following ones to skip.
+				// Explicitly show even single-cell spanned atoms, because rectHeight()
+				// is expeciting this data for correct calculation.
 				if ($colspan != 0)
 					$rackData[$startRow - $height][$locidx]['skipped'] = TRUE;
 				else
 				{
 					$colspan = $templateWidth[$template_idx];
-					if ($colspan > 1)
+					if ($colspan >= 1)
 						$rackData[$startRow - $height][$locidx]['colspan'] = $colspan;
-					if ($maxheight > 1)
+					if ($maxheight >= 1)
 						$rackData[$startRow - $height][$locidx]['rowspan'] = $maxheight;
 				}
 			}
@@ -104,112 +124,45 @@ function markSpan (&$rackData, $startRow, $maxheight, $template_idx)
 	return;
 }
 
-// This function finds rowspan/solspan/skipped atom attributes for renderRack()
-// What we actually have to do is to find all possible rectangles for each objects
-// and then find the widest of those with the maximal square.
+// This function sets rowspan/solspan/skipped atom attributes for renderRack()
+// What we actually have to do is to find _all_ possible rectangles for each unit
+// and then select the widest of those with the maximal square.
 function markAllSpans (&$rackData = NULL)
 {
 	if ($rackData == NULL)
 	{
-		showError ('Invalid rackData in markupAllSpans()');
+		showError ('Invalid rackData', __FUNCTION__);
 		return;
 	}
 	for ($i = $rackData['height']; $i > 0; $i--)
+		while (markBestSpan ($rackData, $i));
+}
+
+// Calculate height of 6 possible span templates (array is presorted by width
+// descending) and mark the best (if any).
+function markBestSpan (&$rackData, $i)
+{
+	global $template, $templateWidth;
+	for ($j = 0; $j < 6; $j++)
 	{
-		// calculate height of 6 possible span templates (array is presorted by width descending)
-		global $template;
-		for ($j = 0; $j < 6; $j++)
-			$height[$j] = rectHeight ($rackData, $i, $j);
-		// find the widest rectangle of those with maximal height
-		$maxheight = max ($height);
-		if ($maxheight > 0)
+		$height[$j] = rectHeight ($rackData, $i, $j);
+		$square[$j] = $height[$j] * $templateWidth[$j];
+	}
+	// find the widest rectangle of those with maximal height
+	$maxsquare = max ($square);
+	if (!$maxsquare)
+		return FALSE;
+	$best_template_index = 0;
+	for ($j = 0; $j < 6; $j++)
+		if ($square[$j] == $maxsquare)
 		{
-			$best_template_index = 0;
-			for ($j = 0; $j < 6; $j++)
-				if ($height[$j] == $maxheight)
-				{
-					$best_template_index = $j;
-					break;
-				}
-			// distribute span marks
-			markSpan ($rackData, $i, $maxheight, $best_template_index);
+			$best_template_index = $j;
+			$bestheight = $height[$j];
+			break;
 		}
-	}
-}
-
-function delRow ($row_id = 0)
-{
-	if ($row_id == 0)
-	{
-		showError ('Not all required args to delRow() are present.');
-		return;
-	}
-	if (!isset ($_REQUEST['confirmed']) || $_REQUEST['confirmed'] != 'true')
-	{
-		echo "Press <a href='?op=del_row&row_id=${row_id}&confirmed=true'>here</a> to confirm rack row deletion.";
-		return;
-	}
-	global $dbxlink;
-	echo 'Deleting rack row information: ';
-	$result = $dbxlink->query ("update RackRow set deleted = 'yes' where id=${row_id} limit 1");
-	if ($result->rowCount() != 1)
-	{
-		showError ('Marked ' . $result.rowCount() . ' rows as deleted, but expected 1');
-		return;
-	}
-	echo 'OK<br>';
-	recordHistory ('RackRow', "id = ${row_id}");
-	echo "Information was deleted. You may return to <a href='?op=list_rows&editmode=on'>rack row list</a>.";
-}
-
-function delRack ($rack_id = 0)
-{
-	if ($rack_id == 0)
-	{
-		showError ('Not all required args to delRack() are present.');
-		return;
-	}
-	if (!isset ($_REQUEST['confirmed']) || $_REQUEST['confirmed'] != 'true')
-	{
-		echo "Press <a href='?op=del_rack&rack_id=${rack_id}&confirmed=true'>here</a> to confirm rack deletion.";
-		return;
-	}
-	global $dbxlink;
-	echo 'Deleting rack information: ';
-	$result = $dbxlink->query ("update Rack set deleted = 'yes' where id=${rack_id} limit 1");
-	if ($result->rowCount() != 1)
-	{
-		showError ('Marked ' . $result.rowCount() . ' rows as deleted, but expected 1');
-		return;
-	}
-	echo 'OK<br>';
-	recordHistory ('Rack', "id = ${rack_id}");
-	echo "Information was deleted. You may return to <a href='?op=list_racks&editmode=on'>rack list</a>.";
-}
-
-function delObject ($object_id = 0)
-{
-	if ($object_id == 0)
-	{
-		showError ('Not all required args to delObject() are present.');
-		return;
-	}
-	if (!isset ($_REQUEST['confirmed']) || $_REQUEST['confirmed'] != 'true')
-	{
-		echo "Press <a href='?op=del_object&object_id=${object_id}&confirmed=true'>here</a> to confirm object deletion.";
-		return;
-	}
-	global $dbxlink;
-	echo 'Deleting object information: ';
-	$result = $dbxlink->query ("update RackObject set deleted = 'yes' where id=${object_id} limit 1");
-	if ($result->rowCount() != 1)
-	{
-		showError ('Marked ' . $result.rowCount() . ' rows as deleted, but expected 1');
-		return;
-	}
-	echo 'OK<br>';
-	recordHistory ('RackObject', "id = ${object_id}");
-	echo "Information was deleted. You may return to <a href='?op=list_objects&editmode=on'>object list</a>.";
+	// distribute span marks
+	markSpan ($rackData, $i, $bestheight, $best_template_index);
+	return TRUE;
 }
 
 // We can mount 'F' atoms and unmount our own 'T' atoms.
@@ -328,280 +281,86 @@ function mergeGridFormToRack (&$rackData)
 		}
 }
 
+// netmask conversion from length to number
 function binMaskFromDec ($maskL)
 {
-	$binmask=0;
-	for ($i=0; $i<$maskL; $i++)
-	{
-		$binmask*=2;
-		$binmask+=1;
-	}
-	for ($i=$maskL; $i<32; $i++)
-	{
-		$binmask*=2;
-	}
-	return $binmask;
+	$map_straight = array (
+		0  => 0x00000000,
+		1  => 0x80000000,
+		2  => 0xc0000000,
+		3  => 0xe0000000,
+		4  => 0xf0000000,
+		5  => 0xf8000000,
+		6  => 0xfc000000,
+		7  => 0xfe000000,
+		8  => 0xff000000,
+		9  => 0xff800000,
+		10 => 0xffc00000,
+		11 => 0xffe00000,
+		12 => 0xfff00000,
+		13 => 0xfff80000,
+		14 => 0xfffc0000,
+		15 => 0xfffe0000,
+		16 => 0xffff0000,
+		17 => 0xffff8000,
+		18 => 0xffffc000,
+		19 => 0xffffe000,
+		20 => 0xfffff000,
+		21 => 0xfffff800,
+		22 => 0xfffffc00,
+		23 => 0xfffffe00,
+		24 => 0xffffff00,
+		25 => 0xffffff80,
+		26 => 0xffffffc0,
+		27 => 0xffffffe0,
+		28 => 0xfffffff0,
+		29 => 0xfffffff8,
+		30 => 0xfffffffc,
+		31 => 0xfffffffe,
+		32 => 0xffffffff,
+	);
+	return $map_straight[$maskL];
 }
 
+// complementary value
 function binInvMaskFromDec ($maskL)
 {
-	$binmask=0;
-	for ($i=0; $i<$maskL; $i++)
-	{
-		$binmask*=2;
-	}
-	for ($i=$maskL; $i<32; $i++)
-	{
-		$binmask*=2;
-		$binmask+=1;
-	}
-	return $binmask;
-}
-
-function addRange ($range='', $name='', $is_bcast = FALSE)
-{
-	// $range is in x.x.x.x/x format, split into ip/mask vars
-	$rangeArray = explode('/', $range);
-	$ip = $rangeArray[0];
-	$mask = $rangeArray[1];
-
-	$ipL = ip2long($ip);
-	$maskL = ip2long($mask);
-	if ($ipL == -1 || $ipL === FALSE)
-		return 'Bad ip address';
-	if ($mask < 32 && $mask > 0)
-		$maskL = $mask;
-	else
-	{
-		$maskB = decbin($maskL);
-		if (strlen($maskB)!=32)
-			return 'Bad mask';
-		$ones=0;
-		$zeroes=FALSE;
-		foreach( str_split ($maskB) as $digit)
-		{
-			if ($digit == '0')
-				$zeroes = TRUE;
-			if ($digit == '1')
-			{
-				$ones++;
-				if ($zeroes == TRUE)
-					return 'Bad mask';
-			}
-		}
-		$maskL = $ones;
-	}
-	$binmask = binMaskFromDec($maskL);
-	$ipL = $ipL & $binmask;
-
-	$query =
-		"select ".
-		"id, ip, mask, name ".
-		"from IPRanges ";
-	
-
-	global $dbxlink;
-
-	$result = $dbxlink->query ($query);
-
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		$otherip = $row['ip'];
-		$othermask = binMaskFromDec($row['mask']);
-//		echo "checking $otherip & $othermask ".($otherip & $othermask)." == $ipL & $othermask ".($ipL & $othermask)." ".decbin($otherip)." ".decbin($othermask)." ".decbin($otherip & $othermask)." ".decbin($ipL)." ".decbin($othermask)." ".decbin($ipL & $othermask)."\n";
-//		echo "checking $otherip & $binmask ".($otherip & $binmask)." == $ipL & $binmask ".($ipL & $binmask)." ".decbin($otherip)." ".decbin($binmask)." ".decbin($otherip & $binmask)." ".decbin($ipL)." ".decbin($binmask)." ".decbin($ipL & $binmask)."\n";
-//		echo "\n";
-//		flush();
-		if (($otherip & $othermask) == ($ipL & $othermask))
-			return "This subnet intersects with ".long2ip($row['ip'])."/${row['mask']}";
-		if (($otherip & $binmask) == ($ipL & $binmask))
-			return "This subnet intersects with ".long2ip($row['ip'])."/${row['mask']}";
-	}
-	$result->closeCursor();
-	$query =
-		"insert into IPRanges set ip=".sprintf('%u', $ipL).", mask='$maskL', name='$name'";
-	$result = $dbxlink->exec ($query);
-
-	if ($is_bcast and $maskL < 31)
-	{
-		$network_addr = long2ip ($ipL);
-		$broadcast_addr = long2ip ($ipL | binInvMaskFromDec ($maskL));
-		updateAddress ($network_addr, 'network', 'yes');
-		updateAddress ($broadcast_addr, 'broadcast', 'yes');
-	}
-	return '';
-}
-
-function getIPRange ($id = 0)
-{
-	global $dbxlink;
-	$query =
-		"select ".
-		"id as IPRanges_id, ".
-		"INET_NTOA(ip) as IPRanges_ip, ".
-		"mask as IPRanges_mask, ".
-		"name as IPRanges_name ".
-		"from IPRanges ".
-		"where id = '$id'";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-		return NULL;
-	$ret = array();
-	$row = $result->fetch (PDO::FETCH_ASSOC);
-	if ($row == NULL)
-		return $ret;
-	$ret['id'] = $row['IPRanges_id'];
-	$ret['ip'] = $row['IPRanges_ip'];
-	$ret['ip_bin'] = ip2long ($row['IPRanges_ip']);
-	$ret['mask_bin'] = binMaskFromDec($row['IPRanges_mask']);
-	$ret['mask_bin_inv'] = binInvMaskFromDec($row['IPRanges_mask']);
-	$ret['name'] = $row['IPRanges_name'];
-	$ret['mask'] = $row['IPRanges_mask'];
-	$ret['addrlist'] = array();
-	$result->closeCursor();
-	// We risk losing some significant bits in an unsigned 32bit integer,
-	// unless it is converted to a string.
-	$db_first = "'" . sprintf ('%u', 0x00000000 + $ret['ip_bin'] & $ret['mask_bin']) . "'";
-	$db_last  = "'" . sprintf ('%u', 0x00000000 + $ret['ip_bin'] | ($ret['mask_bin_inv'])) . "'";
-
-	// Don't try to build up the whole structure in a single pass. Request
-	// the list of user comments and reservations and merge allocations in
-	// at a latter point.
-	$query =
-		"select INET_NTOA(ip) as ip, name, reserved from IPAddress " .
-		"where ip between ${db_first} and ${db_last} " .
-		"and (reserved = 'yes' or name != '')";
-	$ipa_res = $dbxlink->query ($query);
-	if ($ipa_res == NULL)
-		return $ret;
-	while ($row = $ipa_res->fetch (PDO::FETCH_ASSOC))
-	{
-		$ip_bin = ip2long ($row['ip']);
-		$ret['addrlist'][$ip_bin] = $row;
-		$tmp = array();
-		foreach (array ('ip', 'name', 'reserved') as $cname)
-			$tmp[$cname] = $row[$cname];
-		$tmp['references'] = array();
-		$ret['addrlist'][$ip_bin] = $tmp;
-	}
-	$ipa_res->closeCursor();
-
-	$query =
-		"select INET_NTOA(ipb.ip) as ip, ro.id as object_id, " .
-		"ro.name as object_name, ipb.name, ipb.type, objtype_id, " .
-		"dict_value as objtype_name from " .
-		"IPBonds as ipb inner join RackObject as ro on ipb.object_id = ro.id " .
-		"left join Dictionary on objtype_id=dict_key natural join Chapter " .
-		"where ip between ${db_first} and ${db_last} " .
-		"and chapter_name = 'RackObjectType'" .
-		"order by ipb.type, object_name";
-	$ipb_res = $dbxlink->query ($query);
-	while ($row = $ipb_res->fetch (PDO::FETCH_ASSOC))
-	{
-		$ip_bin = ip2long ($row['ip']);
-		if (!isset ($ret['addrlist'][$ip_bin]))
-		{
-			$ret['addrlist'][$ip_bin] = array();
-			$ret['addrlist'][$ip_bin]['ip'] = $row['ip'];
-			$ret['addrlist'][$ip_bin]['name'] = '';
-			$ret['addrlist'][$ip_bin]['reserved'] = 'no';
-			$ret['addrlist'][$ip_bin]['references'] = array();
-		}
-		$tmp = array();
-		foreach (array ('object_id', 'type', 'name') as $cname)
-			$tmp[$cname] = $row[$cname];
-		$quasiobject['name'] = $row['object_name'];
-		$quasiobject['objtype_id'] = $row['objtype_id'];
-		$quasiobject['objtype_name'] = $row['objtype_name'];
-		$tmp['object_name'] = displayedName ($quasiobject);
-		$ret['addrlist'][$ip_bin]['references'][] = $tmp;
-	}
-	$ipb_res->closeCursor();
-
-	return $ret;
-}
-
-// Don't require any records in IPAddress, but if there is one,
-// merge the data between getting allocation list. Collect enough data
-// to call displayedName() ourselves.
-function getIPAddress ($ip=0)
-{
-	$ret = array();
-	$ret['bonds'] = array();
-	$ret['outpf'] = array();
-	$ret['inpf'] = array();
-	$ret['exists'] = 0;
-	$ret['name'] = '';
-	$ret['reserved'] = 'no';
-	global $dbxlink;
-	$query =
-		"select ".
-		"name, reserved ".
-		"from IPAddress ".
-		"where ip = INET_ATON('$ip') and (reserved = 'yes' or name != '')";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-		return NULL;
-	if ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		$ret['exists'] = 1;
-		$ret['name'] = $row['name'];
-		$ret['reserved'] = $row['reserved'];
-	}
-	$result->closeCursor();
-
-	$query =
-		"select ".
-		"IPBonds.object_id as object_id, ".
-		"IPBonds.name as name, ".
-		"IPBonds.type as type, ".
-		"objtype_id, dict_value as objtype_name, " .
-		"RackObject.name as object_name ".
-		"from IPBonds join RackObject on IPBonds.object_id=RackObject.id ".
-		"left join Dictionary on objtype_id=dict_key natural join Chapter " .
-		"where IPBonds.ip=INET_ATON('$ip') ".
-		"and chapter_name = 'RackObjectType' " .
-		"order by RackObject.id, IPBonds.name";
-	$result = $dbxlink->query ($query);
-	$count=0;
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		$ret['bonds'][$count]['object_id'] = $row['object_id'];
-		$ret['bonds'][$count]['name'] = $row['name'];
-		$ret['bonds'][$count]['type'] = $row['type'];
-		$qo = array();
-		$qo['name'] = $row['object_name'];
-		$qo['objtype_id'] = $row['objtype_id'];
-		$qo['objtype_name'] = $row['objtype_name'];
-		$ret['bonds'][$count]['object_name'] = displayedName ($qo);
-		$count++;
-		$ret['exists'] = 1;
-	}
-	$result->closeCursor();
-
-	return $ret;
-}
-	
-function bindIpToObject ($ip='', $object_id=0, $name='', $type='')
-{
-	global $dbxlink;
-
-	$range = getRangeByIp($ip);
-	if (!$range)
-		return 'Non-existant ip address. Try adding IP range first';
-
-	$result = useInsertBlade
-	(
-		'IPBonds',
-		array
-		(
-			'ip' => "INET_ATON('$ip')",
-			'object_id' => "'${object_id}'",
-			'name' => "'${name}'",
-			'type' => "'${type}'"
-		)
+	$map_compl = array (
+		0  => 0xffffffff,
+		1  => 0x7fffffff,
+		2  => 0x3fffffff,
+		3  => 0x1fffffff,
+		4  => 0x0fffffff,
+		5  => 0x07ffffff,
+		6  => 0x03ffffff,
+		7  => 0x01ffffff,
+		8  => 0x00ffffff,
+		9  => 0x007fffff,
+		10 => 0x003fffff,
+		11 => 0x001fffff,
+		12 => 0x000fffff,
+		13 => 0x0007ffff,
+		14 => 0x0003ffff,
+		15 => 0x0001ffff,
+		16 => 0x0000ffff,
+		17 => 0x00007fff,
+		18 => 0x00003fff,
+		19 => 0x00001fff,
+		20 => 0x00000fff,
+		21 => 0x000007ff,
+		22 => 0x000003ff,
+		23 => 0x000001ff,
+		24 => 0x000000ff,
+		25 => 0x0000007f,
+		26 => 0x0000003f,
+		27 => 0x0000001f,
+		28 => 0x0000000f,
+		29 => 0x00000007,
+		30 => 0x00000003,
+		31 => 0x00000001,
+		32 => 0x00000000,
 	);
-	return $result ? '' : 'useInsertBlade() failed in bindIpToObject()';
+	return $map_compl[$maskL];
 }
 
 // This function looks up 'has_problems' flag for 'T' atoms
@@ -631,54 +390,7 @@ function search_cmpObj ($a, $b)
 	return ($a['score'] > $b['score'] ? -1 : 1);
 }
 
-// This function performs search and then calculates score for each result.
-// Given previous search results in $objects argument, it adds new results
-// to the array and updates score for existing results, if it is greater than
-// existing score.
-function mergeSearchResults (&$objects, $terms, $fieldname)
-{
-	global $dbxlink;
-	$query =
-		"select name, label, asset_no, barcode, ro.id, dict_key as objtype_id, " .
-		"dict_value as objtype_name, asset_no from RackObject as ro inner join Dictionary " .
-		"on objtype_id = dict_key natural join Chapter where chapter_name = 'RackObjectType' and ";
-	$count = 0;
-	foreach (explode (' ', $terms) as $term)
-	{
-		if ($count) $query .= ' or ';
-		$query .= "${fieldname} like '%$term%'";
-		$count++;
-	}
-	$query .= "";
-	$result = $dbxlink->query($query);
-	if ($result == NULL)
-	{
-		showError ("SQL query failed in mergeSearchResults()");
-		return NULL;
-	}
-// FIXME: this dead call was executed 4 times per 1 object search!
-//	$typeList = getObjectTypeList();
-	$clist = array ('id', 'name', 'label', 'asset_no', 'barcode', 'objtype_id', 'objtype_name');
-	while ($row = $result->fetch(PDO::FETCH_ASSOC))
-	{
-		foreach ($clist as $cname)
-			$object[$cname] = $row[$cname];
-		$object['score'] = 0;
-		$object['dname'] = displayedName ($object);
-		unset ($object['objtype_id']);
-		foreach (explode (' ', $terms) as $term)
-			if (strstr ($object['name'], $term))
-				$object['score'] += 1;
-		unset ($object['name']);
-		if (!isset ($objects[$row['id']]))
-			$objects[$row['id']] = $object;
-		elseif ($objects[$row['id']]['score'] < $object['score'])
-			$objects[$row['id']]['score'] = $object['score'];
-	}
-	return $objects;
-}
-
-function getSearchResults ($terms)
+function getObjectSearchResults ($terms)
 {
 	$objects = array();
 	mergeSearchResults ($objects, $terms, 'name');
@@ -693,20 +405,27 @@ function getSearchResults ($terms)
 // This function removes all colons and dots from a string.
 function l2addressForDatabase ($string)
 {
-	if (empty ($string))
-		return 'NULL';
-	$pieces = explode (':', $string);
-	// This workaround is for SunOS ifconfig.
-	foreach ($pieces as &$byte)
-		if (strlen ($byte) == 1)
-			$byte = '0' . $byte;
-	// And this workaround is for PHP.
-	unset ($byte);
-	$string = implode ('', $pieces);
-	$pieces = explode ('.', $string);
-	$string = implode ('', $pieces);
 	$string = strtoupper ($string);
-	return "'$string'";
+	switch (TRUE)
+	{
+		case ($string == '' or preg_match (RE_L2_SOLID, $string)):
+			return $string;
+		case (preg_match (RE_L2_IFCFG, $string)):
+			$pieces = explode (':', $string);
+			// This workaround is for SunOS ifconfig.
+			foreach ($pieces as &$byte)
+				if (strlen ($byte) == 1)
+					$byte = '0' . $byte;
+			// And this workaround is for PHP.
+			unset ($byte);
+			return implode ('', $pieces);
+		case (preg_match (RE_L2_CISCO, $string)):
+			return implode ('', explode ('.', $string));
+		case (preg_match (RE_L2_IPCFG, $string)):
+			return implode ('', explode ('-', $string));
+		default:
+			return NULL;
+	}
 }
 
 function l2addressFromDatabase ($string)
@@ -731,7 +450,7 @@ function getPrevIDforRack ($row_id = 0, $rack_id = 0)
 {
 	if ($row_id <= 0 or $rack_id <= 0)
 	{
-		showError ('Invalid arguments passed to getPrevIDforRack()');
+		showError ('Invalid arguments passed', __FUNCTION__);
 		return NULL;
 	}
 	$rackList = getRacksForRow ($row_id);
@@ -745,7 +464,7 @@ function getNextIDforRack ($row_id = 0, $rack_id = 0)
 {
 	if ($row_id <= 0 or $rack_id <= 0)
 	{
-		showError ('Invalid arguments passed to getNextIDforRack()');
+		showError ('Invalid arguments passed', __FUNCTION__);
 		return NULL;
 	}
 	$rackList = getRacksForRow ($row_id);
@@ -769,16 +488,6 @@ function doubleLink (&$array)
 		}
 		$prev_key = $key;
 	}
-}
-
-// After applying usort() to a rack list we will lose original array keys.
-// This function restores the keys so they are equal to rack IDs.
-function restoreRackIDs ($racks)
-{
-	$ret = array();
-	foreach ($racks as $rack)
-		$ret[$rack['id']] = $rack;
-	return $ret;
 }
 
 function sortTokenize ($a, $b)
@@ -827,32 +536,6 @@ function sortByName ($a, $b)
 	return sortTokenize($a['name'], $b['name']);
 }
 
-function sortRacks ($a, $b)
-{
-	return sortTokenize($a['row_name'] . ': ' . $a['name'], $b['row_name'] . ': ' . $b['name']);
-}
-
-function eq ($a, $b)
-{
-	return $a==$b;
-}
-
-function neq ($a, $b)
-{
-	return $a!=$b;
-}
-
-function countRefsOfType ($refs, $type, $eq)
-{
-	$count=0;
-	foreach ($refs as $ref)
-	{
-		if ($eq($ref['type'], $type))
-			$count++;
-	}
-	return $count;
-}
-
 function sortEmptyPorts ($a, $b)
 {
 	$objname_cmp = sortTokenize($a['Object_name'], $b['Object_name']);
@@ -868,17 +551,15 @@ function sortObjectAddressesAndNames ($a, $b)
 	$objname_cmp = sortTokenize($a['object_name'], $b['object_name']);
 	if ($objname_cmp == 0)
 	{
-		$objname_cmp = sortTokenize($a['port_name'], $b['port_name']);
+		$name_a = (isset ($a['port_name'])) ? $a['port_name'] : '';
+		$name_b = (isset ($b['port_name'])) ? $b['port_name'] : '';
+		$objname_cmp = sortTokenize($name_a, $name_b);
 		if ($objname_cmp == 0)
-		{
 			sortTokenize($a['ip'], $b['ip']);
-		}
 		return $objname_cmp;
 	}
 	return $objname_cmp;
 }
-
-
 
 function sortAddresses ($a, $b)
 {
@@ -903,111 +584,6 @@ function buildPortCompatMatrixFromList ($portTypeList, $portCompatList)
 	return $matrix;
 }
 
-function newPortForwarding($object_id, $localip, $localport, $remoteip, $remoteport, $proto, $description)
-{
-	global $dbxlink;
-
-	$range = getRangeByIp($localip);
-	if (!$range)
-		return "$localip: Non existant ip";
-	
-	$range = getRangeByIp($remoteip);
-	if (!$range)
-		return "$remoteip: Non existant ip";
-	
-	if ( ($localport <= 0) or ($localport >= 65536) )
-		return "$localport: invaild port";
-
-	if ( ($remoteport <= 0) or ($remoteport >= 65536) )
-		return "$remoteport: invaild port";
-
-        $query =
-                "insert into PortForwarding set object_id='$object_id', localip=INET_ATON('$localip'), remoteip=INET_ATON('$remoteip'), localport='$localport', remoteport='$remoteport', proto='$proto', description='$description'";
-        $result = $dbxlink->exec ($query);
-
-	return '';
-}
-
-function deletePortForwarding($object_id, $localip, $localport, $remoteip, $remoteport, $proto)
-{
-	global $dbxlink;
-
-	$query =
-		"delete from PortForwarding where object_id='$object_id' and localip=INET_ATON('$localip') and remoteip=INET_ATON('$remoteip') and localport='$localport' and remoteport='$remoteport' and proto='$proto'";
-	$result = $dbxlink->exec ($query);
-	return '';
-}
-
-function updatePortForwarding($object_id, $localip, $localport, $remoteip, $remoteport, $proto, $description)
-{
-	global $dbxlink;
-
-	$query =
-		"update PortForwarding set description='$description' where object_id='$object_id' and localip=INET_ATON('$localip') and remoteip=INET_ATON('$remoteip') and localport='$localport' and remoteport='$remoteport' and proto='$proto'";
-	$result = $dbxlink->exec ($query);
-	return '';
-}
-
-function getObjectForwards($object_id)
-{
-	global $dbxlink;
-
-	$ret = array();
-	$ret['out'] = array();
-	$ret['in'] = array();
-	$query =
-		"select ".
-		"dict_value as proto, ".
-		"proto as proto_bin, ".
-		"INET_NTOA(localip) as localip, ".
-		"localport, ".
-		"INET_NTOA(remoteip) as remoteip, ".
-		"remoteport, ".
-		"ipa1.name as local_addr_name, " .
-		"ipa2.name as remote_addr_name, " .
-		"description ".
-		"from PortForwarding inner join Dictionary on proto = dict_key natural join Chapter ".
-		"left join IPAddress as ipa1 on PortForwarding.localip = ipa1.ip " .
-		"left join IPAddress as ipa2 on PortForwarding.remoteip = ipa2.ip " .
-		"where object_id='$object_id' and chapter_name = 'Protocols' ".
-		"order by localip, localport, proto, remoteip, remoteport";
-	$result2 = $dbxlink->query ($query);
-	$count=0;
-	while ($row = $result2->fetch (PDO::FETCH_ASSOC))
-	{
-		foreach (array ('proto', 'proto_bin', 'localport', 'localip', 'remoteport', 'remoteip', 'description', 'local_addr_name', 'remote_addr_name') as $cname)
-			$ret['out'][$count][$cname] = $row[$cname];
-		$count++;
-	}
-	$result2->closeCursor();
-
-	$query =
-		"select ".
-		"dict_value as proto, ".
-		"proto as proto_bin, ".
-		"INET_NTOA(localip) as localip, ".
-		"localport, ".
-		"INET_NTOA(remoteip) as remoteip, ".
-		"remoteport, ".
-		"PortForwarding.object_id as object_id, ".
-		"RackObject.name as object_name, ".
-		"description ".
-		"from ((PortForwarding join IPBonds on remoteip=IPBonds.ip) join RackObject on PortForwarding.object_id=RackObject.id) inner join Dictionary on proto = dict_key natural join Chapter ".
-		"where IPBonds.object_id='$object_id' and chapter_name = 'Protocols' ".
-		"order by remoteip, remoteport, proto, localip, localport";
-	$result3 = $dbxlink->query ($query);
-	$count=0;
-	while ($row = $result3->fetch (PDO::FETCH_ASSOC))
-	{
-		foreach (array ('proto', 'proto_bin', 'localport', 'localip', 'remoteport', 'remoteip', 'object_id', 'object_name', 'description', 'local_addr_name') as $cname)
-			$ret['in'][$count][$cname] = $row[$cname];
-		$count++;
-	}
-	$result3->closeCursor();
-
-	return $ret;
-}
-
 // This function returns an array of single element of object's FQDN attribute,
 // if FQDN is set. The next choice is object's common name, if it looks like a
 // hostname. Otherwise an array of all 'regular' IP addresses of the
@@ -1018,14 +594,1285 @@ function findAllEndpoints ($object_id, $fallback = '')
 	foreach ($values as $record)
 		if ($record['name'] == 'FQDN' && !empty ($record['value']))
 			return array ($record['value']);
-	$addresses = getObjectAddresses ($object_id);
 	$regular = array();
-	foreach ($addresses as $idx => $address)
-		if ($address['type'] == 'regular')
-			$regular[] = $address['ip'];
+	foreach (getObjectIPv4Allocations ($object_id) as $dottedquad => $alloc)
+		if ($alloc['type'] == 'regular')
+			$regular[] = $dottedquad;
 	if (!count ($regular) && !empty ($fallback))
 		return array ($fallback);
 	return $regular;
+}
+
+// Some records in the dictionary may be written as plain text or as Wiki
+// link in the following syntax:
+// 1. word
+// 2. [[word URL]] // FIXME: this isn't working
+// 3. [[word word word | URL]]
+// This function parses the line and returns text suitable for either A
+// (rendering <A HREF>) or O (for <OPTION>).
+function parseWikiLink ($line, $which, $strip_optgroup = FALSE)
+{
+	if (preg_match ('/^\[\[.+\]\]$/', $line) == 0)
+	{
+		if ($strip_optgroup)
+			return ereg_replace ('^.+%GSKIP%', '', ereg_replace ('^(.+)%GPASS%', '\\1 ', $line));
+		else
+			return $line;
+	}
+	$line = preg_replace ('/^\[\[(.+)\]\]$/', '$1', $line);
+	$s = explode ('|', $line);
+	$o_value = trim ($s[0]);
+	if ($strip_optgroup)
+		$o_value = ereg_replace ('^.+%GSKIP%', '', ereg_replace ('^(.+)%GPASS%', '\\1 ', $o_value));
+	$a_value = trim ($s[1]);
+	if ($which == 'a')
+		return "<a href='${a_value}'>${o_value}</a>";
+	if ($which == 'o')
+		return $o_value;
+}
+
+function buildVServiceName ($vsinfo = NULL)
+{
+	if ($vsinfo == NULL)
+	{
+		showError ('NULL argument', __FUNCTION__);
+		return NULL;
+	}
+	return $vsinfo['vip'] . ':' . $vsinfo['vport'] . '/' . $vsinfo['proto'];
+}
+
+function buildRSPoolName ($rspool = NULL)
+{
+	if ($rspool == NULL)
+	{
+		showError ('NULL argument', __FUNCTION__);
+		return NULL;
+	}
+	return strlen ($rspool['name']) ? $rspool['name'] : 'ANONYMOUS pool';
+}
+
+// rackspace usage for a single rack
+// (T + W + U) / (height * 3 - A)
+function getRSUforRack ($data = NULL)
+{
+	if ($data == NULL)
+	{
+		showError ('Invalid argument', __FUNCTION__);
+		return NULL;
+	}
+	$counter = array ('A' => 0, 'U' => 0, 'T' => 0, 'W' => 0, 'F' => 0);
+	for ($unit_no = $data['height']; $unit_no > 0; $unit_no--)
+		for ($locidx = 0; $locidx < 3; $locidx++)
+			$counter[$data[$unit_no][$locidx]['state']]++;
+	return ($counter['T'] + $counter['W'] + $counter['U']) / ($counter['T'] + $counter['W'] + $counter['U'] + $counter['F']);
+}
+
+// Same for row.
+function getRSUforRackRow ($rowData = NULL)
+{
+	if ($rowData === NULL)
+	{
+		showError ('Invalid argument', __FUNCTION__);
+		return NULL;
+	}
+	if (!count ($rowData))
+		return 0;
+	$counter = array ('A' => 0, 'U' => 0, 'T' => 0, 'W' => 0, 'F' => 0);
+	$total_height = 0;
+	foreach (array_keys ($rowData) as $rack_id)
+	{
+		$data = getRackData ($rack_id);
+		$total_height += $data['height'];
+		for ($unit_no = $data['height']; $unit_no > 0; $unit_no--)
+			for ($locidx = 0; $locidx < 3; $locidx++)
+				$counter[$data[$unit_no][$locidx]['state']]++;
+	}
+	return ($counter['T'] + $counter['W'] + $counter['U']) / ($counter['T'] + $counter['W'] + $counter['U'] + $counter['F']);
+}
+
+// Return a list of object IDs, which can be found in the given rackspace block.
+function stuffInRackspace ($rackData)
+{
+	$objects = array();
+	for ($i = $rackData['height']; $i > 0; $i--)
+		for ($locidx = 0; $locidx < 3; $locidx++)
+			if
+			(
+				$rackData[$i][$locidx]['state'] == 'T' and
+				!in_array ($rackData[$i][$locidx]['object_id'], $objects)
+			)
+				$objects[] = $rackData[$i][$locidx]['object_id'];
+	return $objects;
+}
+
+// Make sure the string is always wrapped with LF characters
+function lf_wrap ($str)
+{
+	$ret = trim ($str, "\r\n");
+	if (!empty ($ret))
+		$ret .= "\n";
+	return $ret;
+}
+
+// Adopted from Mantis BTS code.
+function string_insert_hrefs ($s)
+{
+	if (getConfigVar ('DETECT_URLS') != 'yes')
+		return $s;
+	# Find any URL in a string and replace it by a clickable link
+	$s = preg_replace( '/(([[:alpha:]][-+.[:alnum:]]*):\/\/(%[[:digit:]A-Fa-f]{2}|[-_.!~*\';\/?%^\\\\:@&={\|}+$#\(\),\[\][:alnum:]])+)/se',
+		"'<a href=\"'.rtrim('\\1','.').'\">\\1</a> [<a href=\"'.rtrim('\\1','.').'\" target=\"_blank\">^</a>]'",
+		$s);
+	$s = preg_replace( '/\b' . email_regex_simple() . '\b/i',
+		'<a href="mailto:\0">\0</a>',
+		$s);
+	return $s;
+}
+
+// Idem.
+function email_regex_simple ()
+{
+	return "(([a-z0-9!#*+\/=?^_{|}~-]+(?:\.[a-z0-9!#*+\/=?^_{|}~-]+)*)" . # recipient
+	"\@((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?))"; # @domain
+}
+
+// Parse AUTOPORTS_CONFIG and return a list of generated pairs (port_type, port_name)
+// for the requested object_type_id.
+function getAutoPorts ($type_id)
+{
+	$ret = array();
+	$typemap = explode (';', str_replace (' ', '', getConfigVar ('AUTOPORTS_CONFIG')));
+	foreach ($typemap as $equation)
+	{
+		$tmp = explode ('=', $equation);
+		if (count ($tmp) != 2)
+			continue;
+		$objtype_id = $tmp[0];
+		if ($objtype_id != $type_id)
+			continue;
+		$portlist = $tmp[1];
+		foreach (explode ('+', $portlist) as $product)
+		{
+			$tmp = explode ('*', $product);
+			if (count ($tmp) != 3)
+				continue;
+			$nports = $tmp[0];
+			$port_type = $tmp[1];
+			$format = $tmp[2];
+			for ($i = 0; $i < $nports; $i++)
+				$ret[] = array ('type' => $port_type, 'name' => @sprintf ($format, $i));
+		}
+	}
+	return $ret;
+}
+
+// Find if a particular tag id exists on the tree, then attach the
+// given child tag to it. If the parent tag doesn't exist, return FALSE.
+function attachChildTag (&$tree, $parent_id, $child_id, $child_info, $threshold = 0)
+{
+	$self = __FUNCTION__;
+	foreach (array_keys ($tree) as $tagid)
+	{
+		if ($tagid == $parent_id)
+		{
+			if (!$threshold or ($threshold and $tree[$tagid]['kidc'] + 1 < $threshold))
+				$tree[$tagid]['kids'][$child_id] = $child_info;
+			// Reset the list only once.
+			if (++$tree[$tagid]['kidc'] == $threshold)
+				$tree[$tagid]['kids'] = array();
+			return TRUE;
+		}
+		elseif ($self ($tree[$tagid]['kids'], $parent_id, $child_id, $child_info, $threshold))
+			return TRUE;
+	}
+	return FALSE;
+}
+
+// Build a tree from the item list and return it. Input and output data is
+// indexed by item id (nested items in output are recursively stored in 'kids'
+// key, which is in turn indexed by id. Functions, which are ready to handle
+// tree collapsion/expansion themselves, may request non-zero threshold value
+// for smaller resulting tree.
+function treeFromList ($mytaglist, $threshold = 0)
+{
+	$ret = array();
+	while (count ($mytaglist) > 0)
+	{
+		$picked = FALSE;
+		foreach ($mytaglist as $tagid => $taginfo)
+		{
+			$taginfo['kidc'] = 0;
+			$taginfo['kids'] = array();
+			if ($taginfo['parent_id'] == NULL)
+			{
+				$ret[$tagid] = $taginfo;
+				$picked = TRUE;
+				unset ($mytaglist[$tagid]);
+			}
+			elseif (attachChildTag ($ret, $taginfo['parent_id'], $tagid, $taginfo, $threshold))
+			{
+				$picked = TRUE;
+				unset ($mytaglist[$tagid]);
+			}
+		}
+		if (!$picked) // Only orphaned items on the list.
+			break;
+	}
+	return $ret;
+}
+
+// Build a tree from the tag list and return everything _except_ the tree.
+function getOrphanedTags ()
+{
+	global $taglist;
+	$mytaglist = $taglist;
+	$dummy = array();
+	while (count ($mytaglist) > 0)
+	{
+		$picked = FALSE;
+		foreach ($mytaglist as $tagid => $taginfo)
+		{
+			$taginfo['kidc'] = 0;
+			$taginfo['kids'] = array();
+			if ($taginfo['parent_id'] == NULL)
+			{
+				$dummy[$tagid] = $taginfo;
+				$picked = TRUE;
+				unset ($mytaglist[$tagid]);
+			}
+			elseif (attachChildTag ($dummy, $taginfo['parent_id'], $tagid, $taginfo))
+			{
+				$picked = TRUE;
+				unset ($mytaglist[$tagid]);
+			}
+		}
+		if (!$picked) // Only orphaned items on the list.
+			return $mytaglist;
+	}
+	return array();
+}
+
+function serializeTags ($chain, $baseurl = '')
+{
+	$comma = '';
+	$ret = '';
+	foreach ($chain as $taginfo)
+	{
+		$ret .= $comma .
+			($baseurl == '' ? '' : "<a href='${baseurl}tagfilter[]=${taginfo['id']}'>") .
+			$taginfo['tag'] .
+			($baseurl == '' ? '' : '</a>');
+		$comma = ', ';
+	}
+	return $ret;
+}
+
+// For each tag add all its parent tags onto the list. Don't expect anything
+// except user's tags on the chain.
+function getTagChainExpansion ($chain, $tree = NULL)
+{
+	$self = __FUNCTION__;
+	if ($tree === NULL)
+	{
+		global $tagtree;
+		$tree = $tagtree;
+	}
+	// For each tag find its path from the root, then combine items
+	// of all paths and add them to the chain, if they aren't there yet.
+	$ret = array();
+	foreach ($tree as $taginfo1)
+	{
+		$hit = FALSE;
+		foreach ($chain as $taginfo2)
+			if ($taginfo1['id'] == $taginfo2['id'])
+			{
+				$hit = TRUE;
+				break;
+			}
+		if (count ($taginfo1['kids']) > 0)
+		{
+			$subsearch = $self ($chain, $taginfo1['kids']);
+			if (count ($subsearch))
+			{
+				$hit = TRUE;
+				$ret = array_merge ($ret, $subsearch);
+			}
+		}
+		if ($hit)
+			$ret[] = $taginfo1;
+	}
+	return $ret;
+}
+
+// Return the list of missing implicit tags.
+function getImplicitTags ($oldtags)
+{
+	$ret = array();
+	$newtags = getTagChainExpansion ($oldtags);
+	foreach ($newtags as $newtag)
+	{
+		$already_exists = FALSE;
+		foreach ($oldtags as $oldtag)
+			if ($newtag['id'] == $oldtag['id'])
+			{
+				$already_exists = TRUE;
+				break;
+			}
+		if ($already_exists)
+			continue;
+		$ret[] = array ('id' => $newtag['id'], 'tag' => $newtag['tag'], 'parent_id' => $newtag['parent_id']);
+	}
+	return $ret;
+}
+
+// Minimize the chain: exclude all implicit tags and return the result.
+function getExplicitTagsOnly ($chain, $tree = NULL)
+{
+	$self = __FUNCTION__;
+	global $tagtree;
+	if ($tree === NULL)
+		$tree = $tagtree;
+	$ret = array();
+	foreach ($tree as $taginfo)
+	{
+		if (isset ($taginfo['kids']))
+		{
+			$harvest = $self ($chain, $taginfo['kids']);
+			if (count ($harvest) > 0)
+			{
+				$ret = array_merge ($ret, $harvest);
+				continue;
+			}
+		}
+		// This tag isn't implicit, test is for being explicit.
+		foreach ($chain as $testtag)
+			if ($taginfo['id'] == $testtag['id'])
+			{
+				$ret[] = $testtag;
+				break;
+			}
+	}
+	return $ret;
+}
+
+// Maximize the chain: for each tag add all tags, for which it is direct or indirect parent.
+// Unlike other functions, this one accepts and returns a list of integer tag IDs, not
+// a list of tag structures. Same structure (tag ID list) is returned after processing.
+function complementByKids ($idlist, $tree = NULL, $getall = FALSE)
+{
+	$self = __FUNCTION__;
+	global $tagtree;
+	if ($tree === NULL)
+		$tree = $tagtree;
+	$getallkids = $getall;
+	$ret = array();
+	foreach ($tree as $taginfo)
+	{
+		foreach ($idlist as $test_id)
+			if ($getall or $taginfo['id'] == $test_id)
+			{
+				$ret[] = $taginfo['id'];
+				// Once matched node makes all sub-nodes match, but don't make
+				// a mistake of matching every other node at the current level.
+				$getallkids = TRUE;
+				break;
+			}
+		if (isset ($taginfo['kids']))
+			$ret = array_merge ($ret, $self ($idlist, $taginfo['kids'], $getallkids));
+		$getallkids = FALSE;
+	}
+	return $ret;
+}
+
+function getUserAutoTags ($username = NULL)
+{
+	global $remote_username, $accounts;
+	if ($username == NULL)
+		$username = $remote_username;
+	$ret = array();
+	$ret[] = array ('tag' => '$username_' . $username);
+	if (isset ($accounts[$username]['user_id']))
+		$ret[] = array ('tag' => '$userid_' . $accounts[$username]['user_id']);
+	return $ret;
+}
+
+function loadRackObjectAutoTags ()
+{
+	assertUIntArg ('object_id', __FUNCTION__);
+	$object_id = $_REQUEST['object_id'];
+	$oinfo = getObjectInfo ($object_id);
+	$ret = array();
+	$ret[] = array ('tag' => '$id_' . $object_id);
+	$ret[] = array ('tag' => '$typeid_' . $oinfo['objtype_id']);
+	$ret[] = array ('tag' => '$any_object');
+	if (validTagName ($oinfo['name']))
+		$ret[] = array ('tag' => '$cn_' . $oinfo['name']);
+	return $ret;
+}
+
+// Common code for both prefix and address tag listers.
+function loadFileAutoTags ()
+{
+	assertUIntArg ('file_id', __FUNCTION__);
+	$ret = array();
+	$ret[] = array ('tag' => '$fileid_' . $_REQUEST['file_id']);
+	$ret[] = array ('tag' => '$any_file');
+	return $ret;
+}
+
+function getIPv4PrefixTags ($netid)
+{
+	$netinfo = getIPv4NetworkInfo ($netid);
+	$ret = array();
+	$ret[] = array ('tag' => '$ip4net-' . str_replace ('.', '-', $netinfo['ip']) . '-' . $netinfo['mask']);
+	// FIXME: find and list tags for all parent networks?
+	$ret[] = array ('tag' => '$any_ip4net');
+	$ret[] = array ('tag' => '$any_net');
+	return $ret;
+}
+
+function loadIPv4PrefixAutoTags ()
+{
+	assertUIntArg ('id', __FUNCTION__);
+	return array_merge
+	(
+		array (array ('tag' => '$ip4netid_' . $_REQUEST['id'])),
+		getIPv4PrefixTags ($_REQUEST['id'])
+	);
+}
+
+function loadIPv4AddressAutoTags ()
+{
+	assertIPv4Arg ('ip', __FUNCTION__);
+	return array_merge
+	(
+		array (array ('tag' => '$ip4net-' . str_replace ('.', '-', $_REQUEST['ip']) . '-32')),
+		getIPv4PrefixTags (getIPv4AddressNetworkId ($_REQUEST['ip']))
+	);
+}
+
+function loadRackAutoTags ()
+{
+	assertUIntArg ('rack_id', __FUNCTION__);
+	$ret = array();
+	$ret[] = array ('tag' => '$rackid_' . $_REQUEST['rack_id']);
+	$ret[] = array ('tag' => '$any_rack');
+	return $ret;
+}
+
+function loadIPv4VSAutoTags ()
+{
+	assertUIntArg ('vs_id', __FUNCTION__);
+	$ret = array();
+	$ret[] = array ('tag' => '$ipv4vsid_' . $_REQUEST['vs_id']);
+	$ret[] = array ('tag' => '$any_ipv4vs');
+	$ret[] = array ('tag' => '$any_vs');
+	return $ret;
+}
+
+function loadIPv4RSPoolAutoTags ()
+{
+	assertUIntArg ('pool_id', __FUNCTION__);
+	$ret = array();
+	$ret[] = array ('tag' => '$ipv4rspid_' . $_REQUEST['pool_id']);
+	$ret[] = array ('tag' => '$any_ipv4rsp');
+	$ret[] = array ('tag' => '$any_rsp');
+	return $ret;
+}
+
+// Check, if the given tag is present on the chain (will only work
+// for regular tags with tag ID set.
+function tagOnChain ($taginfo, $tagchain)
+{
+	if (!isset ($taginfo['id']))
+		return FALSE;
+	foreach ($tagchain as $test)
+		if ($test['id'] == $taginfo['id'])
+			return TRUE;
+	return FALSE;
+}
+
+// Idem, but use ID list instead of chain.
+function tagOnIdList ($taginfo, $tagidlist)
+{
+	if (!isset ($taginfo['id']))
+		return FALSE;
+	foreach ($tagidlist as $tagid)
+		if ($taginfo['id'] == $tagid)
+			return TRUE;
+	return FALSE;
+}
+
+// Return TRUE, if two tags chains differ (order of tags doesn't matter).
+// Assume, that neither of the lists contains duplicates.
+// FIXME: a faster, than O(x^2) method is possible for this calculation.
+function tagChainCmp ($chain1, $chain2)
+{
+	if (count ($chain1) != count ($chain2))
+		return TRUE;
+	foreach ($chain1 as $taginfo1)
+		if (!tagOnChain ($taginfo1, $chain2))
+			return TRUE;
+	return FALSE;
+}
+
+// If the page-tab-op triplet is final, make $expl_tags and $impl_tags
+// hold all appropriate (explicit and implicit) tags respectively.
+// Otherwise some limited redirection is necessary (only page and tab
+// names are preserved, ophandler name change isn't handled).
+function fixContext ()
+{
+	global $pageno, $tabno, $auto_tags, $expl_tags, $impl_tags, $page;
+
+	$pmap = array
+	(
+		'accounts' => 'userlist',
+		'rspools' => 'ipv4rsplist',
+		'rspool' => 'ipv4rsp',
+		'vservices' => 'ipv4vslist',
+		'vservice' => 'ipv4vs',
+	);
+	$tmap = array();
+	$tmap['objects']['newmulti'] = 'addmore';
+	$tmap['objects']['newobj'] = 'addmore';
+	$tmap['object']['switchvlans'] = 'livevlans';
+	$tmap['object']['slb'] = 'editrspvs';
+	$tmap['object']['portfwrd'] = 'nat4';
+	$tmap['object']['network'] = 'ipv4';
+	if (isset ($pmap[$pageno]))
+		redirectUser ($pmap[$pageno], $tabno);
+	if (isset ($tmap[$pageno][$tabno]))
+		redirectUser ($pageno, $tmap[$pageno][$tabno]);
+
+	if (isset ($page[$pageno]['autotagloader']))
+		$auto_tags = array_merge ($auto_tags, $page[$pageno]['autotagloader'] ());
+	if
+	(
+		isset ($page[$pageno]['tagloader']) and
+		isset ($page[$pageno]['bypass']) and
+		isset ($_REQUEST[$page[$pageno]['bypass']])
+	)
+	{
+		$expl_tags = mergeTagChains ($expl_tags, $page[$pageno]['tagloader'] ($_REQUEST[$page[$pageno]['bypass']]));
+		$impl_tags = mergeTagChains ($impl_tags, getImplicitTags ($expl_tags));
+	}
+}
+
+// Take a list of user-supplied tag IDs to build a list of valid taginfo
+// records indexed by tag IDs (tag chain).
+function buildTagChainFromIds ($tagidlist)
+{
+	global $taglist;
+	$ret = array();
+	foreach (array_unique ($tagidlist) as $tag_id)
+		if (isset ($taglist[$tag_id]))
+			$ret[] = $taglist[$tag_id];
+	return $ret;
+}
+
+// Process a given tag tree and return only meaningful branches. The resulting
+// (sub)tree will have refcnt leaves on every last branch.
+function getObjectiveTagTree ($tree, $realm)
+{
+	$self = __FUNCTION__;
+	$ret = array();
+	foreach ($tree as $taginfo)
+	{
+		$subsearch = array();
+		$pick = FALSE;
+		if (count ($taginfo['kids']))
+		{
+			$subsearch = $self ($taginfo['kids'], $realm);
+			$pick = count ($subsearch) > 0;
+		}
+		if (isset ($taginfo['refcnt'][$realm]))
+			$pick = TRUE;
+		if (!$pick)
+			continue;
+		$ret[] = array
+		(
+			'id' => $taginfo['id'],
+			'tag' => $taginfo['tag'],
+			'parent_id' => $taginfo['parent_id'],
+			'refcnt' => $taginfo['refcnt'],
+			'kids' => $subsearch
+		);
+	}
+	return $ret;
+}
+
+// Get taginfo record by tag name, return NULL, if record doesn't exist.
+function getTagByName ($target_name)
+{
+	global $taglist;
+	foreach ($taglist as $taginfo)
+		if ($taginfo['tag'] == $target_name)
+			return $taginfo;
+	return NULL;
+}
+
+// Merge two chains, filtering dupes out. Return the resulting superset.
+function mergeTagChains ($chainA, $chainB)
+{
+	// $ret = $chainA;
+	// Reindex by tag id in any case.
+	$ret = array();
+	foreach ($chainA as $tag)
+		$ret[$tag['id']] = $tag;
+	foreach ($chainB as $tag)
+		if (!isset ($ret[$tag['id']]))
+			$ret[$tag['id']] = $tag;
+	return $ret;
+}
+
+function getTagFilter ()
+{
+	return isset ($_REQUEST['tagfilter']) ? complementByKids ($_REQUEST['tagfilter']) : array();
+}
+
+function getTagFilterStr ($tagfilter = array())
+{
+	$ret = '';
+	foreach (getExplicitTagsOnly (buildTagChainFromIds ($tagfilter)) as $taginfo)
+		$ret .= "&tagfilter[]=" . $taginfo['id'];
+	return $ret;
+}
+
+function buildWideRedirectURL ($log, $nextpage = NULL, $nexttab = NULL, $moreArgs = array())
+{
+	global $root, $page, $pageno, $tabno;
+	if ($nextpage === NULL)
+		$nextpage = $pageno;
+	if ($nexttab === NULL)
+		$nexttab = $tabno;
+	$url = "${root}?page=${nextpage}&tab=${nexttab}";
+	if (isset ($page[$nextpage]['bypass']))
+		$url .= '&' . $page[$nextpage]['bypass'] . '=' . $_REQUEST[$page[$nextpage]['bypass']];
+
+	if (count($moreArgs)>0)
+	{
+		foreach($moreArgs as $arg=>$value)
+		{
+			if (gettype($value) == 'array')
+			{
+				foreach ($value as $v)
+				{
+					$url .= '&'.urlencode($arg.'[]').'='.urlencode($v);
+				}
+			}
+			else
+				$url .= '&'.urlencode($arg).'='.urlencode($value);
+		}
+	}
+
+	$_SESSION['log'] = $log;
+	return $url;
+}
+
+function buildRedirectURL ($callfunc, $status, $args = array(), $nextpage = NULL, $nexttab = NULL)
+{
+	global $pageno, $tabno;
+	if ($nextpage === NULL)
+		$nextpage = $pageno;
+	if ($nexttab === NULL)
+		$nexttab = $tabno;
+	return buildWideRedirectURL (oneLiner (getMessageCode ($callfunc, $status), $args), $nextpage, $nexttab);
+}
+
+// Return a message log consisting of only one message.
+function oneLiner ($code, $args = array())
+{
+	$ret = array ('v' => 2);
+	$ret['m'][] = count ($args) ? array ('c' => $code, 'a' => $args) : array ('c' => $code);
+	return $ret;
+}
+
+// Return mesage code by status code.
+function getMessageCode ($callfunc, $status)
+{
+	global $msgcode;
+	return $msgcode[$callfunc][$status];
+}
+
+function validTagName ($s, $allow_autotag = FALSE)
+{
+	if (1 == mb_ereg (TAGNAME_REGEXP, $s))
+		return TRUE;
+	if ($allow_autotag and 1 == mb_ereg (AUTOTAGNAME_REGEXP, $s))
+		return TRUE;
+	return FALSE;
+}
+
+function redirectUser ($p, $t)
+{
+	global $page, $root;
+	$l = "{$root}?page=${p}&tab=${t}";
+	if (isset ($page[$p]['bypass']) and isset ($_REQUEST[$page[$p]['bypass']]))
+		$l .= '&' . $page[$p]['bypass'] . '=' . $_REQUEST[$page[$p]['bypass']];
+	header ("Location: " . $l);
+	die;
+}
+
+function getRackCodeStats ()
+{
+	global $rackCode;
+	$defc = $grantc = 0;
+	foreach ($rackCode as $s)
+		switch ($s['type'])
+		{
+			case 'SYNT_DEFINITION':
+				$defc++;
+				break;
+			case 'SYNT_GRANT':
+				$grantc++;
+				break;
+			default:
+				break;
+		}
+	$ret = array ('Definition sentences' => $defc, 'Grant sentences' => $grantc);
+	return $ret;
+}
+
+function getRackImageWidth ()
+{
+	return 3 + getConfigVar ('rtwidth_0') + getConfigVar ('rtwidth_1') + getConfigVar ('rtwidth_2') + 3;
+}
+
+function getRackImageHeight ($units)
+{
+	return 3 + 3 + $units * 2;
+}
+
+// Perform substitutions and return resulting string
+// used solely by buildLVSConfig()
+function apply_macros ($macros, $subject)
+{
+	$ret = $subject;
+	foreach ($macros as $search => $replace)
+		$ret = str_replace ($search, $replace, $ret);
+	return $ret;
+}
+
+function buildLVSConfig ($object_id = 0)
+{
+	if ($object_id <= 0)
+	{
+		showError ('Invalid argument', __FUNCTION__);
+		return;
+	}
+	$oInfo = getObjectInfo ($object_id);
+	$lbconfig = getSLBConfig ($object_id);
+	if ($lbconfig === NULL)
+	{
+		showError ('getSLBConfig() failed', __FUNCTION__);
+		return;
+	}
+	$newconfig = "#\n#\n# This configuration has been generated automatically by RackTables\n";
+	$newconfig .= "# for object_id == ${object_id}\n# object name: ${oInfo['name']}\n#\n#\n\n\n";
+	foreach ($lbconfig as $vs_id => $vsinfo)
+	{
+		$newconfig .=  "########################################################\n" .
+			"# VS (id == ${vs_id}): " . (empty ($vsinfo['vs_name']) ? 'NO NAME' : $vsinfo['vs_name']) . "\n" .
+			"# RS pool (id == ${vsinfo['pool_id']}): " . (empty ($vsinfo['pool_name']) ? 'ANONYMOUS' : $vsinfo['pool_name']) . "\n" .
+			"########################################################\n";
+		# The order of inheritance is: VS -> LB -> pool [ -> RS ]
+		$macros = array
+		(
+			'%VIP%' => $vsinfo['vip'],
+			'%VPORT%' => $vsinfo['vport'],
+			'%PROTO%' => $vsinfo['proto'],
+			'%VNAME%' =>  $vsinfo['vs_name'],
+			'%RSPOOLNAME%' => $vsinfo['pool_name']
+		);
+		$newconfig .=  "virtual_server ${vsinfo['vip']} ${vsinfo['vport']} {\n";
+		$newconfig .=  "\tprotocol ${vsinfo['proto']}\n";
+		$newconfig .= apply_macros
+		(
+			$macros,
+			lf_wrap ($vsinfo['vs_vsconfig']) .
+			lf_wrap ($vsinfo['lb_vsconfig']) .
+			lf_wrap ($vsinfo['pool_vsconfig'])
+		);
+		foreach ($vsinfo['rslist'] as $rs)
+		{
+			if (empty ($rs['rsport']))
+				$rs['rsport'] = $vsinfo['vport'];
+			$macros['%RSIP%'] = $rs['rsip'];
+			$macros['%RSPORT%'] = $rs['rsport'];
+			$newconfig .=  "\treal_server ${rs['rsip']} ${rs['rsport']} {\n";
+			$newconfig .= apply_macros
+			(
+				$macros,
+				lf_wrap ($vsinfo['vs_rsconfig']) .
+				lf_wrap ($vsinfo['lb_rsconfig']) .
+				lf_wrap ($vsinfo['pool_rsconfig']) .
+				lf_wrap ($rs['rs_rsconfig'])
+			);
+			$newconfig .=  "\t}\n";
+		}
+		$newconfig .=  "}\n\n\n";
+	}
+	// FIXME: deal somehow with Mac-styled text, the below replacement will screw it up
+	return str_replace ("\r", '', $newconfig);
+}
+
+// Indicate occupation state of each IP address: none, ordinary or problematic.
+function markupIPv4AddrList (&$addrlist)
+{
+	foreach (array_keys ($addrlist) as $ip_bin)
+	{
+		$refc = array
+		(
+			'shared' => 0,  // virtual
+			'virtual' => 0, // loopback
+			'regular' => 0, // connected host
+			'router' => 0   // connected gateway
+		);
+		foreach ($addrlist[$ip_bin]['allocs'] as $a)
+			$refc[$a['type']]++;
+		$nvirtloopback = ($refc['shared'] + $refc['virtual'] > 0) ? 1 : 0; // modulus of virtual + shared
+		$nreserved = ($addrlist[$ip_bin]['reserved'] == 'yes') ? 1 : 0; // only one reservation is possible ever
+		$nrealms = $nreserved + $nvirtloopback + $refc['regular'] + $refc['router']; // latter two are connected and router allocations
+		
+		if ($nrealms == 1)
+			$addrlist[$ip_bin]['class'] = 'trbusy';
+		elseif ($nrealms > 1)
+			$addrlist[$ip_bin]['class'] = 'trerror';
+		else
+			$addrlist[$ip_bin]['class'] = '';
+	}
+}
+
+// Scan the given address list (returned by scanIPv4Space) and return a list of all routers found.
+function findRouters ($addrlist)
+{
+	$ret = array();
+	foreach ($addrlist as $addr)
+		foreach ($addr['allocs'] as $alloc)
+			if ($alloc['type'] == 'router')
+				$ret[] = array
+				(
+					'id' => $alloc['object_id'],
+					'iface' => $alloc['name'],
+					'dname' => $alloc['object_name'],
+					'addr' => $addr['ip']
+				);
+	return $ret;
+}
+
+// Assist in tag chain sorting.
+function taginfoCmp ($tagA, $tagB)
+{
+	return $tagA['ci'] - $tagB['ci'];
+}
+
+// Compare networks. When sorting a tree, the records on the list will have
+// distinct base IP addresses.
+// "The comparison function must return an integer less than, equal to, or greater
+// than zero if the first argument is considered to be respectively less than,
+// equal to, or greater than the second." (c) PHP manual
+function IPv4NetworkCmp ($netA, $netB)
+{
+	// There's a problem just substracting one u32 integer from another,
+	// because the result may happen big enough to become a negative i32
+	// integer itself (PHP tries to cast everything it sees to signed int)
+	// The comparison below must treat positive and negative values of both
+	// arguments.
+	// Equal values give instant decision regardless of their [equal] sign.
+	if ($netA['ip_bin'] == $netB['ip_bin'])
+		return 0;
+	// Same-signed values compete arithmetically within one of i32 contiguous ranges:
+	// 0x00000001~0x7fffffff 1~2147483647
+	// 0 doesn't have any sign, and network 0.0.0.0 isn't allowed
+	// 0x80000000~0xffffffff -2147483648~-1
+	$signA = $netA['ip_bin'] / abs ($netA['ip_bin']);
+	$signB = $netB['ip_bin'] / abs ($netB['ip_bin']);
+	if ($signA == $signB)
+	{
+		if ($netA['ip_bin'] > $netB['ip_bin'])
+			return 1;
+		else
+			return -1;
+	}
+	else // With only one of two values being negative, it... wins!
+	{
+		if ($netA['ip_bin'] < $netB['ip_bin'])
+			return 1;
+		else
+			return -1;
+	}
+}
+
+// Modify the given tag tree so, that each level's items are sorted alphabetically.
+function sortTree (&$tree, $sortfunc = '')
+{
+	if (empty ($sortfunc))
+		return;
+	$self = __FUNCTION__;
+	usort ($tree, $sortfunc);
+	// Don't make a mistake of directly iterating over the items of current level, because this way
+	// the sorting will be performed on a _copy_ if each item, not the item itself.
+	foreach (array_keys ($tree) as $tagid)
+		$self ($tree[$tagid]['kids'], $sortfunc);
+}
+
+function iptree_fill (&$netdata)
+{
+	if (!isset ($netdata['kids']) or empty ($netdata['kids']))
+		return;
+	// If we really have nested prefixes, they must fit into the tree.
+	$worktree = array
+	(
+		'ip_bin' => $netdata['ip_bin'],
+		'mask' => $netdata['mask']
+	);
+	foreach ($netdata['kids'] as $pfx)
+		iptree_embed ($worktree, $pfx);
+	$netdata['kids'] = iptree_construct ($worktree);
+	$netdata['kidc'] = count ($netdata['kids']);
+}
+
+function iptree_construct ($node)
+{
+	$self = __FUNCTION__;
+
+	if (!isset ($node['right']))
+	{
+		if (!isset ($node['ip']))
+		{
+			$node['ip'] = long2ip ($node['ip_bin']);
+			$node['kids'] = array();
+			$node['kidc'] = 0;
+			$node['name'] = '';
+		}
+		return array ($node);
+	}
+	else
+		return array_merge ($self ($node['left']), $self ($node['right']));
+}
+
+function iptree_embed (&$node, $pfx)
+{
+	$self = __FUNCTION__;
+
+	// hit?
+	if ($node['ip_bin'] == $pfx['ip_bin'] and $node['mask'] == $pfx['mask'])
+	{
+		$node = $pfx;
+		return;
+	}
+	if ($node['mask'] == $pfx['mask'])
+	{
+		showError ('Internal error, the recurring loop lost control', __FUNCTION__);
+		die;
+	}
+
+	// split?
+	if (!isset ($node['right']))
+	{
+		// Fill in db_first/db_last to make it possible to run scanIPv4Space() on the node.
+		$node['left']['mask'] = $node['mask'] + 1;
+		$node['left']['ip_bin'] = $node['ip_bin'];
+		$node['left']['db_first'] = sprintf ('%u', $node['left']['ip_bin']);
+		$node['left']['db_last'] = sprintf ('%u', $node['left']['ip_bin'] | binInvMaskFromDec ($node['left']['mask']));
+
+		$node['right']['mask'] = $node['mask'] + 1;
+		$node['right']['ip_bin'] = $node['ip_bin'] + binInvMaskFromDec ($node['mask'] + 1) + 1;
+		$node['right']['db_first'] = sprintf ('%u', $node['right']['ip_bin']);
+		$node['right']['db_last'] = sprintf ('%u', $node['right']['ip_bin'] | binInvMaskFromDec ($node['right']['mask']));
+	}
+
+	// repeat!
+	if (($node['left']['ip_bin'] & binMaskFromDec ($node['left']['mask'])) == ($pfx['ip_bin'] & binMaskFromDec ($node['left']['mask'])))
+		$self ($node['left'], $pfx);
+	elseif (($node['right']['ip_bin'] & binMaskFromDec ($node['right']['mask'])) == ($pfx['ip_bin'] & binMaskFromDec ($node['left']['mask'])))
+		$self ($node['right'], $pfx);
+	else
+	{
+		showError ('Internal error, cannot decide between left and right', __FUNCTION__);
+		die;
+	}
+}
+
+function treeApplyFunc (&$tree, $func = '', $stopfunc = '')
+{
+	if (empty ($func))
+		return;
+	$self = __FUNCTION__;
+	foreach (array_keys ($tree) as $key)
+	{
+		$func ($tree[$key]);
+		if (!empty ($stopfunc) and $stopfunc ($tree[$key]))
+			continue;
+		$self ($tree[$key]['kids'], $func);
+	}
+}
+
+function loadIPv4AddrList (&$netinfo)
+{
+	loadOwnIPv4Addresses ($netinfo);
+	markupIPv4AddrList ($netinfo['addrlist']);
+}
+
+function countOwnIPv4Addresses (&$node)
+{
+	$toscan = array();
+	$node['addrt'] = 0;
+	$node['mask_bin'] = binMaskFromDec ($node['mask']);
+	$node['mask_bin_inv'] = binInvMaskFromDec ($node['mask']);
+	$node['db_first'] = sprintf ('%u', 0x00000000 + $node['ip_bin'] & $node['mask_bin']);
+	$node['db_last'] = sprintf ('%u', 0x00000000 + $node['ip_bin'] | ($node['mask_bin_inv']));
+	if (empty ($node['kids']))
+	{
+		$toscan[] = array ('i32_first' => $node['db_first'], 'i32_last' => $node['db_last']);
+		$node['addrt'] = binInvMaskFromDec ($node['mask']) + 1;
+	}
+	else
+		foreach ($node['kids'] as $nested)
+			if (!isset ($nested['id'])) // spare
+			{
+				$toscan[] = array ('i32_first' => $nested['db_first'], 'i32_last' => $nested['db_last']);
+				$node['addrt'] += binInvMaskFromDec ($nested['mask']) + 1;
+			}
+	// Don't do anything more, because the displaying function will load the addresses anyway.
+	return;
+	$node['addrc'] = count (scanIPv4Space ($toscan));
+}
+
+function nodeIsCollapsed ($node)
+{
+	return $node['symbol'] == 'node-collapsed';
+}
+
+function loadOwnIPv4Addresses (&$node)
+{
+	$toscan = array();
+	if (empty ($node['kids']))
+		$toscan[] = array ('i32_first' => $node['db_first'], 'i32_last' => $node['db_last']);
+	else
+		foreach ($node['kids'] as $nested)
+			if (!isset ($nested['id'])) // spare
+				$toscan[] = array ('i32_first' => $nested['db_first'], 'i32_last' => $nested['db_last']);
+	$node['addrlist'] = scanIPv4Space ($toscan);
+	$node['addrc'] = count ($node['addrlist']);
+}
+
+function prepareIPv4Tree ($netlist, $expanded_id = 0)
+{
+	$tree = treeFromList ($netlist); // medium call
+	sortTree ($tree, 'IPv4NetworkCmp');
+	// complement the tree before markup to make the spare networks have "symbol" set
+	treeApplyFunc ($tree, 'iptree_fill');
+	iptree_markup_collapsion ($tree, getConfigVar ('TREE_THRESHOLD'), $expanded_id);
+	// count addresses after the markup to skip computation for hidden tree nodes
+	treeApplyFunc ($tree, 'countOwnIPv4Addresses', 'nodeIsCollapsed');
+	return $tree;
+}
+
+// Check all items of the tree recursively, until the requested target id is
+// found. Mark all items leading to this item as "expanded", collapsing all
+// the rest, which exceed the given threshold (if the threshold is given).
+function iptree_markup_collapsion (&$tree, $threshold = 1024, $target = 0)
+{
+	$self = __FUNCTION__;
+	$ret = FALSE;
+	foreach (array_keys ($tree) as $key)
+	{
+		$here = ($target === 'ALL' or ($target > 0 and isset ($tree[$key]['id']) and $tree[$key]['id'] == $target));
+		$below = $self ($tree[$key]['kids'], $threshold, $target);
+		if (!$tree[$key]['kidc']) // terminal node
+			$tree[$key]['symbol'] = 'spacer';
+		elseif ($tree[$key]['kidc'] < $threshold)
+			$tree[$key]['symbol'] = 'node-expanded-static';
+		elseif ($here or $below)
+			$tree[$key]['symbol'] = 'node-expanded';
+		else
+			$tree[$key]['symbol'] = 'node-collapsed';
+		$ret = ($ret or $here or $below); // parentheses are necessary for this to be computed correctly
+	}
+	return $ret;
+}
+
+// Get a tree and target entity ID on it. Return the list of IDs, which make the path
+// from the target entity to tree root. If such a path exists, it will consist of at
+// least the target ID. Otherwise an empty list will be returned. The "list" is a randomly
+// indexed array of values.
+function traceEntity ($tree, $target_id)
+{
+	$self = __FUNCTION__;
+	foreach ($tree as $node)
+	{
+		if ($node['id'] == $target_id) // here!
+			return array ($target_id);
+		$subtrace = $self ($node['kids'], $target_id); // below?
+		if (count ($subtrace))
+		{
+			array_push ($subtrace, $node['id']);
+			return $subtrace;
+		}
+		// next...
+	}
+	return array();
+}
+
+// Convert entity name to human-readable value
+function formatEntityName ($name) {
+	switch ($name)
+	{
+		case 'ipv4net':
+			return 'IPv4 Network';
+		case 'ipv4rspool':
+			return 'IPv4 RS Pool';
+		case 'ipv4vs':
+			return 'IPv4 Virtual Service';
+		case 'object':
+			return 'Object';
+		case 'rack':
+			return 'Rack';
+		case 'user':
+			return 'User';
+	}
+	return 'invalid';
+}
+
+// Take a MySQL or other generic timestamp and make it prettier
+function formatTimestamp ($timestamp) {
+	return date('n/j/y g:iA', strtotime($timestamp));
+}
+
+// Display hrefs for all of a file's parents
+function serializeFileLinks ($links)
+{
+	global $root;
+
+	$comma = '';
+	$ret = '';
+	foreach ($links as $link_id => $li)
+	{
+		switch ($li['entity_type'])
+		{
+			case 'ipv4net':
+				$params = "page=ipv4net&id=";
+				break;
+			case 'ipv4rspool':
+				$params = "page=ipv4rspool&pool_id=";
+				break;
+			case 'ipv4vs':
+				$params = "page=ipv4vs&vs_id=";
+				break;
+			case 'object':
+				$params = "page=object&object_id=";
+				break;
+			case 'rack':
+				$params = "page=rack&rack_id=";
+				break;
+			case 'user':
+				$params = "page=user&user_id=";
+				break;
+		}
+		$ret .= sprintf("%s<a href='%s?%s%s'>%s</a>", $comma, $root, $params, $li['entity_id'], $li['name']);
+		$comma = ', ';
+	}
+
+	return $ret;
+}
+
+// Convert filesize to appropriate unit and make it human-readable
+function formatFileSize ($bytes) {
+	// bytes
+	if($bytes < 1024) // bytes
+		return "${bytes} bytes";
+
+	// kilobytes
+	if ($bytes < 1024000)
+		return sprintf ("%.1fk", round (($bytes / 1024), 1));
+	
+	// megabytes
+	return sprintf ("%.1f MB", round (($bytes / 1024000), 1));
+}
+
+// Reverse of formatFileSize, it converts human-readable value to bytes
+function convertToBytes ($value) {
+	$value = trim($value);
+	$last = strtolower($value[strlen($value)-1]);
+	switch ($last) 
+	{
+		case 'g':
+			$value *= 1024;
+		case 'm':
+			$value *= 1024;
+		case 'k':
+			$value *= 1024;
+	}
+
+	return $value;
+}
+
+function ip_quad2long ($ip)
+{
+      return sprintf("%u", ip2long($ip));
+}
+
+function ip_long2quad ($quad)
+{
+      return long2ip($quad);
+}
+
+function makeHref($params = array())
+{
+	global $head_revision, $numeric_revision, $root;
+	$ret = $root.'?';
+	$first = true;
+	if (!isset($params['r']) and ($numeric_revision != $head_revision))
+	{
+		$params['r'] = $numeric_revision;
+	}
+	foreach($params as $key=>$value)
+	{
+		if (!$first)
+			$ret.='&';
+		$ret .= urlencode($key).'='.urlencode($value);
+		$first = false;
+	}
+	return $ret;
+}
+
+function makeHrefProcess($params = array())
+{
+	global $head_revision, $numeric_revision, $root, $pageno, $tabno;
+	$ret = $root.'process.php'.'?';
+	$first = true;
+	if ($numeric_revision != $head_revision)
+	{
+		error_log("Can't make a process link when not in head revision");
+		die();
+	}
+	if (!isset($params['page']))
+		$params['page'] = $pageno;
+	if (!isset($params['tab']))
+		$params['tab'] = $tabno;
+	foreach($params as $key=>$value)
+	{
+		if (!$first)
+			$ret.='&';
+		$ret .= urlencode($key).'='.urlencode($value);
+		$first = false;
+	}
+	return $ret;
+}
+
+function makeHrefForHelper ($helper_name, $params = array())
+{
+	global $head_revision, $numeric_revision, $root;
+	$ret = $root.'popup.php'.'?helper='.$helper_name;
+	if ($numeric_revision != $head_revision)
+	{
+		error_log("Can't make a process link when not in head revision");
+		die();
+	}
+	foreach($params as $key=>$value)
+		$ret .= '&'.urlencode($key).'='.urlencode($value);
+	return $ret;
 }
 
 ?>

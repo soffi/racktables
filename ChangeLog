@@ -1,3 +1,175 @@
+0.17.0
+	new feature: file attachments (by Aaron)
+	new feature: IPv4 tree expand/collapse switch
+	new feature: IPV4_TREE_SHOW_USAGE option controls IPv4 performance
+	new feature: ability to delete objects (by Aaron)
+	new feature: external "httpd" user authentication
+	update: display row name when listing objects. closes ticket 16 (by Aaron)
+	update: ability to manage rows from the Rackspace page in addition to the Dictionary (by Aaron)
+	update: IPv4 calculations were optimized for better speed
+	update: allow port type to be changed if it isn't linked.  closes ticket 137 (by Aaron)
+	update: add network security chapter and dictionary entries.  closes ticket 148 (by Aaron)
+	update: add HP and Juniper dictionary entries.  closes tickets 145 and 165 (by Aaron)
+	update: combined two forms on object properties page into one.  closes tickets 36 and 87 (by Aaron)
+	update: resolved performance issue for systems with many L2 ports
+	update: enable username handling in Cisco switch connector
+	update: introduce icons for routers and SLB
+	update: display and edit the dictionary chapter by chapter (ticket:151)
+	update: 'enabled' user acount flag was dropped
+	update: switchvlans gateway has been changed
+	bugfix: show error message if snmp module isn't loaded.  closes ticket 43 (by Aaron)
+	bugfix: show error message for duplicate IPv4 network record
+	bugfix: it was possible to access the system as any existing
+		LDAP user w/o his password (reported by Igor Shishkin)
+0.16.4 2008-11-04
+	bugfix: display VS/RS config block in RS pool view
+	bugfix: resolve tabindex issues in many forms
+	bugfix: NAT rules were not displayed for IP address
+	bugfix: less PHP warnings
+	update: enable user search by real name
+	update: allow empty names for IPv4 networks
+	update: refactor snmp.php to support Cisco 3032, 3750, 4506 switches
+		(by Aaron, w/data & testing from Luis Fernando Lacayo and Ray Robertson)
+	update: add SNMP discovery support for Cisco 2950-24 (patch by Russ, ticket 177)
+0.16.3 2008-10-02
+	new feature: tell line number for lexical and syntax errors
+	new feature: CodePress editor enables line numbers and syntax
+		highlightling for RackCode editing
+	new feature: one more input format for RS manager
+	new feature: standalone RackCode report with warnings
+	new feature: unified IPv4 address tree
+	bugfix: tags are now properly displayed for users
+	bugfix: the JavaScript error isn't generated any more (fix by Aaron)
+	bugfix: tag tree is now always correctly sorted
+	bugfix: fix a typo in NAT rules displaying code (pointed out by Piotr Nowacki)
+	bugfix: error message was broken in the installer (reported by Thomas Thep)
+	bugfix: IPv4 network check sometimes failed to detect duplicate networks
+	bugfix: lexical scanner could mistakenly fail in some rare cases
+	bugfix: drop DB index mistakenly introduced in 0.16.1
+0.16.2 2008-08-21
+	bugfix: IP address picker was broken
+	bugfix: more message processing fixes
+	bugfix: work around some NET-SNMP builds (reported by Walery Wysotsky)
+	bugfix: some characters in password could break user access
+	bugfix: pre-assigned tags didn't work for racks
+	bugfix: tag roller could produce incorrect tag chains sometimes
+	new feature: "router" addresses allocations
+	new feature: support for local extensions and reports
+	new feature: LDAP username to UID mapping by Walery Wysotsky
+	new feature: extended IPv4 view mode (enabled by default)
+	new feature: tag roller now processes objects in racks too
+	new feature: start cutting off excessively long strings on the generated pages
+	update: 3 more switches in SNMP code by Walery Wysotsky
+	update: added a missing DB index (Aaron Dummer's advice)
+	update: "slbconfig" gateway has been replaced by "sendfile"
+	update: more detailed tag report
+	update: "virtual" addresses are now "loopback" and "regular" became "connected"
+	update: "placeholders" are now "spacers"
+	update: more records were put into the demo data
+0.16.1 2008-07-30
+	new feature: pre-assigned tags for new VS and RS pools records
+	new feature: cache RackCode parse tree for better performance
+	new feature: display tags inline for IPv4 and SLB data
+	new feature: optionally remember the last tab for each page
+	bugfix: don't escape Greek letters to enable them in tag names
+	bugfix: port manager messages were incorrect
+	bugfix: shorten URLs to enable longer message logs
+	bugfix: added missing index to database
+	update: adjusted database for bigger texts
+	update: better "origin" highlighting for browsing
+	update: merged Petr Kohts' highlight patch
+	update: better tags in demo data
+0.16.0 2008-07-09
+	new feature: tag roller
+	new feature: taggable user accounts
+	new feature: RackCode configuration
+	new feature: "my account" page
+	update: page layout fixes and improvements
+	update: dictionary updates
+0.15.1 2008-06-05
+	bugfix: fix auth headers in upgrade script (broken in 0.15.0)
+	new feature: fetch switch serial number via SNMP (by killsystem)
+	new feature: adding multiple racks
+	new feature: IP address reservation release on allocation
+	updates: user interface cleanups and improvements
+0.15.0 2008-05-10
+	new feature: tags
+	new feature: automatic option groups
+	new feature: rendered links in dictionary view
+	new feature: trunk support in switchvlans gateway
+	new feature: Tango icon set
+	update: added Force10, NETGEAR, D-Link, 3Com  and Extreme Networks
+		switches, Raisecom MUXes, updated Cisco routers
+	update: async port type has been split
+	update: don't allow duplicate rack names in one row
+	update: internal help system has been dropped
+	update: SSV format for RS import
+	bugfix: handle "routed" switch ports
+	bugfix: make switchvlans gateway work on Linux
+0.14.12 2008-02-29
+	new feature: default value for RS inservice status
+	new feature: AutoPorts feature
+	new feature: HTTP installer
+	new feature: default object type
+	new feature: UTF-8 support
+	bugfix: router HW type list was broken
+	update: added Aten KVM switches and consoles
+	update: added Tainet MUXes
+	update: updated HP servers
+0.14.11 2008-02-15
+	bugfix: rackspace allocation was broken by magic_quotes fix
+	bugfix: don't generate error messages by accessing _GET array
+	bugfix: thumbs cache wasn't updated in rare cases
+	bugfix: LivePTR: fixed warnings, tabindex, name reset and color markup
+	update: KVM port type has been split (see wiki page)
+	update: Avocent KVM switches, RAD and Cronyx multiplexers
+0.14.10 2008-02-01
+	bugfix: avoid hitting GET limit on object and rack update
+	bugfix: sticker reset icon did not work sometimes
+	bugfix: don't fail rendering an empty rack row
+	bugfix: rack operations were broken in 0.14.9
+	bugfix: upgrade script didn't authenticate users properly
+	new feature: LDAP authentication
+	new feature: borrow URL detection from Mantis BTS (suggested by Joakim Kasimir)
+	new feature: Live PTR tab for DNS sync
+	new feature: rack population threshold for rackspace allocation
+0.14.9 2008-01-30
+	bugfix: upgrade to 0.14.8 broke IPv4 prefix creation
+	bugfix: more DB cleanups
+	bugfix: SNMP didn't work properly for C4948 ports
+	bugfix: rowspan attribute was computed incorrectly sometimes
+	bugfix: protect referenced dictionary records from deletion
+	bugfix: config reset was wrong for default port type
+	bugfix: fixed incorrect string escaping caused by PHP magic_quotes 
+	update: Live VLANs color legend now distinguishes between 1 and 0
+		MAC addresses on a port
+	update: fixed tabindex in NATv4 rules form
+	update: better dictionary editor layout
+	update: get FQDN over SNMP
+	update: accept one more multiport format
+	update: help pages have been removed
+	new feature: more information for rack view
+	new feature: rack thumbnails caching
+	new feature: rackspace and IPv4 subnets utilization indicator
+	new feature: IPv4 and NATv4 tabs are now context-dependent
+	new feature: initial SLB management, keepalived support
+0.14.8 2007-12-22
+	bugfix: adjusted hardcoded values in VLAN trigger
+	bugfix: adjusted HW, SW and port types in SNMP data collector
+	bugfix: Cisco connector: tolerate switch ports in suspended state
+	bugfix: nameless object in link list could not be clicked
+	bugfix: fix SQL tables structure
+	bugfix: Live VLANs displayed VLANs missing from switch table improperly
+	bugfix: sort auth data by username
+	bugfix: NATv4 rules were added incorrectly
+	update: corrected some dictionary entries
+	update: better layout for Live VLANs tab
+	update: better logo
+	update: stick with GPL version 2, not any later version
+	new feature: UI option to control asset tag warning
+	new feature: UUID (RFC4122) sticker
+	new feature: empty rackspace detector
+	new feature: initial wiki-style markup support in dictionary
 0.14.7 2007-12-05
 	bugfix: provide better SQL dumps for new installations
 	bugfix: gateways/switchvlans minor updates

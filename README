@@ -1,0 +1,143 @@
+Thank you for selecting RackTables as your datacenter management
+solution. Feel free to address your questions to the mailing list
+before contacting the authors directly. The project web-site
+(http://racktables.org/) is usually kept up to date with the
+current version and URLs.
+
+Mailing list: <racktables-users/=@=/freelists.org>
+Bug tracker and Wiki: http://racktables.org/trac
+Authors: <info/=@=/racktables.org>
+
+*******************************************************
+*                                                     *
+*             INSTALLING RACKTABLES                   *
+*                                                     *
+*******************************************************
+
+I. Dependencies.
+
+For database you must have a MySQL server installation
+version 4.x or 5.x. InnoDB support must be enabled.
+It is a good idea to make it use UTF-8 by default.
+
+* Fedora 8/9: yum install mysql-server mysql
+put "default-character-set=utf8" into /etc/my.cnf
+
+* ALTLinux Desktop 4.0: apt-get install MySQL-server 
+put "CHSET=utf8" into /etc/sysconfig/mysqld
+
+* openSUSE 11.0: YaST -> Software -> software management -> Web and LAMP server -> mysql
+put "default-character-set=utf8" into /etc/my.cnf
+
+For web-frontend you must have Apache and PHP 5 with PDO and multibyte
+extensions:
+
+* Fedora 8/9: yum install httpd php php-mysql php-pdo php-gd php-snmp php-mbstring
+
+* ALTLinux Server 4.0: apt-get install apache2-httpd-prefork php5-gd2 \
+php5-pdo_mysql php5-pdo apache2-mod_php5 php5-mbstring
+
+* openSUSE 11.0: use YaST to apache2-mod_php5, php5-gd, php5-mbstring, php5-mysql,
+php2-snmp and php5-ldap
+
+II. Prepare the server.
+1. Unpack the tarball and make it web-accessible, e.g. http://yourcompany.com/racktables
+or http://racktables.mysite.org.
+2. mysql> create database database_name; grant all privileges on database_name.* to XXX@YYY identified by 'ZZZ';
+
+
+There are two mutually exclusive ways to install RackTables, they are described as III-A and III-B.
+
+
+III-A. HTTP installation (starting with 0.14.12 release)
+Open your RackTables URL and follow the instructions. In a suitable
+environment everything should take a minute or so.
+
+
+III-B. Manual installation.
+1. Edit install/init-auth.sql and change admin password
+
+2. Init database.
+mysql> use database_name;
+mysql> source install/init-structure.sql
+mysql> source install/init-auth.sql
+$ rm -f install/init-auth.sql
+mysql> source install/init-dictbase.sql
+mysql> source install/init-dictvendors.sql
+
+3. Edit inc/secret.php
+
+4. $ rm -f install/init-auth.sql
+(Just to be sure you did.)
+
+*******************************************************
+*                                                     *
+*              UPGRADING RACKTABLES                   *
+*                                                     *
+*******************************************************
+RackTables now provides an automatic database upgrade feature.
+If you already have a working installation, the following
+procedure should be sufficient:
+
+0. BACKUP YOUR DATABASE
+1. Remove all existing files except inc/secret.php and gateways'
+   configuration (in the gateways directory).
+2. Unpack the new tarball into the place.
+3. Open the RackTables page in your browser.
+4. Follow instructions. Normally, everything should be Ok. If it
+   is not so, write down the failed quieries for further investigation.
+
+*******************************************************
+*                                                     *
+*                   RELEASE NOTES                     *
+*                                                     *
+*******************************************************
+
+*** Upgrading to 0.14.12 ***
+
+The upgrade may show a failed query "alter database character set utf8", in
+this case the user should issue the query manually from the mysql command
+line.
+
+*** Upgrading to 0.16.0 ***
+
+This release features a completely new authorization system, RackCode,
+which brings the tags feature (introduced in 0.15.0) to its full potential.
+The old-style user permissions are converted during upgrade automatically,
+but the result may appear not what you would expect. Review the RackCode
+after upgrade (Main page -> Configuration -> Permissions) and adjust,
+if necessary.
+
+Another important change is a new dependency on "multibyte string" PHP
+extension. Normally one should get it working before starting the upgrade,
+this is typically achieved by installing a particular PHP RPM from the
+standard package repository (and restarting Apache after that):
+
+Fedora: yum install php-mbstring
+ALTLinux: apt-get install php5-mbstring
+
+*** Upgrading to 0.16.3 ***
+
+This release fixes a missing UNIQUE KEY in a table. The upgrade script may
+find it necessary first to transform some records. Because of this it is
+normal to see several "update TagStorage ... Duplicate entry" failed queries
+during the upgrade.
+
+*** Upgrading to 0.17.0 ***
+
+This release is the first to take advantage of the foreign key support
+provided by the InnoDB storage engine in MySQL.  The installer and
+upgrader scripts check for InnoDB support and cannot complete without it.
+If you have trouble, the first step is to make sure the 'skip-innodb'
+option in my.cnf is commented out.
+
+Another change is the addition of support for file uploads.  Files are stored
+in the database.  There are several settings in php.ini which you may need to modify:
+    file_uploads        - needs to be On
+    upload_max_filesize - max size for uploaded files
+    post_max_size       - max size of all form data submitted via POST (including files)
+
+User accounts used to have 'enabled' flag, which allowed individual blocking and
+unblocking of each. This flag was dropped in favor of existing mean of access
+setup (RackCode). An unconditional denying rule is automatically added into RackCode
+for such blocked account, so the effective security policy remains the same.

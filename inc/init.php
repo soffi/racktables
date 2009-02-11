@@ -2,9 +2,10 @@
 /*
 *
 * This file performs RackTables initialisation. After you include it
-* from 1st-level page, don't forget to call authorize(). This is done
-* to allow reloading of pageno and tabno variables. pageno and tabno
-* together form security context.
+* from 1st-level page, don't forget to call fixContext(). This is done
+* to enable override of of pageno and tabno variables. pageno and tabno
+* together participate in forming security context by generating
+* related autotags.
 *
 */
 
@@ -29,10 +30,11 @@ else
 	showError
 	(
 		"Database connection parameters are read from inc/secret.php file, " .
-		"which cannot be found.\nCopy provided inc/secret-sample.php to " .
-		"inc/secret.php and modify to your setup.\n\nThen reload the page."
+		"which cannot be found.\nYou probably need to complete the installation " .
+		"procedure by following <a href='${root}install.php'>this link</a>.",
+		__FILE__
 	);
-	die;
+	exit (1);
 }
 
 // Now try to connect...
@@ -42,84 +44,132 @@ try
 }
 catch (PDOException $e)
 {
-	showError ("Database connection failed:\n\n" . $e->getMessage());
-	die();
+	showError ("Database connection failed:\n\n" . $e->getMessage(), __FILE__);
+	exit (1);
+}
+
+$dbxlink->exec ("set names 'utf8'");
+
+if (get_magic_quotes_gpc())
+	foreach ($_REQUEST as $key => $value)
+		if (gettype ($value) == 'string')
+			$_REQUEST[$key] = stripslashes ($value);
+
+if (!set_magic_quotes_runtime (0))
+{
+	showError ('Failed to turn magic quotes off', __FILE__);
+	exit (1);
 }
 
 // Escape any globals before we ever try to use them.
 foreach ($_REQUEST as $key => $value)
 	if (gettype ($value) == 'string')
 		$_REQUEST[$key] = escapeString ($value);
+
 if (isset ($_SERVER['PHP_AUTH_USER']))
 	$_SERVER['PHP_AUTH_USER'] = escapeString ($_SERVER['PHP_AUTH_USER']);
-if (isset ($_SERVER['PHP_AUTH_PW']))
-	$_SERVER['PHP_AUTH_PW'] = escapeString ($_SERVER['PHP_AUTH_PW']);
+if (isset ($_SERVER['REMOTE_USER']))
+	$_SERVER['REMOTE_USER'] = escapeString ($_SERVER['REMOTE_USER']);
 
 $dbver = getDatabaseVersion();
 if ($dbver != CODE_VERSION)
 {
 	echo '<p align=justify>This Racktables installation seems to be ' .
 		'just upgraded to version ' . CODE_VERSION . ', while the '.
-		'database is still of version ' . $dbver . '. No user will be ' .
+		'database version is ' . $dbver . '. No user will be ' .
 		'either authenticated or shown any page until the upgrade is ' .
 		"finished. Follow <a href='${root}upgrade.php'>this link</a> and " .
 		'authenticate as administrator to finish the upgrade.</p>';
-	die;
+	exit (1);
 }
 
+if (!mb_internal_encoding ('UTF-8') or !mb_regex_encoding ('UTF-8'))
+{
+	showError ('Failed setting multibyte string encoding to UTF-8', __FILE__);
+	exit (1);
+}
 $configCache = loadConfigCache();
 if (!count ($configCache))
 {
-	showError ('Failed to load configuration from the database.');
-	die();
+	showError ('Failed to load configuration from the database.', __FILE__);
+	exit (1);
 }
 
-// Now init authentication.
+require_once 'inc/code.php'; // for getRackCode()
+$rackCodeCache = loadScript ('RackCodeCache');
+if ($rackCodeCache == NULL or empty ($rackCodeCache))
+{
+	$rackCode = getRackCode (loadScript ('RackCode'));
+	saveScript ('RackCodeCache', base64_encode (serialize ($rackCode)));
+}
+else
+{
+	$rackCode = unserialize (base64_decode ($rackCodeCache));
+	if ($rackCode === FALSE) // invalid cache
+	{
+		saveScript ('RackCodeCache', '');
+		$rackCode = getRackCode (loadScript ('RackCode'));
+	}
+}
+
+// Depending on the 'result' value the 'load' carries either the
+// parse tree or error message.
+if ($rackCode['result'] != 'ACK')
+{
+	// FIXME: display a message with an option to reset RackCode text
+	showError ('Could not load the RackCode due to error: ' . $rackCode['load'], __FILE__);
+	exit (1);
+}
+$rackCode = $rackCode['load'];
 
 require_once 'inc/auth.php';
-// Load access database once.
-$accounts = getUserAccounts();
-$perms = getUserPermissions();
-if ($accounts === NULL or $perms === NULL)
-{
-	showError ('Failed to initialize access database.');
-	die();
-}
-
-authenticate();
-
+$auto_tags = array();
+authenticate(); // sometimes this generates autotags
 // Authentication passed.
 // Note that we don't perform autorization here, so each 1st level page
 // has to do it in its way, e.g. to call authorize().
 
+if (!isset ($script_mode) or $script_mode !== TRUE)
+	session_start();
 
 
-$remote_username = $_SERVER['PHP_AUTH_USER'];
 $pageno = (isset ($_REQUEST['page'])) ? $_REQUEST['page'] : 'index';
-$tabno = (isset ($_REQUEST['tab'])) ? $_REQUEST['tab'] : 'default';
+// Special handling of tab number to substitute the "last" index where applicable.
+// Always show explicitly requested tab, substitute the last used name in case
+// it is awailable, fall back to the default one.
+if (isset ($_REQUEST['tab']))
+	$tabno = $_REQUEST['tab'];
+elseif (getConfigVar ('SHOW_LAST_TAB') == 'yes' and isset ($_SESSION['RTLT'][$pageno]))
+	$tabno = $_SESSION['RTLT'][$pageno];
+else
+	$tabno = 'default';
+$op = (isset ($_REQUEST['op'])) ? $_REQUEST['op'] : '';
 
-//Here we initialize current revision
-$query =
-	"select max(id) from Revision";
-$result = $dbxlink->query ($query);
-if ($result == NULL)
-{
-	showError ('SQL query failed in getting Revisions information');
-	return NULL;
-}
-$row = $result->fetch(PDO::FETCH_NUM);
-$head = $row[0];
-$revision = (isset ($_REQUEST['revision'])) ? intval($_REQUEST['revision']) : $head;
-$result->closeCursor();
-define(MAXREVISION, 4294967295);
-
+$taglist = getTagList();
+$tagtree = treeFromList ($taglist);
+sortTree ($tagtree, 'taginfoCmp');
 
 require_once 'inc/navigation.php';
 require_once 'inc/pagetitles.php';
-require_once 'inc/pagehandlers.php';
 require_once 'inc/ophandlers.php';
 require_once 'inc/triggers.php';
 require_once 'inc/gateways.php';
-require_once 'inc/help.php';
+require_once 'inc/snmp.php';
+if (file_exists ('inc/local.php'))
+	require_once 'inc/local.php';
+
+// These will be extended later by fixContext()
+$expl_tags = array();
+$impl_tags = array();
+if (!isset ($script_mode) or $script_mode !== TRUE)
+{
+	$auto_tags = array_merge ($auto_tags, getUserAutoTags());
+	if (isset ($accounts[$remote_username]))
+	{
+		$tbase = loadUserTags ($accounts[$remote_username]['user_id']);
+		$expl_tags = array_merge ($expl_tags, $tbase);
+		$impl_tags = getImplicitTags ($tbase); 
+	}
+}
 
 ?>

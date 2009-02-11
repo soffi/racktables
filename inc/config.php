@@ -11,11 +11,23 @@
 
 
 // Current code version is subject to change with each new release.
-define ('CODE_VERSION', '0.14.7');
+define ('CODE_VERSION', '0.17.0');
+define ('MAX_DICT_KEY', 933);
 
 // The name of hash used to store account password hashes
 // in the database. I think, we are happy with this one forever.
 define ('PASSWORD_HASH', 'sha1');
+
+define ('TAGNAME_REGEXP', '^[[:alnum:]]([\. _~-]?[[:alnum:]])*$');
+define ('AUTOTAGNAME_REGEXP', '^\$[[:alnum:]]([\. _~-]?[[:alnum:]])*$');
+// The latter matches both SunOS and Linux-styled formats.
+define ('RE_L2_IFCFG', '/^[0-9a-f][0-9a-f]?:[0-9a-f][0-9a-f]?:[0-9a-f][0-9a-f]?:[0-9a-f][0-9a-f]?:[0-9a-f][0-9a-f]?:[0-9a-f][0-9a-f]?$/i');
+define ('RE_L2_CISCO', '/^[0-9a-f][0-9a-f][0-9a-f][0-9a-f].[0-9a-f][0-9a-f][0-9a-f][0-9a-f].[0-9a-f][0-9a-f][0-9a-f][0-9a-f]$/i');
+define ('RE_L2_SOLID', '/^[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]$/i');
+define ('RE_L2_FDRYSTP', '/^[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]$/i');
+define ('RE_L2_IPCFG', '/^[0-9a-f][0-9a-f]-[0-9a-f][0-9a-f]-[0-9a-f][0-9a-f]-[0-9a-f][0-9a-f]-[0-9a-f][0-9a-f]-[0-9a-f][0-9a-f]$/i');
+define ('RE_IP4_ADDR', '/^[0-9][0-9]?[0-9]?\.[0-9]?[0-9]?[0-9]?\.[0-9][0-9]?[0-9]?\.[0-9][0-9]?[0-9]?$/i');
+define ('RE_IP4_NET', '/^[0-9][0-9]?[0-9]?\.[0-9]?[0-9]?[0-9]?\.[0-9][0-9]?[0-9]?\.[0-9][0-9]?[0-9]?\/[0-9][0-9]?$/i');
 
 function getConfigVar ($varname = '')
 {
@@ -24,12 +36,12 @@ function getConfigVar ($varname = '')
 	// has failed, we don't retry loading.
 	if (!isset ($configCache))
 	{
-		showError ("Configuration cache is unavailable in getConfigVar()");
+		showError ("Configuration cache is unavailable", __FUNCTION__);
 		die;
 	}
 	if ($varname == '')
 	{
-		showError ("Missing argument to getConfigVar()");
+		showError ("Missing argument", __FUNCTION__);
 		die;
 	}
 	if (isset ($configCache[$varname]))
@@ -50,18 +62,26 @@ function setConfigVar ($varname = '', $varvalue = '', $softfail = FALSE)
 	global $configCache;
 	if (!isset ($configCache))
 	{
-		showError ('Configuration cache is unavailable in setConfigVar()');
+		showError ('Configuration cache is unavailable', __FUNCTION__);
 		die;
 	}
 	if (empty ($varname))
 	{
-		showError ("Empty argument to setConfigVar()");
+		showError ("Empty argument", __FUNCTION__);
 		die;
 	}
 	// We don't operate on unknown data.
 	if (!isset ($configCache[$varname]))
 	{
-		showError ("setConfigVar() doesn't know how to handle '${varname}'");
+		showError ("don't know how to handle '${varname}'", __FUNCTION__);
+		die;
+	}
+	if ($configCache[$varname]['is_hidden'] != 'no')
+	{
+		$errormsg = "'${varname}' is a system variable and cannot be changed by user.";
+		if ($softfail)
+			return $errormsg;
+		showError ($errormsg, __FUNCTION__);
 		die;
 	}
 	if (empty ($varvalue) && $configCache[$varname]['emptyok'] != 'yes')
@@ -69,7 +89,7 @@ function setConfigVar ($varname = '', $varvalue = '', $softfail = FALSE)
 		$errormsg = "'${varname}' is configured to take non-empty value. Perhaps there was a reason to do so.";
 		if ($softfail)
 			return $errormsg;
-		showError ($errormsg);
+		showError ($errormsg, __FUNCTION__);
 		die;
 	}
 	if (!empty ($varvalue) && $configCache[$varname]['vartype'] == 'uint' && (!is_numeric ($varvalue) or $varvalue < 0 ))
@@ -77,7 +97,7 @@ function setConfigVar ($varname = '', $varvalue = '', $softfail = FALSE)
 		$errormsg = "'${varname}' can accept UINT values only";
 		if ($softfail)
 			return $errormsg;
-		showError ($errormsg);
+		showError ($errormsg, __FUNCTION__);
 		die;
 	}
 	// Update cache only if the changes went into DB.

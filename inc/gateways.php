@@ -34,7 +34,7 @@ function queryGateway ($gwname, $questions)
 	$pipes = array();
 	$gateway = proc_open ($execpath, $dspec, $pipes);
 	if (!is_resource ($gateway))
-		return array ('ERR proc_open() failed in queryGateway()');
+		return array ('ERR proc_open() failed in ' . __FUNCTION__);
 
 // Dialogue starts. Send all questions.
 	foreach ($questions as $q)
@@ -70,32 +70,33 @@ function getSwitchVLANs ($object_id = 0)
 	global $remote_username;
 	if ($object_id <= 0)
 	{
-		showError ('Invalid object_id in getSwitchVLANs()');
+		showError ('Invalid object_id', __FUNCTION__);
 		return;
 	}
 	$objectInfo = getObjectInfo ($object_id);
 	$endpoints = findAllEndpoints ($object_id, $objectInfo['name']);
 	if (count ($endpoints) == 0)
 	{
-		showError ('Can\'t find any mean to reach current object. Please either set FQDN attribute or assign an IP address to the object.');
+		showError ('Can\'t find any mean to reach current object. Please either set FQDN attribute or assign an IP address to the object.', __FUNCTION__);
 		return NULL;
 	}
 	if (count ($endpoints) > 1)
 	{
-		showError ('More than one IP address is assigned to this object, please configure FQDN attribute.');
+		showError ('More than one IP address is assigned to this object, please configure FQDN attribute.', __FUNCTION__);
 		return NULL;
 	}
 	$hwtype = $swtype = 'unknown';
-	foreach (getAttrValues ($object_id) as $record)
+	foreach (getAttrValues ($object_id, TRUE) as $record)
 	{
 		if ($record['name'] == 'SW type' && !empty ($record['value']))
 			$swtype = str_replace (' ', '+', $record['value']);
 		if ($record['name'] == 'HW type' && !empty ($record['value']))
 			$hwtype = str_replace (' ', '+', $record['value']);
 	}
+	$endpoint = str_replace (' ', '+', $endpoints[0]);
 	$commands = array
 	(
-		"connect ${endpoints[0]} $hwtype $swtype ${remote_username}",
+		"connect ${endpoint} ${hwtype} ${swtype} ${remote_username}",
 		'listvlans',
 		'listports',
 		'listmacs'
@@ -103,24 +104,24 @@ function getSwitchVLANs ($object_id = 0)
 	$data = queryGateway ('switchvlans', $commands);
 	if ($data == NULL)
 	{
-		showError ('Failed to get any response from queryGateway() or the gateway died');
+		showError ('Failed to get any response from queryGateway() or the gateway died', __FUNCTION__);
 		return NULL;
 	}
 	if (strpos ($data[0], 'OK!') !== 0)
 	{
-		showError ("Gateway failure: returned code ${data[0]}.");
+		showError ("Gateway failure: ${data[0]}.", __FUNCTION__);
 		return NULL;
 	}
 	if (count ($data) != count ($commands))
 	{
-		showError ("Gateway failure: mailformed reply.");
+		showError ("Gateway failure: malformed reply.", __FUNCTION__);
 		return NULL;
 	}
 	// Now we have VLAN list in $data[1] and port list in $data[2]. Let's sort this out.
 	$tmp = array_unique (explode (';', substr ($data[1], strlen ('OK!'))));
 	if (count ($tmp) == 0)
 	{
-		showError ("Gateway succeeded, but returned no VLAN records.");
+		showError ("Gateway succeeded, but returned no VLAN records.", __FUNCTION__);
 		return NULL;
 	}
 	$vlanlist = array();
@@ -138,7 +139,7 @@ function getSwitchVLANs ($object_id = 0)
 	}
 	if (count ($portlist) == 0)
 	{
-		showError ("Gateway succeeded, but returned no port records.");
+		showError ("Gateway succeeded, but returned no port records.", __FUNCTION__);
 		return NULL;
 	}
 	$maclist = array();
@@ -156,47 +157,96 @@ function getSwitchVLANs ($object_id = 0)
 function setSwitchVLANs ($object_id = 0, $setcmd)
 {
 	global $remote_username;
-	$log = array();
 	if ($object_id <= 0)
-		return array (array ('code' => 'error', 'message' => 'Invalid object_id in setSwitchVLANs()'));
+		return oneLiner (160); // invalid arguments
 	$objectInfo = getObjectInfo ($object_id);
 	$endpoints = findAllEndpoints ($object_id, $objectInfo['name']);
 	if (count ($endpoints) == 0)
-		return array (array ('code' => 'error', 'message' => 'Can\'t find any mean to reach current object. Please either set FQDN attribute or assign an IP address to the object.'));
+		return oneLiner (161); // endpoint not found
 	if (count ($endpoints) > 1)
-		return array (array ('code' => 'error', 'message' => 'More than one IP address is assigned to this object, please configure FQDN attribute.'));
+		return oneLiner (162); // can't pick an address
 	$hwtype = $swtype = 'unknown';
-	foreach (getAttrValues ($object_id) as $record)
+	foreach (getAttrValues ($object_id, TRUE) as $record)
 	{
 		if ($record['name'] == 'SW type' && !empty ($record['value']))
 			$swtype = strtr ($record['value'], ' ', '+');
 		if ($record['name'] == 'HW type' && !empty ($record['value']))
 			$hwtype = strtr ($record['value'], ' ', '+');
 	}
+	$endpoint = str_replace (' ', '+', $endpoints[0]);
 	$data = queryGateway
 	(
 		'switchvlans',
-		array ("connect ${endpoints[0]} $hwtype $swtype ${remote_username}", $setcmd)
+		array ("connect ${endpoint} ${hwtype} ${swtype} ${remote_username}", $setcmd)
 	);
 	if ($data == NULL)
-		return array (array ('code' => 'error', 'message' => 'Failed to get any response from queryGateway() or the gateway died'));
+		return oneLiner (163); // unknown gateway failure
 	if (strpos ($data[0], 'OK!') !== 0)
-		return array (array ('code' => 'error', 'message' => "Gateway failure: returned code ${data[0]}."));
+		return oneLiner (164, array ($data[0])); // gateway failure
 	if (count ($data) != 2)
-		return array (array ('code' => 'error', 'message' => 'Gateway failure: mailformed reply.'));
+		return oneLiner (165); // protocol violation
 	// Finally we can parse the response into message array.
-	$ret = array();
+	$log_m = array();
 	foreach (split (';', substr ($data[1], strlen ('OK!'))) as $text)
 	{
-		if (strpos ($text, 'I!') === 0)
-			$code = 'success';
+		if (strpos ($text, 'C!') === 0)
+		{
+			$tmp = split ('!', $text);
+			array_shift ($tmp);
+			$code = array_shift ($tmp);
+			$log_m[] = count ($tmp) ? array ('c' => $code, 'a' => $tmp) : array ('c' => $code); // gateway-encoded message
+		}
+		elseif (strpos ($text, 'I!') === 0)
+			$log_m[] = array ('c' => 62, 'a' => array (substr ($text, 2))); // generic gateway success
 		elseif (strpos ($text, 'W!') === 0)
-			$code = 'warning';
+			$log_m[] = array ('c' => 202, 'a' => array (substr ($text, 2))); // generic gateway warning
 		else // All improperly formatted messages must be treated as error conditions.
-			$code = 'error';
-		$ret[] = array ('code' => $code, 'message' => substr ($text, 2));
+			$log_m[] = array ('c' => 166, 'a' => array (substr ($text, 2))); // generic gateway error
 	}
-	return $ret;
+	return $log_m;
+}
+
+// Drop a file off RackTables platform. The gateway will catch the file and pass it to the given
+// installer script.
+function gwSendFile ($object_id = 0, $handlername, $filetext = '')
+{
+	global $remote_username;
+	if ($object_id <= 0 or empty ($handlername))
+		return oneLiner (160); // invalid arguments
+	$objectInfo = getObjectInfo ($object_id);
+	$endpoints = findAllEndpoints ($object_id, $objectInfo['name']);
+	if (count ($endpoints) == 0)
+		return oneLiner (161); // endpoint not found
+	if (count ($endpoints) > 1)
+		return oneLiner (162); // can't pick an address
+	$endpoint = str_replace (' ', '+', $endpoints[0]);
+	$tmpfilename = tempnam ('', 'RackTables-sendfile-');
+	$tmpfile = fopen ($tmpfilename, 'wb');
+	fwrite ($tmpfile, $filetext);
+	fclose ($tmpfile);
+	$outputlines = queryGateway
+	(
+		'sendfile',
+		array ("submit ${remote_username} ${endpoint} ${handlername} ${tmpfilename}")
+	);
+	unlink ($tmpfilename);
+	if ($outputlines == NULL)
+		return oneLiner (163); // unknown gateway failure
+	if (count ($outputlines) != 1)
+		return oneLiner (165); // protocol violation
+	if (strpos ($outputlines[0], 'OK!') !== 0)
+		return oneLiner (164, array ($outputlines[0])); // gateway failure
+	// Being here means having 'OK!' in the response.
+	return oneLiner (66, array ($handlername)); // ignore provided "Ok" text, generate our own one
+
+
+
+	// Finally we can parse the response into message array.
+	$log = array ('v' => 2);
+	$codemap['OK'] = 66; // sendfile done
+	list ($code, $text) = split ('!', $outputlines[0]);
+	$log['m'][] = array ('c' => $codemap[$code], 'a' => array ($text));
+	return $log;
 }
 
 ?>

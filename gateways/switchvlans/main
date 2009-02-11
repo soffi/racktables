@@ -28,62 +28,37 @@ handler=
 CONNECTED=0
 MYDIR=`dirname $0`
 
-authorized()
+decode_error()
 {
-	local endp=$1 user=$2 action=$3 arg1=$4 arg2=$5 skip=yes cval
-	[ -z "$endp" -o -z "$user" -o -z "$action" ] && return 1
-
-	# Now we strip PHP wrapping(s) and process auth rules only.
-	# Accept more than one ruleset on the floor.
-	while read line; do
-		if [ "$skip" = "yes" -a "$line" = "# S-T-A-R-T" ]; then
-			skip=no
-			continue
-		fi
-		if [ "$skip" = "no" -a "$line" = "# S-T-O-P" ]; then
-			skip=yes
-			continue
-		fi
-		[ "$skip" = "yes" ] && continue
-		# Allow comments.
-		[ -z "${line###*}" ] && continue
-
-		# Parse the line and try to make a decision earliest possible.
-		# Username and endpoint must match values/regexps, action
-		# must exactly match. Action arguments are tested agains values
-		# or regexps, but only for 'change' action.
-		# If the current rule doesn't match, advance to the next one.
-		# We will fail authorization by default anyway.
-
-		# Test action.
-		cval=`echo "$line" | cut -s -d' ' -f3`
-		[ "$action" = "$cval" ] || continue
-
-		# Test username.
-		cval=`echo "$line" | cut -s -d' ' -f2 | cut -s -d'@' -f1`
-		[ -z "${user##$cval}" ] || continue
-
-		# Test endpoint.
-		cval=`echo "$line" | cut -s -d' ' -f2 | cut -s -d'@' -f2`
-		[ -z "${endp##$cval}" ] || continue
-
-		if [ "$action" = "change" ]; then
-			[ -z "$arg1" -o -z "$arg2" ] && return 1
-			cval=`echo "$line" | cut -s -d' ' -f4`
-			[ -z "${arg1##$cval}" ] || continue
-			cval=`echo "$line" | cut -s -d' ' -f5`
-			[ -z "${arg2##$cval}" ] || continue
-		fi
-
-		# All criterias match. Pick the permission and bail out.
-		cval=`echo "$line" | cut -s -d' ' -f1`
-		if [ "$cval" = "allow" ]; then
-			return 0
-		else
-			return 1
-		fi
-	done < "$MYDIR/userauth.php"
-	return 1
+	case "$1" in
+		0)
+			echo -n 'success'
+		;;
+		1)
+			echo -n 'internal error 1'
+		;;
+		2)
+			echo -n 'internal error 2'
+		;;
+		3)
+			echo -n 'password not found'
+		;;
+		4)
+			echo -n 'invalid password'
+		;;
+		5)
+			echo -n 'cannot create temporary files'
+		;;
+		6)
+			echo -n 'invalid command'
+		;;
+		7)
+			echo -n 'unknown host OS'
+		;;
+		*)
+			echo -n 'unknown error'
+		;;
+	esac
 }
 
 # Not only connect, but gather all the data at once and remember the context.
@@ -99,7 +74,7 @@ do_connect()
 		return
 	fi
 	case "$sw" in
-		Cisco+IOS+12.0|Cisco+IOS+12.2)
+		Cisco+IOS+12.0|Cisco+IOS+12.1|Cisco+IOS+12.2)
 			handler=cisco
 		;;
 		*)
@@ -107,12 +82,6 @@ do_connect()
 			return
 		;;
 	esac
-
-	# authorize user, look for "connect" privilege
-	if ! authorized $endpoint $user connect; then
-		echo "ERR!User $user is not authorized to connect to $endpoint"
-		return
-	fi
 
 	# prepare temp files
 	PORTINFO=`mktemp /tmp/racktables.XXXX`
@@ -140,7 +109,9 @@ do_connect()
 		CONNECTED=1
 		echo "OK!connected to $endpoint";
 	else
-		echo "ERR!Cannot connect to $endpoint, connector returned code $ret"
+		echo -n "ERR!Cannot connect to $endpoint ("
+		decode_error $ret
+		echo ')'
 	fi
 }
 
@@ -177,29 +148,24 @@ do_set()
 		newvlan=`echo $setexpr | cut -s -d'=' -f2`
 		curvlan=`egrep "^$portname=" $PORTINFO | cut -s -d'=' -f2 | cut -d',' -f2`
 		if [ -z "$curvlan" ]; then
-			echo "E!Could not find port $portname" >> "$REPLIES"
+			echo "C!167!$portname" >> "$REPLIES"
 			continue
 		fi
 		if [ "$curvlan" = "trunk" ]; then
-			echo "E!Port $portname is a trunk" >> "$REPLIES"
+			echo "C!168!$portname" >> "$REPLIES"
 			continue
 		fi
 		[ "$curvlan" = "$newvlan" ] && continue
-		# Authorize user for each change.
-		if ! authorized $endpoint $user change $curvlan $newvlan; then
-			echo "E!User $user is not authorized to assign port $portname@$endpoint from VLAN $curvlan to VLAN $newvlan" >> "$REPLIES"
-			continue
-		fi
 		echo "$portname $newvlan" >> "$REQUESTS"
 		cmembers=`grep -c ",$newvlan$" "$PORTINFO"`
-		if [ "$cmembers" = "0" ]; then
-			echo "W!Port $portname seems to be the first in VLAN $newvlan at this switch." >> "$REPLIES"
-			echo "W!Check uplink/downlink configuration for proper operation." >> "$REPLIES"
+		if [ "$cmembers" = "0" -a $newvlan -lt 4096 ]; then
+			echo "C!203!$portname!$newvlan" >> "$REPLIES"
+			echo "C!204" >> "$REPLIES"
 		fi
 	done
-	nr=`egrep -c '^E!.' "$REPLIES"`
+	nr=`egrep -c '^C!1.' "$REPLIES"`
 	if [ "$nr" -ge 1 ]; then
-		echo "W!$nr change request(s) have been ignored" >> "$REPLIES"
+		echo "C!205!$nr" >> "$REPLIES"
 	fi
 
 	nq=`egrep -c '^.' "$REQUESTS"`
@@ -209,10 +175,10 @@ do_set()
 		local ret=$?
 
 		if [ $ret != 0 ]; then
-			echo "ERR!Failed to configure $endpoint, connector returned code $ret"
+			echo "C!169!$endpoint!$ret"
 			return
 		fi
-		echo "I!$nq change request(s) have been processed" >> "$REPLIES"
+		echo "C!63!$nq" >> "$REPLIES"
 	fi
 	echo -n 'OK!'
 	local SEMICOLON=
