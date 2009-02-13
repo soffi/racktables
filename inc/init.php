@@ -22,6 +22,7 @@ require_once 'inc/config.php';
 // What we need first is database and interface functions.
 require_once 'inc/interface.php';
 require_once 'inc/functions.php';
+require_once 'inc/revdatabase.php';
 require_once 'inc/database.php';
 if (file_exists ('inc/secret.php'))
 	require_once 'inc/secret.php';
@@ -47,8 +48,10 @@ catch (PDOException $e)
 	showError ("Database connection failed:\n\n" . $e->getMessage(), __FILE__);
 	exit (1);
 }
-
+$dbxlink->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $dbxlink->exec ("set names 'utf8'");
+
+Database::init($dbxlink);
 
 if (get_magic_quotes_gpc())
 	foreach ($_REQUEST as $key => $value)

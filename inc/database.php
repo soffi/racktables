@@ -43,7 +43,7 @@ function getRackspace ($tagfilter = array(), $tfmode = 'any')
 		"where 1=1 " .
 		$whereclause .
 		" group by RackRow.id order by RackRow.name";
-	$result = useSelectBlade ($query, __FUNCTION__);
+	$result = Database::query ($query);
 	$ret = array();
 	$clist = array ('row_id', 'row_name', 'count');
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
