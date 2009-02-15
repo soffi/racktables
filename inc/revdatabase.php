@@ -97,7 +97,7 @@ class ParseToTable
 							self::$startToken = self::$lexerPos;
 							self::$lexerState = 'special';
 							$token .= $char;
-						break;
+						break 3;
 						case 'delimiter':
 							self::$lexerState = 'special';
 						break;
@@ -137,7 +137,7 @@ class ParseToTable
 							self::$lexerState = 'common';
 							self::getBackOneChar();
 							$tokenType = 'special';
-						break 3;
+						break;
 						case 'special':
 							self::$startToken = self::$lexerPos;
 							self::$lexerState = 'special';
@@ -165,7 +165,7 @@ class ParseToTable
 							self::$startToken = self::$lexerPos;
 							self::$lexerState = 'special';
 							$token .= $char;
-						break;
+						break 3;
 						case 'delimiter':
 						break;
 					}
@@ -182,11 +182,12 @@ class ParseToTable
 	{
 		$token = self::getToken();
 		$lexemType = 'unknown';
+		$inParent = 0;
 		switch (self::$lastLexem)
 		{
 			case 'unknown':
 				if (in_array(strtolower($token['token']), self::$start_terms))
-					self::$lastLexem = 'startTerms';
+						self::$lastLexem = 'startTerms';
 			break;
 			case 'startTerms':
 				if (in_array(strtolower($token['token']), self::$start_subclause))
@@ -208,7 +209,7 @@ class ParseToTable
 				else
 				{
 					self::$lastLexem = 'illegal';
-					self::$parseError = "Found ${token['token']} after table name";
+					self::$parseError = "Found ${token['token']} after table name, position ".self::$lexerPos;
 				}
 			break;
 			case 'joins':
@@ -641,6 +642,11 @@ class Database {
 				$q->bindValue($paramno++, $value);
 			$q->execute();
 			$q->closeCursor();
+			$q = self::$dbxlink->query("select last_insert_id()");
+			list($lastId) = $q->fetch(PDO::FETCH_NUM);
+			$q->closeCursor();
+			self::$lastInsertId = $lastId;
+			return $lastId;
 		}
 
 	}
@@ -815,9 +821,7 @@ class Database {
 				if ($tok['type'] == 'eos') break;
 				if ($tok['lexemType'] == 'illegal')
 				{
-					debug_print_backtrace();
-					error_log("Failed to parse '$query': ".ParseToTable::getError());
-					return NULL;
+					throw new Exception ("Failed to parse '$query', parsed '$newQuery' so far: ".ParseToTable::getError()); 
 				}
 				if ($tok['lexemType'] == 'table')
 				{
@@ -847,8 +851,7 @@ class Database {
 		}
 		else
 		{
-			error_log("Unknown query type");
-			return NULL;
+			throw new Exception ("Unknown query type");
 		}
 		
 	}
