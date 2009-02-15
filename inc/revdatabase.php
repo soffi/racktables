@@ -580,15 +580,26 @@ class Database {
 				{
 					throw new Exception("Unknown field $column in table $table");
 				}
-				if (self::$database_meta[$table]['fields'][$column]['revisioned'] == true)
+				
+				if (gettype($value) == 'array')
 				{
-					$revisionedParams[] = "$column = ?";
-					$revisionedValues[] = $value;
+					$addParam = "$column = ${value['left']} ? ${value['right']}";
+					$addValue = $value['value'];
 				}
 				else
 				{
-					$staticParams[] = "$column = ?";
-					$staticValues[] = $value;
+					$addParam = "$column = ?";
+					$addValue = $value;
+				}
+				if (self::$database_meta[$table]['fields'][$column]['revisioned'] == true)
+				{
+					$revisionedParams[] = $addParam;
+					$revisionedValues[] = $addValue;
+				}
+				else
+				{
+					$staticParams[] = $addParam;
+					$staticValues[] = $addValue;
 				}
 			}
 			self::startTransaction(true);
@@ -632,11 +643,19 @@ class Database {
 			$values = array();
 			foreach ($fields as $column => $value)
 			{
-				$params[] = "$column = ?";
-				$values[] = $value;
+				if (gettype($value) == 'array')
+				{
+					$params[] = "$column = ${value['left']} ? ${value['right']}";
+					$values[] = $value['value'];
+				}
+				else
+				{
+					$params[] = "$column = ?";
+					$values[] = $value;
+				}
 			}
-
-			$q = self::$dbxlink->prepare("insert into $table set ".implode(', ', $params));
+			$query = "insert into $table set ".implode(', ', $params);
+			$q = self::$dbxlink->prepare($query);
 			$paramno = 1;
 			foreach($values as $value)
 				$q->bindValue($paramno++, $value);
@@ -659,7 +678,10 @@ class Database {
 		{
 			if ($first != true)
 				$s .= ', ';
-			$s .= "$key = ?";
+			if (gettype($value) == 'array')
+				$s .= "$key = ${value['left']} ? ${value['right']}";
+			else
+				$s .= "$key = ?";
 			$first = false;
 		}
 		return $s;
@@ -672,15 +694,18 @@ class Database {
 		$bindPosition = 1;
 		foreach($cond as $key => $value)
 		{
-			if ($where == '')
+			if ($where != '')
+				$where .= ' and ';
+			if (gettype($value) == 'array')
 			{
-				$where = "$key = ?";
+				$where .= "$key = ${value['left']} ? ${value['right']}";
+				$bindParams[$bindPosition] = $value['value'];
 			}
 			else
 			{
-				$where .= " and $key = ?";
+				$where .= "$key = ?";
+				$bindParams[$bindPosition] = $value;
 			}
-			$bindParams[$bindPosition] = $value;
 			$bindPosition++;
 		}
 
@@ -766,7 +791,10 @@ class Database {
 						$q->bindValue(2, $next_revision);
 						$paramno = 3;
 						foreach($revisionedParams as $value)
-							$q->bindValue($paramno++, $value);
+							if (gettype($value) == 'array')
+								$q->bindValue($paramno++, $value['value']);
+							else
+								$q->bindValue($paramno++, $value);
 						$q->execute();
 						$q->closeCursor();
 
@@ -780,7 +808,10 @@ class Database {
 						$q = self::$dbxlink->prepare("update $table set ".self::assembleUpdateString($staticParams)." where id = ?");
 						$paramno = 1;
 						foreach($staticParams as $value)
-							$q->bindValue($paramno++, $value);
+							if (gettype($value) == 'array')
+								$q->bindValue($paramno++, $value['value']);
+							else
+								$q->bindValue($paramno++, $value);
 						$q->bindValue($paramno++, id);
 						$q->execute();
 						$q->closeCursor();
@@ -798,7 +829,10 @@ class Database {
 			$q = self::$dbxlink->prepare("update $table set ".self::assembleUpdateString($fields)." where id = ?");
 			$paramno = 1;
 			foreach($fields as $value)
-				$q->bindValue($paramno++, $value);
+				if (gettype($value) == 'array')
+					$q->bindValue($paramno++, $value['value']);
+				else
+					$q->bindValue($paramno++, $value);
 			$q->bindValue($paramno++, id);
 			$q->execute();
 			$q->closeCursor();

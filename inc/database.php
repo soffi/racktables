@@ -86,7 +86,7 @@ function getRackRows ()
 
 function commitAddRow($rackrow_name)
 {
-	useInsertBlade('RackRow', array('name'=>"'$rackrow_name'"));
+	Database::insert(array('name'=>$rackrow_name), 'RackRow');
 	return TRUE;
 }
 
@@ -372,7 +372,6 @@ function getObjectInfo ($object_id = 0)
 	$result = Database::query ($query);
 	if (($row = $result->fetch (PDO::FETCH_ASSOC)) == NULL)
 	{
-		showError ('Query succeeded, but returned no data', __FUNCTION__);
 		$ret = NULL;
 	}
 	else
@@ -466,23 +465,17 @@ function commitAddRack ($name, $height = 0, $row_id = 0, $comment, $taglist)
 {
 	if ($row_id <= 0 or $height <= 0 or empty ($name))
 		return FALSE;
-	$result = useInsertBlade
+	$last_insert_id = Database::insert
 	(
-		'Rack',
 		array
 		(
 			'row_id' => $row_id,
-			'name' => "'${name}'",
+			'name' => $name,
 			'height' =>  $height,
-			'comment' => "'${comment}'"
-		)
+			'comment' => $comment
+		),
+		'Rack'
 	);
-	if ($result == NULL)
-	{
-		showError ('useInsertBlade() failed', __FUNCTION__);
-		return FALSE;
-	}
-	$last_insert_id = lastInsertID();
 	return (produceTagsForLastRecord ('rack', $taglist, $last_insert_id) == '') and recordHistory ('Rack', "id = ${last_insert_id}");
 }
 
@@ -491,24 +484,18 @@ function commitAddObject ($new_name, $new_label, $new_barcode, $new_type_id, $ne
 	global $dbxlink;
 	// Maintain UNIQUE INDEX for common names and asset tags by
 	// filtering out empty strings (not NULLs).
-	$result1 = useInsertBlade
+	$last_insert_id = Database::insert
 	(
-		'RackObject',
 		array
 		(
-			'name' => empty ($new_name) ? 'NULL' : "'${new_name}'",
-			'label' => "'${new_label}'",
-			'barcode' => empty ($new_barcode) ? 'NULL' : "'${new_barcode}'",
+			'name' => empty ($new_name) ? 'NULL' : $new_name,
+			'label' => $new_label,
+			'barcode' => empty ($new_barcode) ? 'NULL' : $new_barcode,
 			'objtype_id' => $new_type_id,
-			'asset_no' => empty ($new_asset_no) ? 'NULL' : "'${new_asset_no}'"
-		)
+			'asset_no' => empty ($new_asset_no) ? 'NULL' : $new_asset_no
+		),
+		'RackObject'
 	);
-	if ($result1 == NULL)
-	{
-		showError ("SQL query #1 failed", __FUNCTION__);
-		return FALSE;
-	}
-	$last_insert_id = lastInsertID();
 	// Do AutoPorts magic
 	executeAutoPorts ($last_insert_id, $new_type_id);
 	// Now tags...
@@ -929,22 +916,19 @@ function commitAddPort ($object_id = 0, $port_name, $port_type_id, $port_label, 
 	}
 	if (NULL === ($db_l2address = l2addressForDatabase ($port_l2address)))
 		return "Invalid L2 address ${port_l2address}";
-	$result = useInsertBlade
+	Database::insert
 	(
-		'Port',
 		array
 		(
-			'name' => "'${port_name}'",
-			'object_id' => "'${object_id}'",
-			'label' => "'${port_label}'",
-			'type' => "'${port_type_id}'",
-			'l2address' => ($db_l2address === '') ? 'NULL' : "'${db_l2address}'"
-		)
+			'name' => $port_name,
+			'object_id' => $object_id,
+			'label' => $port_label,
+			'type' => $port_type_id,
+			'l2address' => ($db_l2address === '') ? 'NULL' : $db_l2address
+		),
+		'Port'
 	);
-	if ($result)
-		return '';
-	else
-		return 'SQL query failed';
+	return '';
 }
 
 // The fifth argument may be either explicit 'NULL' or some (already quoted by the upper layer)
@@ -1323,18 +1307,18 @@ function getIPv4Address ($dottedquad = '')
 
 function bindIpToObject ($ip = '', $object_id = 0, $name = '', $type = '')
 {
-	$result = useInsertBlade
+	Database::insert
 	(
-		'IPv4Allocation',
 		array
 		(
-			'ip' => "INET_ATON('$ip')",
-			'object_id' => "'${object_id}'",
-			'name' => "'${name}'",
-			'type' => "'${type}'"
-		)
+			'ip' => array('left'=>"INET_ATON(", 'value'=>$ip, 'right'=>")"),
+			'object_id' => $object_id,
+			'name' => $name,
+			'type' => $type
+		),
+		'IPv4Allocation'
 	);
-	return $result ? '' : (__FUNCTION__ . '(): useInsertBlade() failed');
+	return '';
 }
 
 // Collect data necessary to build a tree. Calling functions should care about
@@ -1416,15 +1400,34 @@ function updateRange ($id=0, $name='')
 // (MySQL 4.0 workaround).
 function updateAddress ($ip = 0, $name = '', $reserved = 'no')
 {
-	// DELETE may safely fail.
-	$r = useDeleteBlade ('IPv4Address', 'ip', "INET_ATON('${ip}')");
-	// INSERT may appear not necessary.
-	if ($name == '' and $reserved == 'no')
-		return '';
-	if (useInsertBlade ('IPv4Address', array ('name' => "'${name}'", 'reserved' => "'${reserved}'", 'ip' => "INET_ATON('${ip}')")))
-		return '';
+	$result = Database::query ('select ip from IPv4Address where ip = INET_ATON( ? )', array(1 => $ip));
+	if ($result->rowCount() > 0)
+	{
+		$result->closeCursor();
+		Database::updateWhere( 
+			array (
+				'name' => $name, 
+				'reserved' => $reserved
+			),
+			'IPv4Address',
+			array ( 
+				'ip' => array('left'=>'INET_ATON(', 'value'=>$ip, 'right'=>')')
+			)
+		);
+	}
 	else
-		return __FUNCTION__ . '(): useInsertBlade() failed';
+	{
+		$result->closeCursor();
+		Database::insert(
+			array (
+				'name' => $name, 
+				'reserved' => $reserved,
+				'ip' => array('left'=>'INET_ATON(', 'value'=>$ip, 'right'=>')')
+			),
+			'IPv4Address'
+		);
+	}
+	return '';
 }
 
 function updateBond ($ip='', $object_id=0, $name='', $type='')
@@ -1646,15 +1649,15 @@ function getPortID ($object_id, $port_name)
 
 function commitCreateUserAccount ($username, $realname, $password)
 {
-	return useInsertBlade
+	return Database::insert
 	(
-		'UserAccount',
 		array
 		(
-			'user_name' => "'${username}'",
-			'user_realname' => "'${realname}'",
-			'user_password_hash' => "'${password}'"
-		)
+			'user_name' => $username,
+			'user_realname' => $realname,
+			'user_password_hash' => $password
+		),
+		'UserAccount'
 	);
 }
 
@@ -1714,10 +1717,10 @@ function addPortCompat ($type1 = 0, $type2 = 0)
 		showError ('Invalid arguments', __FUNCTION__);
 		die;
 	}
-	return useInsertBlade
+	return Database::insert
 	(
-		'PortCompat',
-		array ('type1' => $type1, 'type2' => $type2)
+		array ('type1' => $type1, 'type2' => $type2),
+		'PortCompat'
 	);
 }
 
@@ -1942,11 +1945,12 @@ function commitSupplementDictionary ($chapter_no = 0, $dict_value = '')
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	return useInsertBlade
+	Database::insert
 	(
-		'Dictionary',
-		array ('chapter_id' => $chapter_no, 'dict_value' => "'${dict_value}'")
+		array ('chapter_id' => $chapter_no, 'dict_value' => $dict_value),
+		'Dictionary'
 	);
+	return '';
 }
 
 function commitReduceDictionary ($chapter_no = 0, $dict_key = 0)
@@ -1976,10 +1980,10 @@ function commitAddChapter ($chapter_name = '')
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	return useInsertBlade
+	return Database::insert
 	(
-		'Chapter',
-		array ('name' => "'${chapter_name}'")
+		array ('name' => $chapter_name),
+		'Chapter'
 	);
 }
 
@@ -2120,11 +2124,12 @@ function commitAddAttribute ($attr_name = '', $attr_type = '')
 			showError ('Invalid args', __FUNCTION__);
 			die;
 	}
-	return useInsertBlade
+	Database::insert
 	(
-		'Attribute',
-		array ('name' => "'${attr_name}'", 'type' => "'${attr_type}'")
+		array ('name' => $attr_name, 'type' => $attr_type),
+		'Attribute'
 	);
+	return '';
 }
 
 function commitDeleteAttribute ($attr_id = 0)
@@ -2145,16 +2150,17 @@ function commitSupplementAttrMap ($attr_id = 0, $objtype_id = 0, $chapter_no = 0
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	return useInsertBlade
+	Database::insert
 	(
-		'AttributeMap',
 		array
 		(
 			'attr_id' => $attr_id,
 			'objtype_id' => $objtype_id,
 			'chapter_id' => $chapter_no
-		)
+		),
+		'AttributeMap'
 	);
+	return '';
 }
 
 function commitReduceAttrMap ($attr_id = 0, $objtype_id)
@@ -2325,27 +2331,6 @@ function commitUseupPort ($port_id = 0)
 	}
 	return TRUE;
 	
-}
-
-// This is a swiss-knife blade to insert a record into a table.
-// The first argument is table name.
-// The second argument is an array of "name" => "value" pairs.
-// The function returns either TRUE or FALSE (we expect one row
-// to be inserted).
-function useInsertBlade ($tablename, $values)
-{
-	global $dbxlink;
-	$namelist = $valuelist = '';
-	foreach ($values as $name => $value)
-	{
-		$namelist = $namelist . ($namelist == '' ? "(${name}" : ", ${name}");
-		$valuelist = $valuelist . ($valuelist == '' ? "(${value}" : ", ${value}");
-	}
-	$query = "insert into ${tablename} ${namelist}) values ${valuelist})";
-	$result = $dbxlink->exec ($query);
-	if ($result != 1)
-		return FALSE;
-	return TRUE;
 }
 
 // This swiss-knife blade deletes one record from the specified table
@@ -2544,38 +2529,38 @@ function addRStoRSPool ($pool_id = 0, $rsip = '', $rsport = 0, $inservice = 'no'
 	}
 	if (empty ($rsport) or $rsport == 0)
 		$rsport = 'NULL';
-	return useInsertBlade
+	Database::insert
 	(
-		'IPv4RS',
 		array
 		(
-			'rsip' => "inet_aton('${rsip}')",
+			'rsip' => array('left'=>'inet_aton(', 'value'=>$rsip, 'right'=>')'),
 			'rsport' => $rsport,
 			'rspool_id' => $pool_id,
-			'inservice' => ($inservice == 'yes' ? "'yes'" : "'no'"),
-			'rsconfig' => (empty ($rsconfig) ? 'NULL' : "'${rsconfig}'")
-		)
+			'inservice' => ($inservice == 'yes' ? 'yes' : 'no'),
+			'rsconfig' => (empty ($rsconfig) ? 'NULL' : $rsconfig)
+		),
+		'IPv4RS'
 	);
+	return '';
 }
 
 function commitCreateVS ($vip = '', $vport = 0, $proto = '', $name = '', $vsconfig, $rsconfig, $taglist = array())
 {
 	if (empty ($vip) or $vport <= 0 or empty ($proto))
 		return __FUNCTION__ . ': invalid arguments';
-	if (!useInsertBlade
+	Database::insert
 	(
-		'IPv4VS',
 		array
 		(
-			'vip' => "inet_aton('${vip}')",
+			'vip' => array('left'=>'inet_aton(', 'value'=>$vip, 'right'=>')'),
 			'vport' => $vport,
-			'proto' => "'${proto}'",
-			'name' => (empty ($name) ? 'NULL' : "'${name}'"),
-			'vsconfig' => (empty ($vsconfig) ? 'NULL' : "'${vsconfig}'"),
-			'rsconfig' => (empty ($rsconfig) ? 'NULL' : "'${rsconfig}'")
-		)
-	))
-		return __FUNCTION__ . ': SQL insertion failed';
+			'proto' => $proto,
+			'name' => (empty ($name) ? 'NULL' : $name),
+			'vsconfig' => (empty ($vsconfig) ? 'NULL' : $vsconfig),
+			'rsconfig' => (empty ($rsconfig) ? 'NULL' : $rsconfig)
+		),
+		'IPv4VS'
+	);
 	return produceTagsForLastRecord ('ipv4vs', $taglist);
 }
 
@@ -2586,18 +2571,19 @@ function addLBtoRSPool ($pool_id = 0, $object_id = 0, $vs_id = 0, $vsconfig = ''
 		showError ('Invalid arguments', __FUNCTION__);
 		die;
 	}
-	return useInsertBlade
+	Database::insert
 	(
-		'IPv4LB',
 		array
 		(
 			'object_id' => $object_id,
 			'rspool_id' => $pool_id,
 			'vs_id' => $vs_id,
-			'vsconfig' => (empty ($vsconfig) ? 'NULL' : "'${vsconfig}'"),
-			'rsconfig' => (empty ($rsconfig) ? 'NULL' : "'${rsconfig}'")
-		)
+			'vsconfig' => (empty ($vsconfig) ? 'NULL' : $vsconfig),
+			'rsconfig' => (empty ($rsconfig) ? 'NULL' : $rsconfig)
+		),
+		'IPv4LB'
 	);
+	return '';
 }
 
 function commitDeleteRS ($id = 0)
@@ -2806,17 +2792,16 @@ function commitCreateRSPool ($name = '', $vsconfig = '', $rsconfig = '', $taglis
 {
 	if (empty ($name))
 		return __FUNCTION__ . ': invalid arguments';
-	if (!useInsertBlade
+	Database::insert
 	(
-		'IPv4RSPool',
 		array
 		(
-			'name' => (empty ($name) ? 'NULL' : "'${name}'"),
-			'vsconfig' => (empty ($vsconfig) ? 'NULL' : "'${vsconfig}'"),
-			'rsconfig' => (empty ($rsconfig) ? 'NULL' : "'${rsconfig}'")
-		)
-	))
-		return __FUNCTION__ . ': SQL insertion failed';
+			'name' => (empty ($name) ? 'NULL' : $name),
+			'vsconfig' => (empty ($vsconfig) ? 'NULL' : $vsconfig),
+			'rsconfig' => (empty ($rsconfig) ? 'NULL' : $rsconfig)
+		),
+		'IPv4RSPool'
+	);
 	return produceTagsForLastRecord ('ipv4rspool', $taglist);
 }
 
@@ -3035,19 +3020,16 @@ function commitCreateTag ($tagname = '', $parent_id = 0)
 {
 	if ($tagname == '' or $parent_id === 0)
 		return "Invalid args to " . __FUNCTION__;
-	$result = useInsertBlade
+	Database::insert
 	(
-		'TagTree',
 		array
 		(
-			'tag' => "'${tagname}'",
+			'tag' => $tagname,
 			'parent_id' => $parent_id
-		)
+		),
+		'TagTree'
 	);
-	if ($result)
-		return '';
-	else
-		return "SQL query failed in " . __FUNCTION__;
+	return '';
 }
 
 function commitDestroyTag ($tagid = 0)
@@ -3102,16 +3084,17 @@ function addTagForEntity ($realm = '', $entity_id, $tag_id)
 {
 	if (empty ($realm))
 		return FALSE;
-	return useInsertBlade
+	Database::insert
 	(
-		'TagStorage',
 		array
 		(
-			'entity_realm' => "'${realm}'",
+			'entity_realm' => $realm,
 			'entity_id' => $entity_id,
 			'tag_id' => $tag_id,
-		)
+		),
+		'TagStorage'
 	);
+	return '';
 }
 
 // Add records into TagStorage, if this makes sense (IOW, they don't appear
@@ -3197,18 +3180,16 @@ function createIPv4Prefix ($range = '', $name = '', $is_bcast = FALSE, $taglist 
 	}
 	$binmask = binMaskFromDec($maskL);
 	$ipL = $ipL & $binmask;
-	$result = useInsertBlade
+	Database::insert
 	(
-		'IPv4Network',
 		array
 		(
 			'ip' => sprintf ('%u', $ipL),
-			'mask' => "'${maskL}'",
-			'name' => "'${name}'"
-		)
+			'mask' => $maskL,
+			'name' => $name
+		),
+		'IPv4Network'
 	);
-	if ($result != TRUE)
-		return "Could not add ${range} (already exists?).";
 
 	if ($is_bcast and $maskL < 31)
 	{
@@ -3251,15 +3232,16 @@ function saveScript ($name, $text)
 	}
 	// delete regardless of existence
 	useDeleteBlade ('Script', 'script_name', "'${name}'");
-	return useInsertBlade
+	Database::insert
 	(
-		'Script',
 		array
 		(
-			'script_name' => "'${name}'",
-			'script_text' => "'${text}'"
-		)
+			'script_name' => $name,
+			'script_text' => $text
+		),
+		'Script'
 	);
+	return '';
 }
 
 function saveUserPassword ($user_id, $newp)
@@ -3336,25 +3318,21 @@ function newPortForwarding ($object_id, $localip, $localport, $remoteip, $remote
 		return "$localport: invaild port";
 	if ( ($remoteport <= 0) or ($remoteport >= 65536) )
 		return "$remoteport: invaild port";
-
-	$result = useInsertBlade
+	Database::insert
 	(
-		'IPv4NAT',
 		array
 		(
 			'object_id' => $object_id,
-			'localip' => "INET_ATON('${localip}')",
-			'remoteip' => "INET_ATON('$remoteip')",
+			'localip' => array('left'=>'INET_ATON(', 'value'=>$localip, 'right'=>')'),
+			'remoteip' => array('left'=>'INET_ATON(', 'value'=>$remoteip, 'right'=>')'),
 			'localport' => $localport,
 			'remoteport' => $remoteport,
-			'proto' => "'${proto}'",
-			'description' => "'${description}'",
-		)
+			'proto' => $proto,
+			'description' => $description,
+		),
+		'IPv4NAT'
 	);
-	if ($result)
-		return '';
-	else
-		return __FUNCTION__ . ': Failed to insert the rule.';
+	return '';
 }
 
 function deletePortForwarding ($object_id, $localip, $localport, $remoteip, $remoteport, $proto)
