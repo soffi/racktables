@@ -92,41 +92,17 @@ function commitAddRow($rackrow_name)
 
 function commitUpdateRow($rackrow_id, $rackrow_name)
 {
-	global $dbxlink;
-	$query = "update RackRow set name = '${rackrow_name}' where id=${rackrow_id}";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ("SQL query '${query}' failed", __FUNCTION__);
-		return FALSE;
-	}
-	$result->closeCursor();
+	Database::update(array('name'=>$rackrow_name, 'RackRow', $rackrow_id));
 	return TRUE;
 }
 
 function commitDeleteRow($rackrow_id)
 {
-	global $dbxlink;
 	$query = "select count(*) from Rack where row_id=${rackrow_id}";
-	$result = $dbxlink->query ($query);
+	$result = Database::query($query);
 	if (($result!=NULL) && ($row = $result->fetch(PDO::FETCH_NUM)) )
-	{
 		if ($row[0] == 0)
-		{
-			$query = "delete from RackRow where id=${rackrow_id}";
-			$result = $dbxlink->query ($query);
-			if ($result == NULL)
-			{
-				showError ("SQL query '${query}' failed", __FUNCTION__);
-				return FALSE;
-			}
-		}
-	}
-	else
-	{
-		showError ("SQL query '${query}' failed", __FUNCTION__);
-		return FALSE;
-	}
+			Database::delete('RackRow', $rackrow_id);
 	$result->closeCursor();
 	return TRUE;
 }
@@ -481,7 +457,6 @@ function commitAddRack ($name, $height = 0, $row_id = 0, $comment, $taglist)
 
 function commitAddObject ($new_name, $new_label, $new_barcode, $new_type_id, $new_asset_no, $taglist = array())
 {
-	global $dbxlink;
 	// Maintain UNIQUE INDEX for common names and asset tags by
 	// filtering out empty strings (not NULLs).
 	$last_insert_id = Database::insert
@@ -515,20 +490,20 @@ function commitUpdateObject ($object_id = 0, $new_name = '', $new_label = '', $n
 		showError ('Not all required args are present.', __FUNCTION__);
 		return FALSE;
 	}
-	global $dbxlink;
 	$new_asset_no = empty ($new_asset_no) ? 'NULL' : "'${new_asset_no}'";
 	$new_barcode = empty ($new_barcode) ? 'NULL' : "'${new_barcode}'";
 	$new_name = empty ($new_name) ? 'NULL' : "'${new_name}'";
-	$query = "update RackObject set name=${new_name}, label='${new_label}', barcode=${new_barcode}, objtype_id='${new_type_id}', " .
-		"has_problems='${new_has_problems}', asset_no=${new_asset_no}, comment='${new_comment}' " .
-		"where id='${object_id}' limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ("SQL query '${query}' failed", __FUNCTION__);
-		return FALSE;
-	}
-	$result->closeCursor();
+	Database::update(
+		array(
+			'name'=>$new_name,
+			'label'=>$new_label,
+			'barcode'=>$new_barcode,
+			'objtype_id'=>$new_type_id,
+			'has_problems'=>$new_has_problems,
+			'asset_no'=>$new_asset_no,
+			'comment'=>$new_comment
+		), 'RackObject', $object_id);
+
 	return recordHistory ('RackObject', "id = ${object_id}");
 }
 
@@ -540,35 +515,36 @@ function commitDeleteObject ($object_id = 0)
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$dbxlink->query("DELETE FROM AttributeValue WHERE object_id = ${object_id}");
-	$dbxlink->query("DELETE FROM File WHERE id IN (SELECT file_id FROM FileLink WHERE entity_id = 'object' AND entity_id = ${object_id})");
-	$dbxlink->query("DELETE FROM IPv4LB WHERE object_id = ${object_id}");
-	$dbxlink->query("DELETE FROM IPv4Allocation WHERE object_id = ${object_id}");
-	$dbxlink->query("DELETE FROM Port WHERE object_id = ${object_id}");
-	$dbxlink->query("DELETE FROM IPv4NAT WHERE object_id = ${object_id}");
-	$dbxlink->query("DELETE FROM RackSpace WHERE object_id = ${object_id}");
-	$dbxlink->query("DELETE FROM TagStorage WHERE entity_realm = 'object' and entity_id = ${object_id}");
-	$dbxlink->query("DELETE FROM Atom WHERE molecule_id IN (SELECT new_molecule_id FROM MountOperation WHERE object_id = ${object_id})");
-	$dbxlink->query("DELETE FROM Molecule WHERE id IN (SELECT new_molecule_id FROM MountOperation WHERE object_id = ${object_id})");
-	$dbxlink->query("DELETE FROM MountOperation WHERE object_id = ${object_id}");
-	$dbxlink->query("DELETE FROM RackObjectHistory WHERE id = ${object_id}");
-	$dbxlink->query("DELETE FROM RackObject WHERE id = ${object_id}");
-
+	Database::deleteWhere('AttributeValue', array('object_id'=>$object_id));
+	$result = Database::query('SELECT file_id FROM FileLink WHERE entity_id = \'object\' AND entity_id = ?', array(1=>$object_id));
+	while ($row = $result->fetch(PDO::FETCH_NUM))
+		Database::delete('File', $row[0]);
+	$result->closeCursor();
+	Database::deleteWhere('IPv4LB', array('object_id'=>$object_id));
+	Database::deleteWhere('IPv4Allocation', array('object_id'=>$object_id));
+	Database::deleteWhere('Port', array('object_id'=>$object_id));
+	Database::deleteWhere('IPv4NAT', array('object_id'=>$object_id));
+	Database::deleteWhere('RackSpace', array('object_id'=>$object_id));
+	Database::deleteWhere('TagStorage', array('entity_realm'=>'object', 'entity_id'=>$object_id));
+	$result = Database::query('SELECT new_molecule_id FROM MountOperation WHERE object_id = ?', array(1=>$object_id));
+		while ($row = $result->fetch(PDO::FETCH_NUM))
+		{
+			Database::deleteWhere('Atom', array('molecule_id'=>$row[0]));
+			Database::delete('Molecule', $row[0]);
+		}
+	$result->closeCursor();
+	Database::deleteWhere('MountOperation', array('object_id'=>$object_id));
+	Database::delete('RackObjectHistory', $object_id);
+	Database::delete('RackObject', $object_id);
 	return '';
 }
 
 function commitDeleteRack($rack_id)
 {
-	global $dbxlink;
-	$query = "delete from RackSpace where rack_id = '${rack_id}'";
-	$dbxlink->query ($query);
-	$query = "delete from TagStorage where entity_realm='rack' and entity_id='${rack_id}'";
-	$dbxlink->query ($query);
-	$query = "delete from RackHistory where id = '${rack_id}'";
-	$dbxlink->query ($query);
-	$query = "delete from Rack where id = '${rack_id}'";
-	$dbxlink->query ($query);
+	Database::deleteWhere('RackSpace', array('rack_id'=>$rack_id));
+	Database::deleteWhere('TagStorage', array('entity_realm'=>'rack', 'entity_id'=>$rack_id));
+	Database::delete('RackHistory', $rack_id);
+	Database::delete('Rack', $rack_id);
 	return TRUE;
 }
 
@@ -579,15 +555,13 @@ function commitUpdateRack ($rack_id, $new_name, $new_height, $new_row_id, $new_c
 		showError ('Not all required args are present.', __FUNCTION__);
 		return FALSE;
 	}
-	global $dbxlink;
-	$query = "update Rack set name='${new_name}', height='${new_height}', comment='${new_comment}', row_id=${new_row_id} " .
-		"where id='${rack_id}' limit 1";
-	$result1 = $dbxlink->query ($query);
-	if ($result1->rowCount() != 1)
-	{
-		showError ('Error updating rack information', __FUNCTION__);
-		return FALSE;
-	}
+	Database::update(
+		array(
+			'name'=>$new_name,
+			'height'=>$new_height,
+			'comment'=>$new_comment,
+			'row_id'=>$new_row_id
+		), 'Rack', $rack_id);
 	return recordHistory ('Rack', "id = ${rack_id}");
 }
 
@@ -599,7 +573,7 @@ function commitUpdateRack ($rack_id, $new_name, $new_height, $new_row_id, $new_c
 // The function returns the modified rack upon success.
 function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_id = 0)
 {
-	global $loclist, $dbxlink;
+	global $loclist;
 	$rack_id = $rackData['id'];
 	$rack_name = $rackData['name'];
 	$rackchanged = FALSE;
@@ -629,20 +603,17 @@ function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_
 				return array ('code' => 500, 'message' => "${rack_name}: Rack ID ${rack_id}, unit ${unit_no}, 'atom ${atom}', cannot change state from '${state}' to '${newstate}'");
 			// Here we avoid using ON DUPLICATE KEY UPDATE by first performing DELETE
 			// anyway and then looking for probable need of INSERT.
-			$query =
-				"delete from RackSpace where rack_id = ${rack_id} and " .
-				"unit_no = ${unit_no} and atom = '${atom}' limit 1";
-			$r = $dbxlink->query ($query);
-			if ($r == NULL)
-				return array ('code' => 500, 'message' => __FUNCTION__ . ": ${rack_name}: SQL DELETE query failed");
+			Database::deleteWhere('RackSpace', array(
+				'rack_id'=>$rack_id, 
+				'unit_no'=>$unit_no,
+				'atom'=>$atom));
 			if ($newstate != 'F')
 			{
-				$query =
-					"insert into RackSpace(rack_id, unit_no, atom, state) " .
-					"values(${rack_id}, ${unit_no}, '${atom}', '${newstate}') ";
-				$r = $dbxlink->query ($query);
-				if ($r == NULL)
-					return array ('code' => 500, 'message' => __FUNCTION__ . ": ${rack_name}: SQL INSERT query failed");
+				Database::insert(array(
+					'rack_id'=>$rack_id,
+					'unit_no'=>$unit_no,
+					'atom'=>$atom,
+					'state'=>$newstate), 'RackSpace');
 			}
 			if ($newstate == 'T' and $object_id != 0)
 			{
@@ -650,11 +621,12 @@ function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_
 				$query =
 					"update RackSpace set object_id=${object_id} " .
 					"where rack_id=${rack_id} and unit_no=${unit_no} and atom='${atom}' limit 1";
-				$r = $dbxlink->query ($query);
-				if ($r->rowCount() == 1)
-					$rackData[$unit_no][$locidx]['object_id'] = $object_id;
-				else
-					return array ('code' => 500, 'message' => "${rack_name}: Rack ID ${rack_id}, unit ${unit_no}, atom '${atom}' failed to set object_id to '${object_id}'");
+				Database::updateWhere(array('object_id'=>$object_id), 'RackSpace', array(
+					'rack_id'=>$rack_id,
+					'unit_no'=>$unit_no,
+					'atom'=>$atom
+				));
+				$rackData[$unit_no][$locidx]['object_id'] = $object_id;
 			}
 		}
 	}
@@ -722,29 +694,17 @@ function createMolecule ($molData)
 {
 	//ToBeFixed_0.17.0
 	//This needs to be deleted
-	global $dbxlink;
-	$query = "insert into Molecule values()";
-	$result1 = $dbxlink->query ($query);
-	if ($result1->rowCount() != 1)
-	{
-		showError ('Error inserting into Molecule', __FUNCTION__);
-		return NULL;
-	}
-	$molecule_id = lastInsertID();
+	$molecule_id = Database::insert(array(), 'Molecule');
 	foreach ($molData as $rua)
 	{
 		$rack_id = $rua['rack_id'];
 		$unit_no = $rua['unit_no'];
 		$atom = $rua['atom'];
-		$query =
-			"insert into Atom(molecule_id, rack_id, unit_no, atom) " .
-			"values (${molecule_id}, ${rack_id}, ${unit_no}, '${atom}')";
-		$result3 = $dbxlink->query ($query);
-		if ($result3 == NULL or $result3->rowCount() != 1)
-		{
-			showError ('Error inserting into Atom', __FUNCTION__);
-			return NULL;
-		}
+		Database::insert(array(
+			'molecule_id'=>$molecule_id,
+			'rack_id'=>$rack_id,
+			'unit_no'=>$unit_no,
+			'atom'=>$atom), 'Atom');
 	}
 	return $molecule_id;
 }
@@ -936,30 +896,23 @@ function commitAddPort ($object_id = 0, $port_name, $port_type_id, $port_label, 
 // It would be nice to simplify this semantics later.
 function commitUpdatePort ($port_id, $port_name, $port_type_id, $port_label, $port_l2address, $port_reservation_comment = 'reservation_comment')
 {
-	global $dbxlink;
 	if (NULL === ($db_l2address = l2addressForDatabase ($port_l2address)))
 		return "Invalid L2 address ${port_l2address}";
-	$query =
-		"update Port set name='$port_name', type=$port_type_id, label='$port_label', " .
-		"reservation_comment = ${port_reservation_comment}, l2address=" .
-		(($db_l2address === '') ? 'NULL' : "'${db_l2address}'") .
-		" where id='$port_id'";
-	$result = $dbxlink->exec ($query);
-	if ($result == 1)
-		return '';
-	$errorInfo = $dbxlink->errorInfo();
-	// We could update nothing.
-	if ($errorInfo[0] == '00000')
-		return '';
-	return $errorInfo[2];
+	Database::update(array(
+		'name'=>$port_name,
+		'type'=>$port_type_id,
+		'label'=>$port_label,
+		'reservation_comment'=>$port_reservation_comment,
+		'l2address'=>(($db_l2address === '') ? NULL : $db_l2address)
+		), 'Port', $port_id);
+	return '';
 }
 
 function delObjectPort ($port_id)
 {
 	if (unlinkPort ($port_id) != '')
 		return __FUNCTION__ . ': unlinkPort() failed';
-	if (useDeleteBlade ('Port', 'id', $port_id) != TRUE)
-		return __FUNCTION__ . ': useDeleteBlade() failed';
+	Database::delete('Port', $port_id);
 	return '';
 }
 
@@ -1032,21 +985,16 @@ function linkPorts ($porta, $portb)
 		$porta = $portb;
 		$portb = $tmp;
 	}
-	global $dbxlink;
-	$query1 = "insert into Link set porta='${porta}', portb='{$portb}'";
-	$query2 = "update Port set reservation_comment = NULL where id = ${porta} or id = ${portb} limit 2";
-	// FIXME: who cares about the return value?
-	$result = $dbxlink->exec ($query1);
-	$result = $dbxlink->exec ($query2);
+	Database::insert(array('porta'=>$porta, 'portb'=>$portb), 'Link');
+	Database::update(array('reservation_comment'=>NULL), 'Port', $porta);
+	Database::update(array('reservation_comment'=>NULL), 'Port', $portb);
 	return '';
 }
 
 function unlinkPort ($port)
 {
-	global $dbxlink;
-	$query =
-		"delete from Link where porta='$port' or portb='$port'";
-	$result = $dbxlink->exec ($query);
+	Database::deleteWhere('Link', array('porta'=>$port));
+	Database::deleteWhere('Link', array('portb'=>$port));
 	return '';
 }
 
@@ -1388,10 +1336,7 @@ function getIPv4AddressNetworkId ($dottedquad, $masklen = 32)
 
 function updateRange ($id=0, $name='')
 {
-	global $dbxlink;
-	$query =
-		"update IPv4Network set name='$name' where id='$id'";
-	$result = $dbxlink->exec ($query);
+	Database::update(array('name'=>$name), 'IPv4Network', $id);
 	return '';
 }
 
@@ -1432,21 +1377,19 @@ function updateAddress ($ip = 0, $name = '', $reserved = 'no')
 
 function updateBond ($ip='', $object_id=0, $name='', $type='')
 {
-	global $dbxlink;
-
-	$query =
-		"update IPv4Allocation set name='$name', type='$type' where ip=INET_ATON('$ip') and object_id='$object_id'";
-	$result = $dbxlink->exec ($query);
+	Database::updateWhere(array(
+		'name'=>$name,
+		'type'=>$type ), 'IPv4Allocation', array(
+		'ip'=>array('left'=>'INET_ATON(', 'value'=>$ip, 'right'=>')'),
+		'object_id'=>$object_id));
 	return '';
 }
 
 function unbindIpFromObject ($ip='', $object_id=0)
 {
-	global $dbxlink;
-
-	$query =
-		"delete from IPv4Allocation where ip=INET_ATON('$ip') and object_id='$object_id'";
-	$result = $dbxlink->exec ($query);
+	Database::deleteWhere('IPv4Allocation', array(
+		'ip'=>array('left'=>'INET_ATON(', 'value'=>$ip, 'right'=>')'),
+		'object_id'=>$object_id));
 	return '';
 }
 
@@ -1663,6 +1606,7 @@ function commitCreateUserAccount ($username, $realname, $password)
 
 function commitUpdateUserAccount ($id, $new_username, $new_realname, $new_password)
 {
+	//Direct DB work is left here, as UserAccount doesn't have id and it won't work with our Database wrapper
 	global $dbxlink;
 	$query =
 		"update UserAccount set user_name = '${new_username}', user_realname = '${new_realname}', " .
@@ -1694,6 +1638,8 @@ function getPortCompat ()
 
 function removePortCompat ($type1 = 0, $type2 = 0)
 {
+	//Direct DB work is left here, as PortCompat doesn't have id and it won't work with our Database wrapper
+
 	global $dbxlink;
 	if ($type1 == 0 or $type2 == 0)
 	{
@@ -1925,16 +1871,7 @@ function commitUpdateDictionary ($chapter_no = 0, $dict_key = 0, $dict_value = '
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query =
-		"update Dictionary set dict_value = '${dict_value}' where chapter_id=${chapter_no} " .
-		"and dict_key=${dict_key} limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		die;
-	}
+	Database::updateWhere(array('dict_value'=>$dict_value), 'Dictionary', array('chapter_id'=>$chapter_no, 'dict_key'=>$dict_key));
 	return TRUE;
 }
 
@@ -1960,16 +1897,7 @@ function commitReduceDictionary ($chapter_no = 0, $dict_key = 0)
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query =
-		"delete from Dictionary where chapter_id=${chapter_no} " .
-		"and dict_key=${dict_key} limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		die;
-	}
+	Database::deleteWhere('Dictionary', array('chapter_id'=>$chapter_no, 'dict_key'=>$dict_key));
 	return TRUE;
 }
 
@@ -1994,16 +1922,7 @@ function commitUpdateChapter ($chapter_no = 0, $chapter_name = '')
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query =
-		"update Chapter set name = '${chapter_name}' where id = ${chapter_no} " .
-		"and sticky = 'no' limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		die;
-	}
+	Database::update(array('name'=>$chapter_name), 'Chapter', $chapter_no);
 	return TRUE;
 }
 
@@ -2014,15 +1933,7 @@ function commitDeleteChapter ($chapter_no = 0)
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query =
-		"delete from Chapter where id = ${chapter_no} and sticky = 'no' limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		die;
-	}
+	Database::delete('Chapter', $chapter_no);
 	return TRUE;
 }
 
@@ -2093,16 +2004,7 @@ function commitUpdateAttribute ($attr_id = 0, $attr_name = '')
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query =
-		"update Attribute set name = '${attr_name}' " .
-		"where id = ${attr_id} limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ("SQL query '${query}' failed", __FUNCTION__);
-		die;
-	}
+	Database::update(array('name'=>$attr_name), 'Attribute', $attr_id);
 	return TRUE;
 }
 
@@ -2139,7 +2041,8 @@ function commitDeleteAttribute ($attr_id = 0)
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	return useDeleteBlade ('Attribute', 'id', $attr_id);
+	Database::delete('Attribute', $attr_id);
+	return '';
 }
 
 // FIXME: don't store garbage in chapter_no for non-dictionary types.
@@ -2170,16 +2073,7 @@ function commitReduceAttrMap ($attr_id = 0, $objtype_id)
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query =
-		"delete from AttributeMap where attr_id=${attr_id} " .
-		"and objtype_id=${objtype_id} limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		die;
-	}
+	Database::deleteWhere('AttributeMap', array('attr_id'=>$attr_id, 'objtype_id'=>$objtype_id));
 	return TRUE;
 }
 
@@ -2241,14 +2135,7 @@ function commitResetAttrValue ($object_id = 0, $attr_id = 0)
 		showError ('Invalid arguments', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query = "delete from AttributeValue where object_id = ${object_id} and attr_id = ${attr_id} limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		die;
-	}
+	Database::deleteWhere('AttributeValue', array('object_id'=>$object_id, 'attr_id'=>$attr_id));
 	return TRUE;
 }
 
@@ -2262,14 +2149,7 @@ function commitUpdateAttrValue ($object_id = 0, $attr_id = 0, $value = '')
 	}
 	if (empty ($value))
 		return commitResetAttrValue ($object_id, $attr_id);
-	global $dbxlink;
-	$query1 = "select type as attr_type from Attribute where id = ${attr_id}";
-	$result = $dbxlink->query ($query1);
-	if ($result == NULL)
-	{
-		showError ('SQL query #1 failed', __FUNCTION__);
-		die;
-	}
+	$result = Database::query("select type as attr_type from Attribute where id = ?", array(1=>$attr_id));
 	$row = $result->fetch (PDO::FETCH_NUM);
 	if ($row == NULL)
 	{
@@ -2292,25 +2172,9 @@ function commitUpdateAttrValue ($object_id = 0, $attr_id = 0, $value = '')
 			showError ("Unknown attribute type '${attr_type}' met", __FUNCTION__);
 			die;
 	}
-	$query2 =
-		"delete from AttributeValue where " .
-		"object_id = ${object_id} and attr_id = ${attr_id} limit 1";
-	$result = $dbxlink->query ($query2);
-	if ($result == NULL)
-	{
-		showError ('SQL query #2 failed', __FUNCTION__);
-		die;
-	}
+	Database::deleteWhere('AttributeValue', array('object_id'=>$object_id, 'attr_id'=>$attr_id));
 	// We know $value isn't empty here.
-	$query3 =
-		"insert into AttributeValue set ${column} = '${value}', " .
-		"object_id = ${object_id}, attr_id = ${attr_id} ";
-	$result = $dbxlink->query ($query3);
-	if ($result == NULL)
-	{
-		showError ('SQL query #3 failed', __FUNCTION__);
-		die;
-	}
+	Database::insert(array($column=>$value, 'object_id'=>$object_id, 'attr_id'=>$attr_id), 'AttributeValue');
 	return TRUE;
 }
 
@@ -2321,26 +2185,10 @@ function commitUseupPort ($port_id = 0)
 		showError ("Invalid argument", __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query = "update Port set reservation_comment = NULL where id = ${port_id} limit 1";
-	$result = $dbxlink->exec ($query);
-	if ($result == NULL)
-	{
-		showError ("SQL query failed", __FUNCTION__);
-		die;
-	}
+	Database::update(array('reservation_comment'=>NULL), 'Port', $port_id);
 	return TRUE;
 	
 }
-
-// This swiss-knife blade deletes one record from the specified table
-// using the specified key name and value.
-function useDeleteBlade ($tablename, $keyname, $keyvalue)
-{
-	global $dbxlink;
-	return 1 === $dbxlink->exec ("delete from ${tablename} where ${keyname}=${keyvalue} limit 1");
-}
-
 
 function loadConfigCache ()
 {
@@ -2590,14 +2438,16 @@ function commitDeleteRS ($id = 0)
 {
 	if ($id <= 0)
 		return FALSE;
-	return useDeleteBlade ('IPv4RS', 'id', $id);
+	Database::delete('IPv4RS', $id);
+	return '';
 }
 
 function commitDeleteVS ($id = 0)
 {
 	if ($id <= 0)
 		return FALSE;
-	return useDeleteBlade ('IPv4VS', 'id', $id) && destroyTagsForEntity ('ipv4vs', $id);
+	Database::delete('IPv4VS', $id);
+	return destroyTagsForEntity ('ipv4vs', $id);
 }
 
 function commitDeleteLB ($object_id = 0, $pool_id = 0, $vs_id = 0)
@@ -2605,15 +2455,11 @@ function commitDeleteLB ($object_id = 0, $pool_id = 0, $vs_id = 0)
 	global $dbxlink;
 	if ($object_id <= 0 or $pool_id <= 0 or $vs_id <= 0)
 		return FALSE;
-	$query = "delete from IPv4LB where object_id = ${object_id} and " .
-		"rspool_id = ${pool_id} and vs_id = ${vs_id} limit 1";
-	$result = $dbxlink->exec ($query);
-	if ($result === NULL)
-		return FALSE;
-	elseif ($result != 1)
-		return FALSE;
-	else
-		return TRUE;
+	Database::deleteWhere('IPv4LB', array(
+		'object_id'=>$object_id,
+		'rspool_id'=>$pool_id,
+		'vs_id'=>$vs_id));
+	return TRUE;
 }
 
 function commitUpdateRS ($rsid = 0, $rsip = '', $rsport = 0, $rsconfig = '')
@@ -2630,17 +2476,12 @@ function commitUpdateRS ($rsid = 0, $rsip = '', $rsport = 0, $rsconfig = '')
 	}
 	if (empty ($rsport) or $rsport == 0)
 		$rsport = 'NULL';
-	global $dbxlink;
-	$query =
-		"update IPv4RS set rsip = inet_aton('${rsip}'), rsport = ${rsport}, rsconfig = " .
-		(empty ($rsconfig) ? 'NULL' : "'${rsconfig}'") .
-		" where id = ${rsid} limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ("SQL query '${query}' failed", __FUNCTION__);
-		die;
-	}
+	Database::update(array(
+		'rsip'=>array('left'=>'inet_aton(', 'value'=>$rsip, 'right'=>')'),
+		'rsport'=>$rsport,
+		'rsconfig'=>(empty ($rsconfig) ? NULL : $rsconfig)
+		), 'IPv4RS', $rsid);
+
 	return TRUE;
 }
 
@@ -2651,19 +2492,14 @@ function commitUpdateLB ($object_id = 0, $pool_id = 0, $vs_id = 0, $vsconfig = '
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query =
-		"update IPv4LB set vsconfig = " .
-		(empty ($vsconfig) ? 'NULL' : "'${vsconfig}'") .
-		', rsconfig = ' .
-		(empty ($rsconfig) ? 'NULL' : "'${rsconfig}'") .
-		" where object_id = ${object_id} and rspool_id = ${pool_id} " .
-		"and vs_id = ${vs_id} limit 1";
-	$result = $dbxlink->exec ($query);
-	if ($result === NULL)
-		return FALSE;
-	else
-		return TRUE;
+	Database::updateWhere(array(
+		'vsconfig'=>(empty ($vsconfig) ? 'NULL' : $vsconfig),
+		'rsconfig'=>(empty ($rsconfig) ? 'NULL' : $rsconfig),
+		), 'IPv4LB', array (
+		'object_id'=>$object_id,
+		'rspool_id'=>$pool_id,
+		'vs_id'=>$vs_id) );
+	return TRUE;
 }
 
 function commitUpdateVS ($vsid = 0, $vip = '', $vport = 0, $proto = '', $name = '', $vsconfig = '', $rsconfig = '')
@@ -2673,20 +2509,15 @@ function commitUpdateVS ($vsid = 0, $vip = '', $vport = 0, $proto = '', $name = 
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query = "update IPv4VS set " .
-		"vip = inet_aton('${vip}'), " .
-		"vport = ${vport}, " .
-		"proto = '${proto}', " .
-		'name = ' . (empty ($name) ? 'NULL,' : "'${name}', ") .
-		'vsconfig = ' . (empty ($vsconfig) ? 'NULL,' : "'${vsconfig}', ") .
-		'rsconfig = ' . (empty ($rsconfig) ? 'NULL' : "'${rsconfig}'") .
-		" where id = ${vsid} limit 1";
-	$result = $dbxlink->exec ($query);
-	if ($result === NULL)
-		return FALSE;
-	else
-		return TRUE;
+	Database::update(array(
+		'vip'=>array('left'=>'inet_aton(', 'value'=>$vip, 'right'=>')'),
+		'vport'=>$vport,
+		'proto'=>$proto,
+		'name'=>(empty ($name) ? NULL : $name),
+		'vsconfig'=>(empty ($vsconfig) ? NULL : $vsconfig),
+		'rsconfig'=>(empty ($rsconfig) ? 'NULL' : $rsconfig)
+		), 'IPv4VS', $vsid);
+	return TRUE;
 }
 
 // Return the list of virtual services, indexed by vs_id.
@@ -2738,15 +2569,13 @@ function loadThumbCache ($rack_id = 0)
 
 function saveThumbCache ($rack_id = 0, $cache = NULL)
 {
-	global $dbxlink;
 	if ($rack_id == 0 or $cache == NULL)
 	{
 		showError ('Invalid arguments', __FUNCTION__);
 		return;
 	}
 	$data = base64_encode ($cache);
-	$query = "update Rack set thumb_data = '${data}' where id = ${rack_id} limit 1";
-	$result = $dbxlink->exec ($query);
+	Database::update(array('thumb_data'=>$data), 'Rack', $rack_id);
 }
 
 function resetThumbCache ($rack_id = 0)
@@ -2757,8 +2586,7 @@ function resetThumbCache ($rack_id = 0)
 		showError ('Invalid argument', __FUNCTION__);
 		return;
 	}
-	$query = "update Rack set thumb_data = NULL where id = ${rack_id} limit 1";
-	$result = $dbxlink->exec ($query);
+	Database::update(array('thumb_data'=>NULL), 'Rack', $rack_id);
 }
 
 // Return the list of attached RS pools for the given object. As long as we have
@@ -2807,10 +2635,10 @@ function commitCreateRSPool ($name = '', $vsconfig = '', $rsconfig = '', $taglis
 
 function commitDeleteRSPool ($pool_id = 0)
 {
-	global $dbxlink;
 	if ($pool_id <= 0)
 		return FALSE;
-	return useDeleteBlade ('IPv4RSPool', 'id', $pool_id) && destroyTagsForEntity ('ipv4rspool', $pool_id);
+	Database::delete('IPv4RSPool', $pool_id);
+	return destroyTagsForEntity ('ipv4rspool', $pool_id);
 }
 
 function commitUpdateRSPool ($pool_id = 0, $name = '', $vsconfig = '', $rsconfig = '')
@@ -2820,19 +2648,12 @@ function commitUpdateRSPool ($pool_id = 0, $name = '', $vsconfig = '', $rsconfig
 		showError ('Invalid arg', __FUNCTION__);
 		die;
 	}
-	global $dbxlink;
-	$query = "update IPv4RSPool set " .
-		'name = ' . (empty ($name) ? 'NULL,' : "'${name}', ") .
-		'vsconfig = ' . (empty ($vsconfig) ? 'NULL,' : "'${vsconfig}', ") .
-		'rsconfig = ' . (empty ($rsconfig) ? 'NULL' : "'${rsconfig}'") .
-		" where id = ${pool_id} limit 1";
-	$result = $dbxlink->exec ($query);
-	if ($result === NULL)
-		return FALSE;
-	elseif ($result != 1)
-		return FALSE;
-	else
-		return TRUE;
+	Database::update(array(
+		'name'=>(empty ($name) ? NULL : $name),
+		'vsconfig'=>(empty ($vsconfig) ? NULL : $vsconfig),
+		'rsconfig'=>(empty ($rsconfig) ? NULL : $rsconfig)
+		), 'IPv4RSPool', $pool_id);
+	return TRUE;
 }
 
 function getRSList ()
@@ -2907,15 +2728,8 @@ function commitSetInService ($rs_id = 0, $inservice = '')
 		showError ('Invalid args', __FUNCTION__);
 		return NULL;
 	}
-	global $dbxlink;
-	$query = "update IPv4RS set inservice = '${inservice}' where id = ${rs_id} limit 1";
-	$result = $dbxlink->exec ($query);
-	if ($result === NULL)
-		return FALSE;
-	elseif ($result != 1)
-		return FALSE;
-	else
-		return TRUE;
+	Database::update(array('inservice'=>$inservice), 'IPv4RS', $rs_id);
+	return TRUE;
 }
 
 function executeAutoPorts ($object_id = 0, $type_id = 0)
@@ -3036,47 +2850,31 @@ function commitDestroyTag ($tagid = 0)
 {
 	if ($tagid == 0)
 		return 'Invalid arg to ' . __FUNCTION__;
-	if (useDeleteBlade ('TagTree', 'id', $tagid))
-		return '';
-	else
-		return 'useDeleteBlade() failed in ' . __FUNCTION__;
+	Database::delete('TagTree', $tagid);
+	return '';
 }
 
 function commitUpdateTag ($tag_id, $tag_name, $parent_id)
 {
 	if ($parent_id == 0)
 		$parent_id = 'NULL';
-	global $dbxlink;
-	$query = "update TagTree set tag = '${tag_name}', parent_id = ${parent_id} " .
-		"where id = ${tag_id} limit 1";
-	$result = $dbxlink->exec ($query);
-	if ($result === NULL)
-		return 'SQL query failed in ' . __FUNCTION__;
+	Database::update(array('tag'=>$tag_name, 'parent_id'=>$parent_id), 'TagTree', $tag_id);
 	return '';
 }
 
 // Drop the whole chain stored.
 function destroyTagsForEntity ($entity_realm, $entity_id)
 {
-	global $dbxlink;
-	$query = "delete from TagStorage where entity_realm = '${entity_realm}' and entity_id = ${entity_id}";
-	$result = $dbxlink->exec ($query);
-	if ($result === NULL)
-		return FALSE;
-	else
-		return TRUE;
+	Database::deleteWhere('TagStorage', array('entity_realm'=>$entity_realm, 'entity_id'=>$entity_id));
+	return TRUE;
 }
 
 // Drop only one record. This operation doesn't involve retossing other tags, unlike when adding.
 function deleteTagForEntity ($entity_realm, $entity_id, $tag_id)
 {
 	global $dbxlink;
-	$query = "delete from TagStorage where entity_realm = '${entity_realm}' and entity_id = ${entity_id} and tag_id = ${tag_id}";
-	$result = $dbxlink->exec ($query);
-	if ($result === NULL)
-		return FALSE;
-	else
-		return TRUE;
+	Database::deleteWhere('TagStorage', array('entity_realm'=>$entity_realm, 'entity_id'=>$entity_id, 'tag_id'=>$tag_id));
+	return TRUE;
 }
 
 // Push a record into TagStorage unconditionally.
@@ -3206,8 +3004,7 @@ function destroyIPv4Prefix ($id = 0)
 {
 	if ($id <= 0)
 		return __FUNCTION__ . ': Invalid IPv4 prefix ID';
-	if (!useDeleteBlade ('IPv4Network', 'id', $id))
-		return __FUNCTION__ . ': SQL query #1 failed';
+	Database::delete('IPv4Network', $id);
 	if (!destroyTagsForEntity ('ipv4net', $id))
 		return __FUNCTION__ . ': SQL query #2 failed';
 	return '';
@@ -3231,7 +3028,7 @@ function saveScript ($name, $text)
 		return FALSE;
 	}
 	// delete regardless of existence
-	useDeleteBlade ('Script', 'script_name', "'${name}'");
+	Database::deleteWhere('Script', array('script_name'=>$name));
 	Database::insert
 	(
 		array
@@ -3337,21 +3134,26 @@ function newPortForwarding ($object_id, $localip, $localport, $remoteip, $remote
 
 function deletePortForwarding ($object_id, $localip, $localport, $remoteip, $remoteport, $proto)
 {
-	global $dbxlink;
-
-	$query =
-		"delete from IPv4NAT where object_id='$object_id' and localip=INET_ATON('$localip') and remoteip=INET_ATON('$remoteip') and localport='$localport' and remoteport='$remoteport' and proto='$proto'";
-	$result = $dbxlink->exec ($query);
+	Database::deleteWhere('IPv4NAT', array(
+		'object_id'=>$object_id,
+		'localip'=>array('left'=>'INET_ATON(', 'value'=>$localip, 'right'=>')'),
+		'remoteip'=>array('left'=>'INET_ATON(', 'value'=>$remoteip, 'right'=>')'),
+		'localport'=>$localport,
+		'remoteport'=>$remoteport,
+		'proto'=>$proto ));
 	return '';
 }
 
 function updatePortForwarding ($object_id, $localip, $localport, $remoteip, $remoteport, $proto, $description)
 {
-	global $dbxlink;
+	Database::update(array('description'=>$description), 'IPv4NAT', array(
+		'object_id'=>$object_id,
+		'localip'=>array('left'=>'INET_ATON(', 'value'=>$localip, 'right'=>')'),
+		'remoteip'=>array('left'=>'INET_ATON(', 'value'=>$remoteip, 'right'=>')'),
+		'localport'=>$localport,
+		'remoteport'=>$remoteport,
+		'proto'=>$proto ));
 
-	$query =
-		"update IPv4NAT set description='$description' where object_id='$object_id' and localip=INET_ATON('$localip') and remoteip=INET_ATON('$remoteip') and localport='$localport' and remoteport='$remoteport' and proto='$proto'";
-	$result = $dbxlink->exec ($query);
 	return '';
 }
 
@@ -3418,7 +3220,6 @@ function getNATv4ForObject ($object_id)
 // existing score.
 function mergeSearchResults (&$objects, $terms, $fieldname)
 {
-	global $dbxlink;
 	$query =
 		"select ro.name, label, asset_no, barcode, ro.id, dict_key as objtype_id, " .
 		"dict_value as objtype_name, asset_no from RackObject as ro inner join Dictionary " .
@@ -3865,15 +3666,13 @@ function commitUpdateFileText ($file_id = 0, $newtext = '')
 
 function commitUnlinkFile ($link_id)
 {
-	if (useDeleteBlade ('FileLink', 'id', $link_id) != TRUE)
-		return __FUNCTION__ . ': useDeleteBlade() failed';
+	Database::delete('FileLink', $link_id);
 	return '';
 }
 
 function commitDeleteFile ($file_id)
 {
-	if (useDeleteBlade ('File', 'id', $file_id) != TRUE)
-		return __FUNCTION__ . ': useDeleteBlade() failed';
+	Database::delete('FileLink', $file_id);
 	return '';
 }
 
