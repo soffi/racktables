@@ -1277,7 +1277,7 @@ function getIPv4NetworkList ($tagfilter = array(), $tfmode = 'any')
 	$query =
 		"select distinct id, INET_NTOA(ip) as ip, mask, name " .
 		"from IPv4Network left join TagStorage on id = entity_id and entity_realm = 'ipv4net' " .
-		"where true ${whereclause} order by IPv4Network.ip";
+		"where true ${whereclause} order by IPv4Network.ip, IPv4Network.mask";
 	$result = Database::query ($query);
 	$ret = array();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))

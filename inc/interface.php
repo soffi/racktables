@@ -69,9 +69,15 @@ $image['download']['height'] = 16;
 $image['DOWNLOAD']['path'] = 'pix/download-big.png';
 $image['DOWNLOAD']['width'] = 32;
 $image['DOWNLOAD']['height'] = 32;
-$image['link']['path'] = 'pix/tango-network-wired.png';
-$image['link']['width'] = 16;
-$image['link']['height'] = 16;
+$image['plug']['path'] = 'pix/tango-network-wired.png';
+$image['plug']['width'] = 16;
+$image['plug']['height'] = 16;
+$image['cut']['path'] = 'pix/tango-edit-cut-16x16.png';
+$image['cut']['width'] = 16;
+$image['cut']['height'] = 16;
+$image['CUT']['path'] = 'pix/tango-edit-cut-32x32.png';
+$image['CUT']['width'] = 32;
+$image['CUT']['height'] = 32;
 $image['add']['path'] = 'pix/tango-list-add.png';
 $image['add']['width'] = 16;
 $image['add']['height'] = 16;
@@ -81,13 +87,13 @@ $image['ADD']['height'] = 32;
 $image['delete']['path'] = 'pix/tango-list-remove.png';
 $image['delete']['width'] = 16;
 $image['delete']['height'] = 16;
-$image['destroy']['path'] = 'pix/tango-edit-delete.png';
+$image['destroy']['path'] = 'pix/tango-user-trash-16x16.png';
 $image['destroy']['width'] = 16;
 $image['destroy']['height'] = 16;
-$image['nodestroy']['path'] = 'pix/tango-edit-delete-gray.png';
+$image['nodestroy']['path'] = 'pix/tango-user-trash-16x16-gray.png';
 $image['nodestroy']['width'] = 16;
 $image['nodestroy']['height'] = 16;
-$image['DESTROY']['path'] = 'pix/tango-edit-delete-big.png';
+$image['DESTROY']['path'] = 'pix/tango-user-trash-32x32.png';
 $image['DESTROY']['width'] = 32;
 $image['DESTROY']['height'] = 32;
 $image['nodelete']['path'] = 'pix/tango-list-remove-shadow.png';
@@ -1158,7 +1164,7 @@ function renderPortsForObject ($object_id = 0)
 					'remote_port_name'=>$port['remote_name'], 
 					'remote_object_name'=>$port['remote_object_name'])).
 			"'>";
-			printImageHREF ('clear', 'Unlink this port');
+			printImageHREF ('cut', 'Unlink this port');
 			echo "</a></td>";
 		}
 		elseif (!empty ($port['reservation_comment']))
@@ -1179,7 +1185,7 @@ function renderPortsForObject ($object_id = 0)
 			echo "<td>&nbsp;</td><td>&nbsp;</td>";
 			echo "<td>";
 			echo "<a href='javascript:;' onclick='window.open(\"".makeHrefForHelper('portlist', array('port'=>$port['id'], 'type'=>$port['type_id'], 'object_id'=>$object_id, 'port_name'=>$port['name']))."\",\"findlink\",\"height=700, width=400, location=no, menubar=no, resizable=yes, scrollbars=no, status=no, titlebar=no, toolbar=no\");'>";
-			printImageHREF ('link', 'Link this port');
+			printImageHREF ('plug', 'Link this port');
 			echo "</a> <input type=text name=reservation_comment>";
 			echo "</td>\n";
 		}
@@ -5706,24 +5712,22 @@ function renderFilesForEntity ($entity_id = 0)
 	{
 		startPortlet ('Manage linked');
 		echo "<table border=0 cellspacing=0 cellpadding='5' align='center' class='widetable'>\n";
-		echo "<tr><th>&nbsp;</th><th>Name</th><th>Comment</th><th>Size</th><th>Actions</th></tr>\n";
+		echo "<tr><th>File</th><th>Comment</th><th>Size</th><th>Actions</th></tr>\n";
 		foreach ($filelist as $file_id => $file)
 		{
-			echo "<tr valign=top><td><a href='".makeHrefProcess(array('op'=>'deleteFile', 'file_id'=>$file_id, $id_name=>$entity_id, 'name'=>$file['name']))."'>";
-			printImageHREF ('DESTROY', 'Unlink and delete file');
-			echo '</a></td><td class=tdleft>';
-			//printf("<a href='%/?page=file&file_id=%s'><strong>%s</strong></a>", $root, $file_id, $file['name']);
-			renderFileCell ($file);;
-			echo "<td class=tdleft>${file['comment']}</td>";
-			printf("<td class=tdleft>%s</td>", formatFileSize($file['size']));
-			echo "<td><a href='${root}download.php?file_id=${file_id}'>";
-			printImageHREF ('DOWNLOAD', 'Download file');
-			echo '</a> ';
+			echo "<tr valign=top><td class=tdleft>";
+			renderFileCell ($file);
+			echo "</td><td class=tdleft>${file['comment']}</td><td class=tdleft><a href='${root}download.php?file_id=${file_id}'>";
+			printImageHREF ('download', 'Download file');
+			echo '</a>&nbsp;';
+			echo formatFileSize ($file['size']);
+			echo '</td><td class=tdleft>';
 			echo "<a href='".makeHrefProcess(array('op'=>'unlinkFile', 'link_id'=>$file['link_id'], $id_name=>$entity_id, 'name'=>$file['name']))."'>";
-			printImageHREF ('CLEAR', 'Unlink file');
+			printImageHREF ('CUT', 'Unlink file');
 			echo '</a> ';
-			printImageHREF ('SAVE', 'Save changes', TRUE);
-			echo "</td></form></tr>\n";
+			echo "<a href='".makeHrefProcess(array('op'=>'deleteFile', 'file_id'=>$file_id, $id_name=>$entity_id, 'name'=>$file['name']))."'>";
+			printImageHREF ('DESTROY', 'Unlink and delete file');
+			echo "</a></td></form></tr>\n";
 		}
 		echo "</table><br>\n";
 		finishPortlet();
