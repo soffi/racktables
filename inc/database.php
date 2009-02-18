@@ -171,7 +171,7 @@ function getNarrowObjectList ($type_id = 0)
 	$query =
 		"select RackObject.id as id, RackObject.name as name, dict_value as objtype_name, " .
 		"objtype_id from " .
-		"RackObject inner join Dictionary on objtype_id=dict_key join Chapter on Chapter.id = Dictionary.chapter_id " .
+		"RackObject inner join Dictionary on objtype_id=Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
 		"where RackObject.deleted = 'no' and Chapter.name = 'RackObjectType' " .
 		"and objtype_id = ? " .
 		"order by name";
@@ -208,9 +208,9 @@ function getObjectList ($type_id = 0, $tagfilter = array(), $tfmode = 'any')
 	$query =
 		"select distinct RackObject.id as id , RackObject.name as name, dict_value as objtype_name, " .
 		"RackObject.label as label, RackObject.barcode as barcode, " .
-		"dict_key as objtype_id, asset_no, rack_id, Rack.name as Rack_name, Rack.row_id, " .
+		"Dictionary.id as objtype_id, asset_no, rack_id, Rack.name as Rack_name, Rack.row_id, " .
 		"RackRow.name as Row_name " .
-		"from ((RackObject inner join Dictionary on objtype_id=dict_key join Chapter on Chapter.id = Dictionary.chapter_id) " .
+		"from ((RackObject inner join Dictionary on objtype_id=Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id) " .
 		"left join RackSpace on RackObject.id = object_id) " .
 		"left join Rack on rack_id = Rack.id " .
 		"left join RackRow on Rack.row_id = RackRow.id " .
@@ -342,8 +342,8 @@ function getObjectInfo ($object_id = 0)
 		return;
 	}
 	$query =
-		"select RackObject.id as id, RackObject.name as name, label, barcode, dict_value as objtype_name, asset_no, dict_key as objtype_id, has_problems, comment from " .
-		"RackObject inner join Dictionary on objtype_id = dict_key join Chapter on Chapter.id = Dictionary.chapter_id " .
+		"select RackObject.id as id, RackObject.name as name, label, barcode, dict_value as objtype_name, asset_no, Dictionary.id as objtype_id, has_problems, comment from " .
+		"RackObject inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
 		"where RackObject.id = '${object_id}' and RackObject.deleted = 'no' and Chapter.name = 'RackObjectType' limit 1";
 	$result = Database::query ($query);
 	if (($row = $result->fetch (PDO::FETCH_ASSOC)) == NULL)
@@ -736,7 +736,7 @@ function getRackspaceHistory ()
 	$query =
 		"select mo.id as mo_id, ro.id as ro_id, ro.name, mo.ctime, mo.comment, dict_value as objtype_name, user_name from " .
 		"MountOperation as mo inner join RackObject as ro on mo.object_id = ro.id " .
-		"inner join Dictionary on objtype_id = dict_key join Chapter on Chapter.id = Dictionary.chapter_id " .
+		"inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
 		"where Chapter.name = 'RackObjectType' order by ctime desc";
 	$result = Database::query ($query);
 	$ret = $result->fetchAll(PDO::FETCH_ASSOC);
@@ -804,10 +804,10 @@ function getResidentRacksData ($object_id = 0, $fetch_rackdata = TRUE)
 function getObjectGroupInfo ()
 {
 	$query =
-		'select dict_key as id, dict_value as name, count(dict_key) as count from ' .
-		'Dictionary join Chapter on Chapter.id = Dictionary.chapter_id join RackObject on dict_key = objtype_id ' .
+		'select Dictionary.id as id, dict_value as name, count(Dictionary.id) as count from ' .
+		'Dictionary join Chapter on Chapter.id = Dictionary.chapter_id join RackObject on Dictionary.id = objtype_id ' .
 		'where Chapter.name = "RackObjectType" ' .
-		'group by dict_key order by dict_value';
+		'group by Dictionary.id order by dict_value';
 	$result = Database::query ($query);
 	$ret = array();
 	$ret[0] = array ('id' => 0, 'name' => 'ALL types');
@@ -831,8 +831,8 @@ function getObjectGroupInfo ()
 function getUnmountedObjects ()
 {
 	$query =
-		'select dict_value as objtype_name, dict_key as objtype_id, name, label, barcode, id, asset_no from ' .
-		'RackObject inner join Dictionary on objtype_id = dict_key join Chapter on Chapter.id = Dictionary.chapter_id ' .
+		'select dict_value as objtype_name, Dictionary.id as objtype_id, name, label, barcode, id, asset_no from ' .
+		'RackObject inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id ' .
 		'left join RackSpace on id = object_id '.
 		'where rack_id is null and Chapter.name = "RackObjectType" order by dict_value, name, label, asset_no, barcode';
 	$result = Database::query ($query);
@@ -851,8 +851,8 @@ function getUnmountedObjects ()
 function getProblematicObjects ()
 {
 	$query =
-		'select dict_value as objtype_name, dict_key as objtype_id, name, id, asset_no from ' .
-		'RackObject inner join Dictionary on objtype_id = dict_key join Chapter on Chapter.id = Dictionary.chapter_id '.
+		'select dict_value as objtype_name, Dictionary.id as objtype_id, name, id, asset_no from ' .
+		'RackObject inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id '.
 		'where has_problems = "yes" and Chapter.name = "RackObjectType" order by objtype_name, name';
 	$result = Database::query ($query);
 	$ret = array();
@@ -950,7 +950,7 @@ function getEmptyPortsOfType ($type_id)
 		"dict_value as Port_type_name ".
 		"from ( ".
 		"	( ".
-		"		Port inner join Dictionary on Port.type = dict_key join Chapter on Chapter.id = Dictionary.chapter_id ".
+		"		Port inner join Dictionary on Port.type = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id ".
 		"	) ".
 		" 	join RackObject on Port.object_id = RackObject.id ".
 		") ".
@@ -1093,7 +1093,7 @@ function scanIPv4Space ($pairlist)
 		"ro.name as object_name, ipb.name, ipb.type, objtype_id, " .
 		"dict_value as objtype_name from " .
 		"IPv4Allocation as ipb inner join RackObject as ro on ipb.object_id = ro.id " .
-		"left join Dictionary on objtype_id=dict_key join Chapter on Chapter.id = Dictionary.chapter_id " .
+		"left join Dictionary on objtype_id=Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
 		"where ${whereexpr2} " .
 		"and Chapter.name = 'RackObjectType'" .
 		"order by ipb.type, object_name";
@@ -1123,7 +1123,7 @@ function scanIPv4Space ($pairlist)
 		"object_id, objtype_id, ro.name as object_name, dict_value as objtype_name from " .
 		"IPv4VS as vs inner join IPv4LB as lb on vs.id = lb.vs_id " .
 		"inner join RackObject as ro on lb.object_id = ro.id " .
-		"left join Dictionary on objtype_id=dict_key " .
+		"left join Dictionary on objtype_id=Dictionary.id " .
 		"join Chapter on Chapter.id = Dictionary.chapter_id " .
 		"where ${whereexpr3} " .
 		"and Chapter.name = 'RackObjectType'" .
@@ -1625,8 +1625,8 @@ function getPortCompat ()
 {
 	$query =
 		"select type1, type2, d1.dict_value as type1name, d2.dict_value as type2name from " .
-		"PortCompat as pc inner join Dictionary as d1 on pc.type1 = d1.dict_key " .
-		"inner join Dictionary as d2 on pc.type2 = d2.dict_key " .
+		"PortCompat as pc inner join Dictionary as d1 on pc.type1 = d1.id " .
+		"inner join Dictionary as d2 on pc.type2 = d2.id " .
 		"inner join Chapter as c1 on d1.chapter_id = c1.id " .
 		"inner join Chapter as c2 on d2.chapter_id = c2.id " .
 		"where c1.name = 'PortType' and c2.name = 'PortType'";
@@ -1676,7 +1676,7 @@ function addPortCompat ($type1 = 0, $type2 = 0)
 function getDict ($parse_links = FALSE)
 {
 	$query1 =
-		"select Chapter.name as chapter_name, Chapter.id as chapter_no, dict_key, dict_value, sticky from " .
+		"select Chapter.name as chapter_name, Chapter.id as chapter_no, Dictionary.id as dict_key, dict_value, sticky from " .
 		"Chapter left join Dictionary on Chapter.id = Dictionary.chapter_id order by Chapter.name, dict_value";
 	$result = Database::query ($query1);
 	$dict = array();
@@ -1705,7 +1705,7 @@ function getDict ($parse_links = FALSE)
 	$query2 = "select a.id as attr_id, am.chapter_id as chapter_no, uint_value, count(object_id) as refcnt " .
 		"from Attribute as a inner join AttributeMap as am on a.id = am.attr_id " .
 		"inner join AttributeValue as av on a.id = av.attr_id " .
-		"inner join Dictionary as d on am.chapter_id = d.chapter_id and av.uint_value = d.dict_key " .
+		"inner join Dictionary as d on am.chapter_id = d.chapter_id and av.uint_value = d.id " .
 		"where a.type = 'dict' group by a.id, am.chapter_id, uint_value " .
 		"order by a.id, am.chapter_id, uint_value";
 	$result = Database::query ($query2);
@@ -1719,7 +1719,7 @@ function getDictStats ()
 {
 	$stock_chapters = array (1, 2, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22, 23);
 	$query =
-		"select Chapter.id as chapter_no, Chapter.name as chapter_name, count(dict_key) as wc from " .
+		"select Chapter.id as chapter_no, Chapter.name as chapter_name, count(Dictionary.id) as wc from " .
 		"Chapter left join Dictionary on Chapter.id = Dictionary.chapter_id group by Chapter.id";
 	$result = Database::query ($query);
 	$tc = $tw = $uc = $uw = 0;
@@ -1871,7 +1871,7 @@ function commitUpdateDictionary ($chapter_no = 0, $dict_key = 0, $dict_value = '
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	Database::updateWhere(array('dict_value'=>$dict_value), 'Dictionary', array('chapter_id'=>$chapter_no, 'dict_key'=>$dict_key));
+	Database::update(array('dict_value'=>$dict_value), 'Dictionary', $dict_key);
 	return TRUE;
 }
 
@@ -1887,7 +1887,7 @@ function commitSupplementDictionary ($chapter_no = 0, $dict_value = '')
 		array ('chapter_id' => $chapter_no, 'dict_value' => $dict_value),
 		'Dictionary'
 	);
-	return '';
+	return TRUE;
 }
 
 function commitReduceDictionary ($chapter_no = 0, $dict_key = 0)
@@ -1897,7 +1897,7 @@ function commitReduceDictionary ($chapter_no = 0, $dict_key = 0)
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
-	Database::deleteWhere('Dictionary', array('chapter_id'=>$chapter_no, 'dict_key'=>$dict_key));
+	Database::delete('Dictionary', $dict_key);
 	return TRUE;
 }
 
@@ -1947,7 +1947,7 @@ function readChapter ($chapter_name = '')
 		return NULL;
 	}
 	$query =
-		"select dict_key, dict_value from Dictionary join Chapter on Chapter.id = Dictionary.chapter_id " .
+		"select Dictionary.id as dict_key, dict_value from Dictionary join Chapter on Chapter.id = Dictionary.chapter_id " .
 		"where Chapter.name = '${chapter_name}'";
 	$result = Database::query ($query);
 	$chapter = array();
@@ -1965,7 +1965,7 @@ function getAttrMap ()
 		"select a.id as attr_id, a.type as attr_type, a.name as attr_name, am.objtype_id, " .
 		"d.dict_value as objtype_name, am.chapter_id, c2.name as chapter_name from " .
 		"Attribute as a left join AttributeMap as am on a.id = am.attr_id " .
-		"left join Dictionary as d on am.objtype_id = d.dict_key " .
+		"left join Dictionary as d on am.objtype_id = d.id " .
 		"left join Chapter as c1 on d.chapter_id = c1.id " .
 		"left join Chapter as c2 on am.chapter_id = c2.id " .
 		"where c1.name = 'RackObjectType' or c1.name is null " .
@@ -2094,7 +2094,7 @@ function getAttrValues ($object_id, $strip_optgroup = FALSE)
 		"RackObject as RO inner join AttributeMap as AM on RO.objtype_id = AM.objtype_id " .
 		"inner join Attribute as A on AM.attr_id = A.id " .
 		"left join AttributeValue as AV on AV.attr_id = AM.attr_id and AV.object_id = RO.id " .
-		"left join Dictionary as D on D.dict_key = AV.uint_value and AM.chapter_id = D.chapter_id " .
+		"left join Dictionary as D on D.id = AV.uint_value and AM.chapter_id = D.chapter_id " .
 		"left join Chapter as C on AM.chapter_id = C.id " .
 		"where RO.id = ${object_id} order by A.type, A.name";
 	$result = Database::query ($query);
@@ -3221,9 +3221,9 @@ function getNATv4ForObject ($object_id)
 function mergeSearchResults (&$objects, $terms, $fieldname)
 {
 	$query =
-		"select ro.name, label, asset_no, barcode, ro.id, dict_key as objtype_id, " .
+		"select ro.name, label, asset_no, barcode, ro.id, Dictionary.id as objtype_id, " .
 		"dict_value as objtype_name, asset_no from RackObject as ro inner join Dictionary " .
-		"on objtype_id = dict_key join Chapter on Chapter.id = Dictionary.chapter_id where Chapter.name = 'RackObjectType' and ";
+		"on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id where Chapter.name = 'RackObjectType' and ";
 	$count = 0;
 	foreach (explode (' ', $terms) as $term)
 	{

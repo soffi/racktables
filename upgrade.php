@@ -79,6 +79,7 @@ function executeUpgradeBatch ($batchid)
 			}
 
 			$query[] = "alter table Chapter change chapter_no id int(10) unsigned NOT NULL auto_increment";
+			$query[] = "alter table Dictionary change dict_key id int(10) unsigned NOT NULL auto_increment";
 			$query[] = "alter table Chapter change chapter_name name char(128) NOT NULL";
 			$query[] = "alter table Chapter drop key chapter_name";
 			$query[] = "alter table Chapter add UNIQUE KEY name (name)";
