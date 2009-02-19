@@ -183,6 +183,9 @@ $image['image file']['height'] = 32;
 $image['NET']['path'] = 'pix/crystal-network-32x32.png';
 $image['NET']['width'] = 32;
 $image['NET']['height'] = 32;
+$image['USER']['path'] = 'pix/crystal-edit-user-32x32.png';
+$image['USER']['width'] = 32;
+$image['USER']['height'] = 32;
 
 // This may be populated later onsite, report rendering function will use it.
 // See the $systemreport for structure.
@@ -1973,7 +1976,7 @@ function renderHistory ($object_type, $object_id)
 		case 'object':
 			$query =
 				"select ctime, user_name, RackObjectHistory.name as name, label, barcode, asset_no, deleted, has_problems, dict_value, comment " .
-				"from RackObjectHistory inner join Dictionary on objtype_id = dict_key join Chapter on Dictionary.chapter_id = Chapter.id " .
+				"from RackObjectHistory inner join Dictionary on objtype_id = Dictionary.id join Chapter on Dictionary.chapter_id = Chapter.id " .
 				"where Chapter.name = 'RackObjectType' and RackObjectHistory.id=${object_id} order by ctime";
 			$header = '<tr><th>change time</th><th>author</th><th>common name</th><th>visible label</th><th>barcode</th><th>asset no</th><th>is deleted?</th><th>has problems?</th><th>object type</th><th>comment</th></tr>';
 			$extra = 9;
@@ -1983,12 +1986,7 @@ function renderHistory ($object_type, $object_id)
 			return;
 	}
 	global $dbxlink;
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		return;
-	}
+	$result = Database::query ($query);
 	echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
 	$order = 'odd';
 	global $nextorder;
@@ -2279,18 +2277,36 @@ function renderIPv4SpaceEditor ()
 	finishPortlet();
 
 	$addrspaceList = getIPv4NetworkList();
-	$netcount = count ($addrspaceList);
-	if ($netcount)
+	if (count ($addrspaceList))
 	{
-		startPortlet ("Manage existing (${netcount})");
+		startPortlet ('Manage existing (' . count ($addrspaceList) . ')');
 		echo "<table class='widetable' border=0 cellpadding=5 cellspacing=0 align='center'>\n";
 		echo "<tr><th>&nbsp;</th><th>prefix</th><th>name</th><th>&nbsp;</th></tr>";
 		foreach ($addrspaceList as $netinfo)
 		{
 			echo "<form method=post action='".makeHrefProcess(array('op'=>'updIPv4Prefix', 'id'=>$netinfo['id']))."'>";
-			echo "<tr valign=top><td><a href='".makeHrefProcess(array('op'=>'delIPv4Prefix', 'id'=>$netinfo['id']))."'>";
-			printImageHREF ('delete', 'Delete this IP range');
-			echo "</a></td>\n<td class=tdleft>${netinfo['ip']}/${netinfo['mask']}</td>";
+			echo "<tr valign=top><td>";
+			if (getConfigVar ('IPV4_JAYWALK') == 'yes')
+			{
+				echo "<a href='".makeHrefProcess(array('op'=>'delIPv4Prefix', 'id'=>$netinfo['id']))."'>";
+				printImageHREF ('destroy', 'Delete this prefix');
+				echo "</a>";
+			}
+			else // only render clickable image for empty networks
+			{
+				$netdata = getIPv4NetworkInfo ($netinfo['id']);
+				loadIPv4AddrList ($netdata);
+				if (count ($netdata['addrlist']))
+					printImageHREF ('nodestroy', 'There are ' . count ($netdata['addrlist']) . ' allocations inside');
+				else
+				{
+					echo "<a href='".makeHrefProcess(array('op'=>'delIPv4Prefix', 'id'=>$netinfo['id']))."'>";
+					printImageHREF ('destroy', 'Delete this prefix');
+					echo "</a>";
+				}
+
+			}
+			echo "</td>\n<td class=tdleft>${netinfo['ip']}/${netinfo['mask']}</td>";
 			echo "<td><input type=text name=name size=40 value='${netinfo['name']}'>";
 			echo "</td><td>";
 			printImageHREF ('save', 'Save changes', TRUE);
@@ -3213,12 +3229,11 @@ function renderSearchResults ()
 				case 'user':
 					startPortlet ("<a href='${root}?page=userlist'>Users</a>");
 					echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
-					echo '<tr><th>Username</th><th>Real Name</th></tr>';
 					foreach ($what as $item)
 					{
-						echo "<tr class=row_${order}><td class=tdleft><a href='${root}?page=user&user_id=${item['user_id']}'>";
-						echo $item['user_name'];
-						echo "</a></td><td class=tdleft>${item['user_realname']}</td></tr>";
+						echo "<tr class=row_${order}><td class=tdleft>";
+						renderUserCell ($item);
+						echo "</td></tr>";
 						$order = $nextorder[$order];
 					}
 					echo '</table>';
@@ -5310,10 +5325,11 @@ function renderRackCodeEditor ()
 	printOpFormIntro ('saveRackCode');
 	echo <<<ENDJAVASCRIPT
 <script type="text/javascript">
+var prevCode = '';
 function verify()
 {
 	$.ajax({
-		type: "GET",
+		type: "POST",
 		url: "ajax.php",
 		data: "ac=verifyCode&code="+RCTA.getCode(),
 		success: function (data)
@@ -5322,15 +5338,33 @@ function verify()
 			if (arr[0] == "ACK")
 			{
 				$("#SaveChanges")[0].disabled = "";
+				$("#ShowMessage")[0].innerHTML = "Code verification OK, don't forget to save the code";
+				$("#ShowMessage")[0].className = "msg_success";
 			}
 			else
 			{
 				$("#SaveChanges")[0].disabled = "disabled";
 				$("#ShowMessage")[0].innerHTML = arr[1];
+				$("#ShowMessage")[0].className = "msg_warning";
 			}
+			prevCode = RCTA.getCode();
 		}
 	});
 }
+
+
+function invalidate()
+{
+	if (prevCode != RCTA.getCode())
+	{
+		prevCode = RCTA.getCode();
+		$("#SaveChanges")[0].disabled = "disabled";
+		$("#ShowMessage")[0].innerHTML = "";
+		$("#ShowMessage")[0].className = "";
+	}
+}
+
+setInterval(invalidate, 1000);
 </script>
 ENDJAVASCRIPT;
 
@@ -5338,9 +5372,9 @@ ENDJAVASCRIPT;
 	echo "<tr><td><textarea rows=40 cols=100 name=rackcode id=RCTA class='codepress rackcode'>";
 	echo $text . "</textarea></td></tr>\n";
 	echo "<tr><td align=center>";
-	echo "<input type='submit' value='Save' disabled='disabled' id='SaveChanges' onclick='RCTA.toggleEditor();'>";
-	echo "<input type='button' value='Verify' onclick='verify();'>";
 	echo '<div id="ShowMessage"></div>';
+	echo "<input type='button' value='Verify' onclick='verify();'>";
+	echo "<input type='submit' value='Save' disabled='disabled' id='SaveChanges' onclick='RCTA.toggleEditor();'>";
 //	printImageHREF ('SAVE', 'Save changes', TRUE);
 	echo "</td></tr>";
 	echo '</table>';
@@ -5526,11 +5560,19 @@ function renderFile ($file_id = 0)
 	{
 		startPortlet ('Links (' . count ($links) . ')');
 		echo "<table cellspacing=0 cellpadding='5' align='center' class='widetable'>\n";
+		global $accounts;
 		foreach ($links as $link)
 		{
 			echo '<tr><td class=tdleft>';
 			switch ($link['entity_type'])
 			{
+				case 'user':
+					$username = getUsernameByID ($link['entity_id']);
+					if (NULL === $username or !isset ($accounts[$username]))
+						echo "Internal error: user id ${link['entity_id']} not found";
+					else
+						renderUserCell ($accounts[$username]);
+					break;
 				case 'ipv4net':
 					renderIPv4NetCell (getIPv4NetworkInfo ($link['entity_id']));
 					break;
@@ -5687,7 +5729,7 @@ function renderFilesPortlet ($entity_type = NULL, $entity_id = 0)
 		echo "<tr><th>File</th><th>Comment</th></tr>\n";
 		foreach ($files as $file)
 		{
-			echo "<tr><td class=tdleft>";
+			echo "<tr valign=top><td class=tdleft>";
 			renderFileCell ($file);
 			echo "</td><td class=tdleft>${file['comment']}</td></tr>";
 			if ('' != ($pcode = getFilePreviewCode ($file)))
@@ -5865,6 +5907,23 @@ function renderIPv4NetCell ($netinfo)
 	echo "</td></tr></table>";
 }
 
+function renderUserCell ($account)
+{
+	global $root;
+	echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
+	printImageHREF ('USER');
+	echo '</td>';
+	echo "<td><a href='${root}?page=user&user_id=${account['user_id']}'>${account['user_name']}</a></td></tr>";
+	if (strlen ($account['user_realname']))
+		echo "<tr><td><strong>" . niftyString ($account['user_realname']) . "</strong></td></tr>";
+	else
+		echo "<tr><td class=sparenetwork>no name</td></tr>";
+	echo '<td>';
+	$tags = loadUserTags ($account['user_id']);
+	echo count ($tags) ? ("<small>" . serializeTags ($tags) . "</small>") : '&nbsp;';
+	echo "</td></tr></table>";
+}
+
 function renderLBCell ($object_id)
 {
 	global $root;
@@ -5926,7 +5985,7 @@ function renderRouterCell ($dottedquad, $ifname, $object_id, $object_dname)
 function renderFileCell ($fileinfo)
 {
 	global $root;
-	echo "<table class='slbcell vscell'><tr><td rowspan=3>";
+	echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
 	switch ($fileinfo['type'])
 	{
 		case 'text/plain':

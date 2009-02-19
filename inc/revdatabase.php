@@ -323,6 +323,13 @@ class Database {
 
 	private static $dbxlink;
 
+
+	private static $debugLevel = 0;
+	private static $debugTable = 'IPv4Network';
+	private static $debugLongQueries = 0.1;
+
+
+
 	public function getLastInsertId()
 	{
 		return self::$lastInsertId;
@@ -841,6 +848,7 @@ class Database {
 
 	public function query($query, $bindParams = array())
 	{
+		$foundDebugTable = false;
 		ParseToTable::initLexer($query);
 		$firstTok = ParseToTable::getLexem();
 		if (strtolower($firstTok['token']) == 'select')
@@ -852,7 +860,13 @@ class Database {
 			while (true)
 			{
 				$tok = ParseToTable::getLexem();
-				if ($tok['type'] == 'eos') break;
+				if ($tok['type'] == 'eos')
+				{
+					if ($justFoundTable)
+						$newQuery .=  ' as '.$lastTablename;
+					$justFoundTable = false;
+					break;
+				}
 				if ($tok['lexemType'] == 'illegal')
 				{
 					throw new Exception ("Failed to parse '$query', parsed '$newQuery' so far: ".ParseToTable::getError()); 
@@ -865,6 +879,8 @@ class Database {
 					$lastTokenPos = $tok['end'];
 					$lastTablename = $tok['token'];
 					$justFoundTable = true;
+					if ($lastTablename == self::$debugTable)
+						$foundDebugTable = true;
 				}
 				else
 				{
@@ -877,10 +893,22 @@ class Database {
 			}
 			$newQuery .= substr($query, $lastTokenPos);
 			$query = $newQuery;
-			$q = self::$dbxlink->prepare($query);
-			foreach($bindParams as $param => $value)
-				$q->bindValue($param, $value);
-			$q->execute();
+			if ($foundDebugTable and self::$debugLevel>0)
+				error_log($query);
+			try {
+				$q = self::$dbxlink->prepare($query);
+				foreach($bindParams as $param => $value)
+					$q->bindValue($param, $value);
+				$t1 = microtime(true);
+				$q->execute();
+				$t2 = microtime(true);
+				if ($foundDebugTable and self::$debugLevel>1)
+					error_log("Query took ".($t2-$t1)." seconds");
+				if (self::$debugLongQueries>0 and ($t2-$t1)>self::$debugLongQueries)
+					error_log("Long query '$query' took ".($t2-$t1)." seconds");
+			} catch (Exception $e) {
+				throw new Exception ($e->getMessage()." Computed query: ".$query, $e->getCode());
+			}
 			return $q;
 		}
 		else

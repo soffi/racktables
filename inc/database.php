@@ -172,7 +172,7 @@ function getNarrowObjectList ($type_id = 0)
 		"select RackObject.id as id, RackObject.name as name, dict_value as objtype_name, " .
 		"objtype_id from " .
 		"RackObject inner join Dictionary on objtype_id=Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
-		"where RackObject.deleted = 'no' and Chapter.name = 'RackObjectType' " .
+		"where Chapter.name = 'RackObjectType' " .
 		"and objtype_id = ? " .
 		"order by name";
 	$result = Database::query ($query, array(1=>$type_id));
@@ -215,7 +215,7 @@ function getObjectList ($type_id = 0, $tagfilter = array(), $tfmode = 'any')
 		"left join Rack on rack_id = Rack.id " .
 		"left join RackRow on Rack.row_id = RackRow.id " .
 		"left join TagStorage on RackObject.id = TagStorage.entity_id and entity_realm = 'object' " .
-		"where RackObject.deleted = 'no' and Chapter.name = 'RackObjectType' " .
+		"where Chapter.name = 'RackObjectType' " .
 		($whereclause != ''?'and ':'') .
 		$whereclause .
 		"order by name";
@@ -249,8 +249,8 @@ function getRacksForRow ($row_id = 0, $tagfilter = array(), $tfmode = 'any')
 		"select Rack.id, Rack.name, height, Rack.comment, row_id, RackRow.name as row_name " .
 		"from Rack left join RackRow on Rack.row_id = RackRow.id " .
 		"left join TagStorage on Rack.id = TagStorage.entity_id and entity_realm = 'rack' " .
-		"where  Rack.deleted = 'no' " .
-		(($row_id == 0) ? "" : "and row_id = ${row_id} ") .
+		"where 1=1 " .
+		(($row_id == 0) ? "" : " and row_id = ${row_id} ") .
 		getWhereClause ($tagfilter) .
 		" order by row_name, Rack.name";
 	$result = Database::query ($query);
@@ -284,7 +284,7 @@ function getRackData ($rack_id = 0, $silent = FALSE)
 	$query =
 		"select Rack.id, Rack.name, row_id, height, Rack.comment, RackRow.name as row_name from " .
 		"Rack left join RackRow on Rack.row_id = RackRow.id  " .
-		"where  Rack.id='${rack_id}' and Rack.deleted = 'no'";
+		"where  Rack.id='${rack_id}'";
 	$result = Database::query ($query);
 	if (($row = $result->fetch (PDO::FETCH_ASSOC)) == NULL)
 	{
@@ -344,7 +344,7 @@ function getObjectInfo ($object_id = 0)
 	$query =
 		"select RackObject.id as id, RackObject.name as name, label, barcode, dict_value as objtype_name, asset_no, Dictionary.id as objtype_id, has_problems, comment from " .
 		"RackObject inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
-		"where RackObject.id = '${object_id}' and RackObject.deleted = 'no' and Chapter.name = 'RackObjectType' limit 1";
+		"where RackObject.id = '${object_id}' and Chapter.name = 'RackObjectType' limit 1";
 	$result = Database::query ($query);
 	if (($row = $result->fetch (PDO::FETCH_ASSOC)) == NULL)
 	{
@@ -1275,8 +1275,8 @@ function getIPv4NetworkList ($tagfilter = array(), $tfmode = 'any')
 {
 	$whereclause = getWhereClause ($tagfilter);
 	$query =
-		"select distinct id, INET_NTOA(ip) as ip, mask, name " .
-		"from IPv4Network left join TagStorage on id = entity_id and entity_realm = 'ipv4net' " .
+		"select distinct IPv4Network.id as id, INET_NTOA(ip) as ip, mask, name " .
+		"from IPv4Network left join TagStorage on IPv4Network.id = entity_id and entity_realm = 'ipv4net' " .
 		"where true ${whereclause} order by IPv4Network.ip, IPv4Network.mask";
 	$result = Database::query ($query);
 	$ret = array();
@@ -1640,19 +1640,12 @@ function removePortCompat ($type1 = 0, $type2 = 0)
 {
 	//Direct DB work is left here, as PortCompat doesn't have id and it won't work with our Database wrapper
 
-	global $dbxlink;
 	if ($type1 == 0 or $type2 == 0)
 	{
 		showError ('Invalid arguments', __FUNCTION__);
 		die;
 	}
-	$query = "delete from PortCompat where type1 = ${type1} and type2 = ${type2} limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		die;
-	}
+	Database::delete('PortCompat', array('type1'=>$type1, 'type2'=>$type2));
 	return TRUE;
 }
 
@@ -2452,7 +2445,6 @@ function commitDeleteVS ($id = 0)
 
 function commitDeleteLB ($object_id = 0, $pool_id = 0, $vs_id = 0)
 {
-	global $dbxlink;
 	if ($object_id <= 0 or $pool_id <= 0 or $vs_id <= 0)
 		return FALSE;
 	Database::deleteWhere('IPv4LB', array(
@@ -2806,8 +2798,8 @@ function loadUserTags ($user_id)
 function getTagList ()
 {
 	$ret = array();
-	$query = "select id, parent_id, tag, entity_realm as realm, count(entity_id) as refcnt " .
-		"from TagTree left join TagStorage on id = tag_id " .
+	$query = "select TagTree.id, parent_id, tag, entity_realm as realm, count(entity_id) as refcnt " .
+		"from TagTree left join TagStorage on TagTree.id = tag_id " .
 		"group by id, entity_realm order by tag";
 	$result = Database::query ($query);
 	$ci = 0; // Collation index. The resulting rows are ordered according to default collation,
@@ -2872,7 +2864,6 @@ function destroyTagsForEntity ($entity_realm, $entity_id)
 // Drop only one record. This operation doesn't involve retossing other tags, unlike when adding.
 function deleteTagForEntity ($entity_realm, $entity_id, $tag_id)
 {
-	global $dbxlink;
 	Database::deleteWhere('TagStorage', array('entity_realm'=>$entity_realm, 'entity_id'=>$entity_id, 'tag_id'=>$tag_id));
 	return TRUE;
 }
@@ -3292,15 +3283,13 @@ function getAllUnlinkedFiles ($entity_type = NULL, $entity_id = 0)
 		showError ('Invalid parameters', __FUNCTION__);
 		return NULL;
 	}
-	global $dbxlink;
 	$sql =
-		'SELECT id, name FROM File ' .
-		'WHERE id NOT IN (SELECT file_id FROM FileLink WHERE entity_type = ? AND entity_id = ?) ' .
+		'SELECT File.id as id, name FROM File ' .
+		'left join FileLink on File.id = FileLink.file_id '.
+		'and entity_type = ? and entity_id = ? '.
+		'WHERE FileLink.id is null ' .
 		'ORDER BY name, id';
-	$query = $dbxlink->prepare($sql);
-	$query->bindParam(1, $entity_type);
-	$query->bindParam(2, $entity_id);
-	$query->execute();
+	$query = Database::query($sql, array(1=>$entity_type, 2=>$entity_id));
 	$ret=array();
 	while ($row = $query->fetch (PDO::FETCH_ASSOC))
 		$ret[$row['id']] = $row['name'];
@@ -3313,12 +3302,12 @@ function getFileList ($entity_type = NULL, $tagfilter = array(), $tfmode = 'any'
 	$whereclause = getWhereClause ($tagfilter);
 
 	if ($entity_type == 'no_links')
-		$whereclause .= 'AND File.id NOT IN (SELECT file_id FROM FileLink) ';
+		$whereclause .= 'AND FileLink.id is null ';
 	elseif ($entity_type != 'all')
 		$whereclause .= "AND entity_type = '${entity_type}' ";
 
 	$query =
-		'SELECT File.id, name, type, size, ctime, mtime, atime, comment ' .
+		'SELECT File.id, name, type, size, atime, comment ' .
 		'FROM File ' .
 		'LEFT JOIN FileLink ' .
 		'ON File.id = FileLink.file_id ' .
@@ -3337,13 +3326,14 @@ function getFileList ($entity_type = NULL, $tagfilter = array(), $tfmode = 'any'
 			'name',
 			'type',
 			'size',
-			'ctime',
-			'mtime',
 			'atime',
 			'comment'
 			) as $cname)
 			$ret[$row['id']][$cname] = $row[$cname];
+		$ret[$row['id']]['ctime'] = 0;
+		$ret[$row['id']]['mtime'] = 0;
 	}
+	
 	$result->closeCursor();
 	return $ret;
 }
@@ -3355,15 +3345,11 @@ function getFilesOfEntity ($entity_type = NULL, $entity_id = 0)
 		showError ('Invalid parameters', __FUNCTION__);
 		return NULL;
 	}
-	global $dbxlink;
 	$sql =
-		'SELECT FileLink.file_id, FileLink.id AS link_id, name, type, size, ctime, mtime, atime, comment ' .
+		'SELECT FileLink.file_id, FileLink.id AS link_id, name, type, size, atime, comment ' .
 		'FROM FileLink LEFT JOIN File ON FileLink.file_id = File.id ' .
 		'WHERE FileLink.entity_type = ? AND FileLink.entity_id = ? ORDER BY name';
-	$query  = $dbxlink->prepare($sql);
-	$query->bindParam(1, $entity_type);
-	$query->bindParam(2, $entity_id);
-	$query->execute();
+	$query  = Database::query($sql, array(1=>$entity_type, 2=>$entity_id));
 	$ret = array();
 	while ($row = $query->fetch (PDO::FETCH_ASSOC))
 		$ret[$row['file_id']] = array (
@@ -3372,8 +3358,8 @@ function getFilesOfEntity ($entity_type = NULL, $entity_id = 0)
 			'name' => $row['name'],
 			'type' => $row['type'],
 			'size' => $row['size'],
-			'ctime' => $row['ctime'],
-			'mtime' => $row['mtime'],
+			'ctime' => 0,
+			'mtime' => 0,
 			'atime' => $row['atime'],
 			'comment' => $row['comment'],
 		);
@@ -3387,10 +3373,7 @@ function getFile ($file_id = 0)
 		showError ('Invalid file_id', __FUNCTION__);
 		return NULL;
 	}
-	global $dbxlink;
-	$query = $dbxlink->prepare('SELECT * FROM File WHERE id = ?');
-	$query->bindParam(1, $file_id);
-	$query->execute();
+	$query = Database::query('SELECT * FROM File WHERE id = ?', array(1=>$file_id));
 	if (($row = $query->fetch (PDO::FETCH_ASSOC)) == NULL)
 	{
 		showError ('Query succeeded, but returned no data', __FUNCTION__);
@@ -3411,10 +3394,7 @@ function getFile ($file_id = 0)
 		$query->closeCursor();
 
 		// Someone accessed this file, update atime
-		$q_atime = $dbxlink->prepare('UPDATE File SET atime = ? WHERE id = ?');
-		$q_atime->bindParam(1, date('YmdHis'));
-		$q_atime->bindParam(2, $file_id);
-		$q_atime->execute();
+		Database::update(array('atime'=>date('YmdHis')), 'File', $file_id);
 	}
 	return $ret;
 }
@@ -3426,10 +3406,7 @@ function getFileInfo ($file_id = 0)
 		showError ('Invalid file_id', __FUNCTION__);
 		return NULL;
 	}
-	global $dbxlink;
-	$query = $dbxlink->prepare('SELECT id, name, type, size, ctime, mtime, atime, comment FROM File WHERE id = ?');
-	$query->bindParam(1, $file_id);
-	$query->execute();
+	$query = Database::query('SELECT id, name, type, size, ctime, mtime, atime, comment FROM File WHERE id = ?', array(1=>$file_id));
 	if (($row = $query->fetch (PDO::FETCH_ASSOC)) == NULL)
 	{
 		showError ('Query succeeded, but returned no data', __FUNCTION__);
@@ -3459,10 +3436,7 @@ function getFileLinks ($file_id = 0)
 		return NULL;
 	}
 
-	global $dbxlink;
-	$query = $dbxlink->prepare('SELECT * FROM FileLink WHERE file_id = ? ORDER BY entity_id');
-	$query->bindParam(1, $file_id);
-	$query->execute();
+	$query = Database::query('SELECT * FROM FileLink WHERE file_id = ? ORDER BY entity_id', array(1=>$file_id));
 	$rows = $query->fetchAll (PDO::FETCH_ASSOC);
 	$ret = array();
 	foreach ($rows as $row)
@@ -3529,7 +3503,6 @@ function getFileLinks ($file_id = 0)
 // Used on main Files listing page.
 function getFileLinkInfo ()
 {
-	global $dbxlink;
 	$query = 'SELECT entity_type, COUNT(*) AS count FROM FileLink GROUP BY entity_type';
 
 	$result = Database::query ($query);
@@ -3552,8 +3525,8 @@ function getFileLinkInfo ()
 	// Find number of files without any linkage
 	$linkless_sql =
 		'SELECT COUNT(*) ' .
-		'FROM File ' .
-		'WHERE id NOT IN (SELECT file_id FROM FileLink)';
+		'FROM File LEFT JOIN FileLink on File.id = FileLink.file_id ' .
+		'WHERE FileLink.id is null';
 	$q_linkless = Database::query ($linkless_sql);
 	$ret[1] = array ('entity_type' => 'no_links', 'name' => 'Files w/no links', 'count' => $q_linkless->fetchColumn ());
 	$q_linkless->closeCursor();
@@ -3571,41 +3544,21 @@ function getFileLinkInfo ()
 function commitAddFile ($name, $type, $size, $contents, $comment)
 {
 	$now = date('YmdHis');
-
-	global $dbxlink;
-	$query  = $dbxlink->prepare('INSERT INTO File (name, type, size, ctime, mtime, atime, contents, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-	$query->bindParam(1, $name);
-	$query->bindParam(2, $type);
-	$query->bindParam(3, $size);
-	$query->bindParam(4, $now);
-	$query->bindParam(5, $now);
-	$query->bindParam(6, $now);
-	$query->bindParam(7, $contents, PDO::PARAM_LOB);
-	$query->bindParam(8, $comment);
-
-	$result = $query->execute();
-
-
-	if ($result)
-		return '';
-	else
-		return 'commitAddFile: SQL query failed';
+	$fileContent = file_get_contents($contents);
+	$query  = Database::insert(array(
+		'name'=>$name,
+		'type'=>$type,
+		'size'=>$size,
+		'atime'=>$now,
+		'contents'=>$fileContent,
+		'comment'=>$comment), 'File');
+	return '';
 }
 
 function commitLinkFile ($file_id, $entity_type, $entity_id)
 {
-	global $dbxlink;
-	$query  = $dbxlink->prepare('INSERT INTO FileLink (file_id, entity_type, entity_id) VALUES (?, ?, ?)');
-	$query->bindParam(1, $file_id);
-	$query->bindParam(2, $entity_type);
-	$query->bindParam(3, $entity_id);
-
-	$result = $query->execute();
-
-	if ($result)
-		return '';
-	else
-		return 'commitLinkFile: SQL query failed';
+	Database::insert(array('file_id'=>$file_id, 'entity_type'=>$entity_type, 'entity_id'=>$entity_id), 'FileLink');
+	return '';
 }
 
 function commitReplaceFile ($file_id = 0, $size, $contents)
@@ -3616,20 +3569,8 @@ function commitReplaceFile ($file_id = 0, $size, $contents)
 		return FALSE;
 	}
 	$now = date('YmdHis');
-
-	global $dbxlink;
-	$query = $dbxlink->prepare('UPDATE File SET size= ?, mtime = ?, contents = ? WHERE id = ?');
-	$query->bindParam(1, $size);
-	$query->bindParam(2, $now);
-	$query->bindParam(3, $contents, PDO::PARAM_LOB);
-	$query->bindParam(4, $file_id);
-
-	$result = $query->execute();
-	if (!$result)
-	{
-		showError ('commitReplaceFile: SQL query failed', __FUNCTION__);
-		return FALSE;
-	}
+	$fileContent = file_get_contents($contents);
+	Database::update(array('size'=>$size, 'contents'=>$fileContent), 'File', $file_id);
 	return '';
 }
 
@@ -3640,16 +3581,7 @@ function commitUpdateFile ($file_id = 0, $new_name = '', $new_type = '', $new_co
 		showError ('Not all required args are present.', __FUNCTION__);
 		return FALSE;
 	}
-	global $dbxlink;
-	$query = $dbxlink->prepare('UPDATE File SET name = ?, type = ?, comment = ? WHERE id = ?');
-	$query->bindParam(1, $new_name);
-	$query->bindParam(2, $new_type);
-	$query->bindParam(3, $new_comment);
-	$query->bindParam(4, $file_id);
-
-	$result = $query->execute();
-	if (!$result)
-		return 'SQL query failed in ' . __FUNCTION__;
+	Database::update(array('name'=>$new_name, 'type'=>$new_type, 'comment'=>$new_comment), 'File', $file_id);
 	return '';
 }
 
@@ -3659,9 +3591,8 @@ function commitUpdateFileText ($file_id = 0, $newtext = '')
 	if ($file_id <= 0)
 		return 'Invalid key in ' . __FUNCTION__;
 
-	global $dbxlink;
-	$query = "UPDATE File SET mtime = NOW(), contents = '${newtext}', size = LENGTH(contents) WHERE id = ${file_id} limit 1";
-	return (FALSE === $dbxlink->exec ($query)) ? ('SQL query failed in ' . __FUNCTION__) : '';
+	Database::update(array('contents'=>$newtext, 'size'=>strlen($newtext)), 'File', $file_id);
+	return '';
 }
 
 function commitUnlinkFile ($link_id)
