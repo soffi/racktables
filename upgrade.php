@@ -1,5 +1,6 @@
 <?php
 
+require_once '../inc/orm.php';
 $relnotes = array
 (
 	'0.17.0' => "This release requires more options to secret.php. Add the " .
@@ -80,6 +81,7 @@ function executeUpgradeBatch ($batchid)
 
 			$query[] = "alter table Chapter change chapter_no id int(10) unsigned NOT NULL auto_increment";
 			$query[] = "alter table Dictionary change dict_key id int(10) unsigned NOT NULL auto_increment";
+			$query[] = "alter table PortCompat add id int unsigned not null auto_increment PRIMARY KEY";
 			$query[] = "alter table Chapter change chapter_name name char(128) NOT NULL";
 			$query[] = "alter table Chapter drop key chapter_name";
 			$query[] = "alter table Chapter add UNIQUE KEY name (name)";
@@ -93,7 +95,7 @@ function executeUpgradeBatch ($batchid)
 			// Many dictionary changes were made... remove all dictvendor entries and install fresh.
 			// Take care not to erase locally added records. 0.16.x ends with max key 797
 			$query[] = 'DELETE FROM Dictionary WHERE ((chapter_id BETWEEN 11 AND 14) or (chapter_id BETWEEN 16 AND 19) ' .
-				'or (chapter_id BETWEEN 21 AND 24)) and dict_key <= 797';
+				'or (chapter_id BETWEEN 21 AND 24)) and id <= 797';
 			$f = fopen ("install/init-dictvendors.sql", 'r');
 			if ($f === FALSE)
 			{
@@ -195,6 +197,140 @@ CREATE TABLE `FileLink` (
 			$query[] = "delete from Dictionary where chapter_id = 3";
 			
 			$query[] = "UPDATE Config SET varvalue = '0.17.0' WHERE varname = 'DB_VERSION'";
+
+
+			//revisioning stuff
+			$query[] = "create table revision (
+				id bigint unsigned not null,
+				timestamp datetime not null )
+				engine=InnoDB DEFAULT CHARSET=utf8";
+			$query[] = "insert into revision set id=0, timestamp=now()";
+			$query[] = "create table Registry (
+				id char(64) not null,
+				data text,
+				primary key(id) )
+				engine=InnoDB DEFAULT CHARSET=utf8";
+			$query[] = "create table  milestone (
+				id int unsigned not null,
+				rev bigint unsigned not null )
+				engine=InnoDB DEFAULT CHARSET=utf8";
+/*			$query[] = "drop table Atom";
+			$query[] = "drop table Molecule";
+			$query[] = "drop table MountOperation";
+			$query[] = "drop table RackHistory";
+			$query[] = "drop table RackObjectHistory";
+*/
+			$database_meta = DatabaseMeta::$database_meta;
+			$noId = array();
+			$rev = 0;
+			foreach($database_meta as $tname => $tvalue)
+			{
+
+
+				$queryMain = "CREATE TABLE $tname (
+					id int unsigned not null,
+					";
+				$queryRev = "CREATE TABLE ${tname}__r (
+					id int unsigned not null,
+					rev bigint unsigned not null,
+					rev_terminal tinyint not null,
+					";
+
+				foreach ($tvalue['fields'] as $fname=>$fvalue)
+				{
+					$f = "$fname ".$fvalue['type']." ".($fvalue['null']?'':'not null');
+					if ($fvalue['revisioned'])
+						$queryRev .= "  $f,\n";
+					else
+						$queryMain .= " $f,\n";
+				}
+				$queryMain .= " key(id)
+					) ENGINE=InnoDB DEFAULT CHARSET=utf8
+					";
+				$queryRev .= "  key(id), key(rev)
+					) ENGINE=InnoDB DEFAULT CHARSET=utf8
+					";
+				$query[] = "drop table $tname";
+				$query[] = $queryMain;
+				$query[] = $queryRev;
+
+
+				$revFields = array();
+				$revValues = array();
+				$statFields = array();
+				$statValues = array();
+				foreach($tvalue['fields'] as $fname=>$fvalue)
+				{
+					if ($fvalue['revisioned'] == true)
+					{
+						$revFields[] = $fname;
+						$revValues[] = '?';
+					}
+					else
+					{
+						$statFields[] = $fname;
+						$statValues[] = '?';
+					}
+				}
+
+				$idFound = false;
+				$q = $dbxlink->query("describe $tname");
+				while($row = $q->fetch())
+				{
+					$idFound = $idFound || ($row['Field'] == 'id');
+				}
+				$q->closeCursor();
+
+				$q = $dbxlink->query("select * from $tname");
+
+				if (!$idFound)
+				{
+					$noId[] = $tname;
+					$id = 1;
+					while($row = $q->fetch())
+					{
+						$posValue = 0;
+						foreach($statFields as $f)
+							$statValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+
+						$posValue = 0;
+						foreach($revFields as $f)
+							$revValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+
+						$sqls = "insert into $tname (id".(count($statFields)>0?',':'')." ".implode(', ', $statFields).") values ($id".(count($statValues)>0?',':'')." ".implode(', ', $statValues).")";
+
+						$sqlr = "insert into ${tname}__r (id, rev, rev_terminal".(count($revFields)>0?',':'')." ".implode(', ', $revFields).") values ($id, $rev, false".(count($revValues)>0?',':'')." ".implode(', ', $revValues).")";
+
+						$query[] = $sqls;
+						$query[] = $sqlr;
+						$id++;
+					}
+				}
+				else
+				{
+					$statFields[] = 'id';
+					$revFields[] = 'id';
+					while($row = $q->fetch())
+					{
+						$posValue = 0;
+						foreach($statFields as $f)
+							$statValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+
+						$posValue = 0;
+						foreach($revFields as $f)
+							$revValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+
+						$sqls = "insert into $tname (".implode(', ', $statFields).") values (".implode(', ', $statValues).")";
+
+						$sqlr = "insert into ${tname}__r (rev, rev_terminal".(count($revFields)>0?',':'')." ".implode(', ', $revFields).") values ($rev, false".(count($revValues)>0?',':'')." ".implode(', ', $revValues).")";
+
+						$query[] = $sqls;
+						$query[] = $sqlr;
+
+					}
+				}
+				$q->closeCursor();
+			}
 
 			break;
 		default:

@@ -452,7 +452,7 @@ function commitAddRack ($name, $height = 0, $row_id = 0, $comment, $taglist)
 		),
 		'Rack'
 	);
-	return (produceTagsForLastRecord ('rack', $taglist, $last_insert_id) == '') and recordHistory ('Rack', "id = ${last_insert_id}");
+	return (produceTagsForLastRecord ('rack', $taglist, $last_insert_id) == '');
 }
 
 function commitAddObject ($new_name, $new_label, $new_barcode, $new_type_id, $new_asset_no, $taglist = array())
@@ -480,7 +480,7 @@ function commitAddObject ($new_name, $new_label, $new_barcode, $new_type_id, $ne
 		showError ("Error adding tags for the object: ${error}");
 		return FALSE;
 	}
-	return recordHistory ('RackObject', "id = ${last_insert_id}");
+	return TRUE;
 }
 
 function commitUpdateObject ($object_id = 0, $new_name = '', $new_label = '', $new_barcode = '', $new_type_id = 0, $new_has_problems = 'no', $new_asset_no = '', $new_comment = '')
@@ -490,9 +490,9 @@ function commitUpdateObject ($object_id = 0, $new_name = '', $new_label = '', $n
 		showError ('Not all required args are present.', __FUNCTION__);
 		return FALSE;
 	}
-	$new_asset_no = empty ($new_asset_no) ? 'NULL' : "'${new_asset_no}'";
-	$new_barcode = empty ($new_barcode) ? 'NULL' : "'${new_barcode}'";
-	$new_name = empty ($new_name) ? 'NULL' : "'${new_name}'";
+	$new_asset_no = empty ($new_asset_no) ? NULL : $new_asset_no;
+	$new_barcode = empty ($new_barcode) ? NULL : $new_barcode;
+	$new_name = empty ($new_name) ? NULL : $new_name;
 	Database::update(
 		array(
 			'name'=>$new_name,
@@ -504,7 +504,7 @@ function commitUpdateObject ($object_id = 0, $new_name = '', $new_label = '', $n
 			'comment'=>$new_comment
 		), 'RackObject', $object_id);
 
-	return recordHistory ('RackObject', "id = ${object_id}");
+	return TRUE;
 }
 
 // There are times when you want to delete all traces of an object
@@ -562,7 +562,7 @@ function commitUpdateRack ($rack_id, $new_name, $new_height, $new_row_id, $new_c
 			'comment'=>$new_comment,
 			'row_id'=>$new_row_id
 		), 'Rack', $rack_id);
-	return recordHistory ('Rack', "id = ${rack_id}");
+	return TRUE;
 }
 
 // This function accepts rack data returned by getRackData(), validates and applies changes
@@ -709,25 +709,6 @@ function createMolecule ($molData)
 	return $molecule_id;
 }
 
-// History logger. This function assumes certain table naming convention and
-// column design:
-// 1. History table name equals to dictionary table name plus 'History'.
-// 2. History table must have the same row set (w/o keys) plus one row named
-// 'ctime' of type 'timestamp'.
-function recordHistory ($tableName, $whereClause)
-{
-	//ToBeFixed_0.17.0
-	//This needs to be deleted
-	global $dbxlink, $remote_username;
-	$query = "insert into ${tableName}History select *, current_timestamp(), '${remote_username}' from ${tableName} where ${whereClause}";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL or $result->rowCount() != 1)
-	{
-		showError ("SQL query '${query}' failed for table ${tableName}", __FUNCTION__);
-		return FALSE;
-	}
-	return TRUE;
-}
 
 function getRackspaceHistory ()
 {

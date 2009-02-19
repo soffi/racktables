@@ -287,32 +287,15 @@ class ParseToTable
 }
 
 
+require_once 'inc/orm.php';
 
 
 class Database {
 
-	private static $database_meta = array (
-/*		'book' => array (
-			'fields' => array (
-				'name' => array (
-					'revisioned' => true
-				), //end of 'name' field
-				'owner' => array (
-					'revisioned' => false
-				) //end of 'owner' field
-			) //end of table fields
-		), //end of table
-		'chapter' => array (
-			'fields' => array (
-				'name' => array (
-					'revisioned' => true
-				), //end of 'name' field
-				'book_id' => array (
-					'revisioned' => false
-				) //end of 'book_id' field
-			) //end of table field
-		) //end of table */
-	);
+	private static $database_meta = array();
+
+
+
 	private static $database_meta_nonrev = array();
 	private static $commitMe = true;
 	private static $transactionStarted = false;
@@ -380,10 +363,9 @@ class Database {
 		self::$transactionStarted = true;
 	}
 
-	public function init($link)
+
+	public function updateDatabaseMeta()
 	{
-		self::$dbxlink = $link;
-		self::$dbxlink->exec('set session transaction isolation level read committed');
 		$result = self::$dbxlink->query('show tables');
 		$tables = array();
 		while($row = $result->fetch(PDO::FETCH_NUM))
@@ -448,7 +430,15 @@ class Database {
 				}
 			}
 		}
-		$result->closeCursor();
+		$result->closeCursor();	
+	}
+
+
+	public function init($link)
+	{
+		self::$dbxlink = $link;
+		self::$dbxlink->exec('set session transaction isolation level read committed');
+		self::$database_meta = DatabaseMeta::$database_meta;
 
 	}
 
