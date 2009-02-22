@@ -809,7 +809,7 @@ class Database {
 								$q->bindValue($paramno++, $value['value']);
 							else
 								$q->bindValue($paramno++, $value);
-						$q->bindValue($paramno++, id);
+						$q->bindValue($paramno++, $id);
 						$q->execute();
 						$q->closeCursor();
 					}

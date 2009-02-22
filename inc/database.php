@@ -2264,14 +2264,14 @@ function getSLBSummary ()
 // will be returned as well.
 function getVServiceInfo ($vsid = 0)
 {
-	$query1 = "select inet_ntoa(vip) as vip, vport, proto, name, vsconfig, rsconfig " .
+	$query1 = "select id, inet_ntoa(vip) as vip, vport, proto, name, vsconfig, rsconfig " .
 		"from IPv4VS where id = ${vsid}";
 	$result = Database::query ($query1);
 	$vsinfo = array ();
 	$row = $result->fetch (PDO::FETCH_ASSOC);
 	if (!$row)
 		return NULL;
-	foreach (array ('vip', 'vport', 'proto', 'name', 'vsconfig', 'rsconfig') as $cname)
+	foreach (array ('id', 'vip', 'vport', 'proto', 'name', 'vsconfig', 'rsconfig') as $cname)
 		$vsinfo[$cname] = $row[$cname];
 	$vsinfo['rspool'] = array();
 	$result->closeCursor();
