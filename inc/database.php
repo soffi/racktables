@@ -1708,7 +1708,7 @@ function getDictStats ()
 	}
 	$result->closeCursor();
 	unset ($result);
-	$query = "select count(id) as attrc from RackObject as ro left join " .
+	$query = "select count(ro.id) as attrc from RackObject as ro left join " .
 		"AttributeValue as av on ro.id = av.object_id group by ro.id";
 	$result = Database::query ($query);
 	$to = $ta = $so = 0;
@@ -1780,7 +1780,7 @@ function getRackspaceStats ()
 function renderTagStats ()
 {
 	global $taglist, $root;
-	$query = "select id, tag, count(tag_id) as refcnt from " .
+	$query = "select TagTree.id as id, tag, count(tag_id) as refcnt from " .
 		"TagTree inner join TagStorage on TagTree.id = TagStorage.tag_id " .
 		"group by tag_id order by refcnt desc limit 50";
 	// The same data is already present in pre-loaded tag list, but not in
