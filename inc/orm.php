@@ -31,7 +31,7 @@ public static $database_meta = array (
 		),
 		'constraints' => array(
 			'unique' => array(
-				array('id', 'unit_no', 'atom')
+				array('rack_id', 'unit_no', 'atom')
 			)
 		),
 		'indices' => array(
@@ -68,7 +68,7 @@ public static $database_meta = array (
 		),
 		'constraints' => array(
 			'unique' => array(
-				array('id', 'name')
+				array('row_id', 'name')
 			)
 		),
 		'indices' => array(

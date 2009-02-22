@@ -1,5 +1,11 @@
 <?php
 
+class UniqueConstraintException extends Exception
+{
+
+}
+
+
 class ParseToTable
 {
 	private static $joins = array(
@@ -560,7 +566,59 @@ class Database {
 
 	}
 
+	public function checkUniqueConstraints($table, $revisionedParams, $staticParams, $exceptId = NULL)
+	{
+		$mergedParams = array_merge($revisionedParams, $staticParams);
+		if(isset(self::$database_meta[$table]))
+		{
+			$uniques = self::$database_meta[$table]['constraints']['unique'];
 
+			foreach($uniques as $uniq)
+			{
+				$values = array();
+				$sql = "select count(*) from ( ${table}__r join (select max(rev) as rev, id from ${table}__r group by id) as __t on ${table}__r.id = __t.id and ${table}__r.rev = __t.rev ) join $table on __t.id = $table.id where rev_terminal = 0";
+				foreach ($uniq as $field)
+				{
+					if (gettype($mergedParams[$field]) == 'array')
+					{
+						$sql .= " and $field = ".$mergedParams[$field]['left']." ? ".$mergedParams[$field]['right'];
+						$values[] = $mergedParams[$field]['value'];
+					}
+					else
+					{
+						$sql .= " and $field = ?";
+						$values[] = $mergedParams[$field];
+					}
+				}
+				if (isset($exceptId))
+					$sql .= " and __t.id != ?";
+				$sql .= " for update";
+				$q = self::$dbxlink->prepare($sql);
+				$pos = 1;
+				foreach($values as $value)
+					$q->bindValue($pos++, $value);
+				if (isset($exceptId))
+					$q->bindValue($pos++, $exceptId);
+				$q->execute();
+				$row = $q->fetch();
+				if ($row[0] > 0)
+				{
+					$error = "Duplicate entry (";
+					$first = true;
+					foreach($values as $value)
+					{
+						if (!$first)
+							$error .= ", ";
+						$first = false;
+						$error .= "'$value'";
+					}
+					$error .= ") for key (".implode(', ', $uniq).")";
+					throw new UniqueConstraintException($error);
+				}
+			}
+		}
+		return TRUE;
+	}
 
 	public function insert($fields, $table)
 	{
@@ -570,6 +628,8 @@ class Database {
 			$staticValues = array();
 			$revisionedParams = array();
 			$revisionedValues = array();
+			$revisionedParamsMap = array();
+			$staticParamsMap = array();
 			$modified = false;
 			foreach ($fields as $column => $value)
 			{
@@ -592,14 +652,17 @@ class Database {
 				{
 					$revisionedParams[] = $addParam;
 					$revisionedValues[] = $addValue;
+					$revisionedParamsMap[$column] = $value;
 				}
 				else
 				{
 					$staticParams[] = $addParam;
 					$staticValues[] = $addValue;
+					$staticParamsMap[$column] = $value;
 				}
 			}
 			self::startTransaction(true);
+			self::checkUniqueConstraints($table, $revisionedParamsMap, $staticParamsMap);
 			$result = self::$dbxlink->query("select max(id) from $table for update");
 			$row = $result->fetch(PDO::FETCH_NUM);
 			$result->closeCursor();
@@ -770,11 +833,17 @@ class Database {
 					foreach ($revisionedParamsOld as $field => $prop)
 					{
 						$revisionedParamsOld[$field] = $row[$field];
-						if (isset($revisionedParams[$field]) and $revisionedParams[$field] == $revisionedParamsOld[$field])
+						if (array_key_exists($field, $revisionedParams) and $revisionedParams[$field] == $revisionedParamsOld[$field])
 						{
 							unset($revisionedParams[$field]);
 						}
 					}
+
+
+
+					self::checkUniqueConstraints($table, array_merge($revisionedParamsOld, $revisionedParams), $staticParams, $id);
+
+
 					$result = self::$dbxlink->query('select max(id) from revision for update');
 					$row = $result->fetch(PDO::FETCH_NUM);
 					$result->closeCursor();

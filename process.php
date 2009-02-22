@@ -1,8 +1,8 @@
 <?php
-
-require 'inc/init.php';
+require_once 'inc/exception.php';
 ob_start();
 try {
+	require 'inc/init.php';
 	// FIXME: find a better way to handle this error
 	if ($_REQUEST['op'] == 'addFile' && !isset($_FILES['file']['error'])) {
 		showError ("File upload error, it's size probably exceeds upload_max_filesize directive in php.ini");
@@ -39,17 +39,8 @@ try {
 } 
 catch (Exception $e) 
 {
-        ob_end_clean();
-        echo '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'."\n";
-        echo '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">'."\n";
-        echo "<head><title> Exception </title>\n";
-        echo '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />';
-        echo "<link rel=stylesheet type='text/css' href=pi.css />\n";
-        echo "<link rel=icon href='" . getFaviconURL() . "' type='image/x-icon' />";
-        echo '</head> <body><h2>Uncaught exception: </h2><code>'.$e->getMessage().'</code> (<code>'.$e->getCode().'</code>)';
-        echo '<p>at file <code>'.$e->getFile().'</code>, line <code>'.$e->getLine().'</code></p><pre>';
-        print_r($e->getTrace());
-        echo '</pre></body></html>';
+	ob_end_clean();
+	printException($e);
 }
 
 

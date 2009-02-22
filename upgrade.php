@@ -247,7 +247,7 @@ CREATE TABLE `FileLink` (
 				$queryMain .= " key(id)
 					) ENGINE=InnoDB DEFAULT CHARSET=utf8
 					";
-				$queryRev .= "  key(id), key(rev)
+				$queryRev .= "  key(id), key(rev), key(rev_terminal), unique id_rev(id, rev)
 					) ENGINE=InnoDB DEFAULT CHARSET=utf8
 					";
 				$query[] = "drop table $tname";

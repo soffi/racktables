@@ -459,18 +459,22 @@ function commitAddObject ($new_name, $new_label, $new_barcode, $new_type_id, $ne
 {
 	// Maintain UNIQUE INDEX for common names and asset tags by
 	// filtering out empty strings (not NULLs).
-	$last_insert_id = Database::insert
-	(
-		array
+	try {
+		$last_insert_id = Database::insert
 		(
-			'name' => empty ($new_name) ? NULL : $new_name,
-			'label' => $new_label,
-			'barcode' => empty ($new_barcode) ? NULL : $new_barcode,
-			'objtype_id' => $new_type_id,
-			'asset_no' => empty ($new_asset_no) ? NULL : $new_asset_no
-		),
-		'RackObject'
-	);
+			array
+			(
+				'name' => empty ($new_name) ? NULL : $new_name,
+				'label' => $new_label,
+				'barcode' => empty ($new_barcode) ? NULL : $new_barcode,
+				'objtype_id' => $new_type_id,
+				'asset_no' => empty ($new_asset_no) ? NULL : $new_asset_no
+			),
+			'RackObject'
+		);
+	} catch (UniqueConstraintException $e) {
+		return FALSE;
+	}
 	// Do AutoPorts magic
 	executeAutoPorts ($last_insert_id, $new_type_id);
 	// Now tags...
@@ -493,17 +497,20 @@ function commitUpdateObject ($object_id = 0, $new_name = '', $new_label = '', $n
 	$new_asset_no = empty ($new_asset_no) ? NULL : $new_asset_no;
 	$new_barcode = empty ($new_barcode) ? NULL : $new_barcode;
 	$new_name = empty ($new_name) ? NULL : $new_name;
-	Database::update(
-		array(
-			'name'=>$new_name,
-			'label'=>$new_label,
-			'barcode'=>$new_barcode,
-			'objtype_id'=>$new_type_id,
-			'has_problems'=>$new_has_problems,
-			'asset_no'=>$new_asset_no,
-			'comment'=>$new_comment
-		), 'RackObject', $object_id);
-
+	try {
+		Database::update(
+			array(
+				'name'=>$new_name,
+				'label'=>$new_label,
+				'barcode'=>$new_barcode,
+				'objtype_id'=>$new_type_id,
+				'has_problems'=>$new_has_problems,
+				'asset_no'=>$new_asset_no,
+				'comment'=>$new_comment
+			), 'RackObject', $object_id);
+	} catch (UniqueConstraintException $e) {
+		return FALSE;
+	}
 	return TRUE;
 }
 
