@@ -463,11 +463,11 @@ function commitAddObject ($new_name, $new_label, $new_barcode, $new_type_id, $ne
 	(
 		array
 		(
-			'name' => empty ($new_name) ? 'NULL' : $new_name,
+			'name' => empty ($new_name) ? NULL : $new_name,
 			'label' => $new_label,
-			'barcode' => empty ($new_barcode) ? 'NULL' : $new_barcode,
+			'barcode' => empty ($new_barcode) ? NULL : $new_barcode,
 			'objtype_id' => $new_type_id,
-			'asset_no' => empty ($new_asset_no) ? 'NULL' : $new_asset_no
+			'asset_no' => empty ($new_asset_no) ? NULL : $new_asset_no
 		),
 		'RackObject'
 	);
@@ -865,7 +865,7 @@ function commitAddPort ($object_id = 0, $port_name, $port_type_id, $port_label, 
 			'object_id' => $object_id,
 			'label' => $port_label,
 			'type' => $port_type_id,
-			'l2address' => ($db_l2address === '') ? 'NULL' : $db_l2address
+			'l2address' => ($db_l2address === '') ? NULL : $db_l2address
 		),
 		'Port'
 	);
@@ -875,17 +875,29 @@ function commitAddPort ($object_id = 0, $port_name, $port_type_id, $port_label, 
 // The fifth argument may be either explicit 'NULL' or some (already quoted by the upper layer)
 // string value. In case it is omitted, we just assign it its current value.
 // It would be nice to simplify this semantics later.
-function commitUpdatePort ($port_id, $port_name, $port_type_id, $port_label, $port_l2address, $port_reservation_comment = 'reservation_comment')
+function commitUpdatePort ($port_id, $port_name, $port_type_id, $port_label, $port_l2address, $port_reservation_comment = NULL)
 {
 	if (NULL === ($db_l2address = l2addressForDatabase ($port_l2address)))
 		return "Invalid L2 address ${port_l2address}";
-	Database::update(array(
-		'name'=>$port_name,
-		'type'=>$port_type_id,
-		'label'=>$port_label,
-		'reservation_comment'=>$port_reservation_comment,
-		'l2address'=>(($db_l2address === '') ? NULL : $db_l2address)
-		), 'Port', $port_id);
+	if (isset($port_reservation_comment))
+	{
+		Database::update(array(
+			'name'=>$port_name,
+			'type'=>$port_type_id,
+			'label'=>$port_label,
+			'reservation_comment'=>(($port_reservation_comment === '') ? NULL : $port_reservation_comment),
+			'l2address'=>(($db_l2address === '') ? NULL : $db_l2address)
+			), 'Port', $port_id);
+	}
+	else
+	{
+		Database::update(array(
+			'name'=>$port_name,
+			'type'=>$port_type_id,
+			'label'=>$port_label,
+			'l2address'=>(($db_l2address === '') ? NULL : $db_l2address)
+			), 'Port', $port_id);
+	}
 	return '';
 }
 
@@ -2350,7 +2362,7 @@ function addRStoRSPool ($pool_id = 0, $rsip = '', $rsport = 0, $inservice = 'no'
 		die;
 	}
 	if (empty ($rsport) or $rsport == 0)
-		$rsport = 'NULL';
+		$rsport = NULL;
 	Database::insert
 	(
 		array
@@ -2359,7 +2371,7 @@ function addRStoRSPool ($pool_id = 0, $rsip = '', $rsport = 0, $inservice = 'no'
 			'rsport' => $rsport,
 			'rspool_id' => $pool_id,
 			'inservice' => ($inservice == 'yes' ? 'yes' : 'no'),
-			'rsconfig' => (empty ($rsconfig) ? 'NULL' : $rsconfig)
+			'rsconfig' => (empty ($rsconfig) ? NULL : $rsconfig)
 		),
 		'IPv4RS'
 	);
@@ -2377,9 +2389,9 @@ function commitCreateVS ($vip = '', $vport = 0, $proto = '', $name = '', $vsconf
 			'vip' => array('left'=>'inet_aton(', 'value'=>$vip, 'right'=>')'),
 			'vport' => $vport,
 			'proto' => $proto,
-			'name' => (empty ($name) ? 'NULL' : $name),
-			'vsconfig' => (empty ($vsconfig) ? 'NULL' : $vsconfig),
-			'rsconfig' => (empty ($rsconfig) ? 'NULL' : $rsconfig)
+			'name' => (empty ($name) ? NULL : $name),
+			'vsconfig' => (empty ($vsconfig) ? NULL : $vsconfig),
+			'rsconfig' => (empty ($rsconfig) ? NULL : $rsconfig)
 		),
 		'IPv4VS'
 	);
@@ -2400,8 +2412,8 @@ function addLBtoRSPool ($pool_id = 0, $object_id = 0, $vs_id = 0, $vsconfig = ''
 			'object_id' => $object_id,
 			'rspool_id' => $pool_id,
 			'vs_id' => $vs_id,
-			'vsconfig' => (empty ($vsconfig) ? 'NULL' : $vsconfig),
-			'rsconfig' => (empty ($rsconfig) ? 'NULL' : $rsconfig)
+			'vsconfig' => (empty ($vsconfig) ? NULL : $vsconfig),
+			'rsconfig' => (empty ($rsconfig) ? NULL : $rsconfig)
 		),
 		'IPv4LB'
 	);
@@ -2448,7 +2460,7 @@ function commitUpdateRS ($rsid = 0, $rsip = '', $rsport = 0, $rsconfig = '')
 		die;
 	}
 	if (empty ($rsport) or $rsport == 0)
-		$rsport = 'NULL';
+		$rsport = NULL;
 	Database::update(array(
 		'rsip'=>array('left'=>'inet_aton(', 'value'=>$rsip, 'right'=>')'),
 		'rsport'=>$rsport,
@@ -2466,8 +2478,8 @@ function commitUpdateLB ($object_id = 0, $pool_id = 0, $vs_id = 0, $vsconfig = '
 		die;
 	}
 	Database::updateWhere(array(
-		'vsconfig'=>(empty ($vsconfig) ? 'NULL' : $vsconfig),
-		'rsconfig'=>(empty ($rsconfig) ? 'NULL' : $rsconfig),
+		'vsconfig'=>(empty ($vsconfig) ? NULL : $vsconfig),
+		'rsconfig'=>(empty ($rsconfig) ? NULL : $rsconfig),
 		), 'IPv4LB', array (
 		'object_id'=>$object_id,
 		'rspool_id'=>$pool_id,
@@ -2488,7 +2500,7 @@ function commitUpdateVS ($vsid = 0, $vip = '', $vport = 0, $proto = '', $name = 
 		'proto'=>$proto,
 		'name'=>(empty ($name) ? NULL : $name),
 		'vsconfig'=>(empty ($vsconfig) ? NULL : $vsconfig),
-		'rsconfig'=>(empty ($rsconfig) ? 'NULL' : $rsconfig)
+		'rsconfig'=>(empty ($rsconfig) ? NULL : $rsconfig)
 		), 'IPv4VS', $vsid);
 	return TRUE;
 }
@@ -2597,9 +2609,9 @@ function commitCreateRSPool ($name = '', $vsconfig = '', $rsconfig = '', $taglis
 	(
 		array
 		(
-			'name' => (empty ($name) ? 'NULL' : $name),
-			'vsconfig' => (empty ($vsconfig) ? 'NULL' : $vsconfig),
-			'rsconfig' => (empty ($rsconfig) ? 'NULL' : $rsconfig)
+			'name' => (empty ($name) ? NULL : $name),
+			'vsconfig' => (empty ($vsconfig) ? NULL : $vsconfig),
+			'rsconfig' => (empty ($rsconfig) ? NULL : $rsconfig)
 		),
 		'IPv4RSPool'
 	);
@@ -2830,7 +2842,7 @@ function commitDestroyTag ($tagid = 0)
 function commitUpdateTag ($tag_id, $tag_name, $parent_id)
 {
 	if ($parent_id == 0)
-		$parent_id = 'NULL';
+		$parent_id = NULL;
 	Database::update(array('tag'=>$tag_name, 'parent_id'=>$parent_id), 'TagTree', $tag_id);
 	return '';
 }

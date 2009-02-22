@@ -183,9 +183,9 @@ function editPortForObject ()
 		return buildRedirectURL (__FUNCTION__, 'ERR1');
 
 	if (isset ($_REQUEST['reservation_comment']) and !empty ($_REQUEST['reservation_comment']))
-		$port_rc = '"' . $_REQUEST['reservation_comment'] . '"';
+		$port_rc = $_REQUEST['reservation_comment'];
 	else
-		$port_rc = 'NULL';
+		$port_rc = '';
 	$error = commitUpdatePort ($_REQUEST['port_id'], $_REQUEST['name'], $_REQUEST['port_type_id'], $_REQUEST['label'], $_REQUEST['l2address'], $port_rc);
 	if ($error != '')
 		return buildRedirectURL (__FUNCTION__, 'ERR2', array ($error));
@@ -1316,7 +1316,7 @@ function createTag ()
 	if (tagExistsInDatabase ($tagname))
 		return buildRedirectURL (__FUNCTION__, 'ERR2', array ($tagname));
 	if (($parent_id = $_REQUEST['parent_id']) <= 0)
-		$parent_id = 'NULL';
+		$parent_id = NULL;
 	if (($ret = commitCreateTag ($tagname, $parent_id)) == '')
 		return buildRedirectURL (__FUNCTION__, 'OK', array ($tagname));
 	else
@@ -1332,7 +1332,7 @@ function updateTag ()
 	if (!validTagName ($tagname))
 		return buildRedirectURL (__FUNCTION__, 'ERR1', array ($tagname));
 	if (($parent_id = $_REQUEST['parent_id']) <= 0)
-		$parent_id = 'NULL';
+		$parent_id = NULL;
 	if (($ret = commitUpdateTag ($_REQUEST['tag_id'], $tagname, $parent_id)) == '')
 		return buildRedirectURL (__FUNCTION__, 'OK', array ($tagname));
 	else
