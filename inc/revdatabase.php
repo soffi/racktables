@@ -788,6 +788,7 @@ class Database {
 		if (isset(self::$database_meta[$table]))
 		{
 			$staticParams = array();
+			$staticParamsOld = array();
 			$revisionedParams = array();
 			$revisionedParamsOld = array();
 			$modified = false;
@@ -796,6 +797,8 @@ class Database {
 			{
 				if ($prop['revisioned'] == true)
 					$revisionedParamsOld[$field] = '';
+				else
+					$staticParamsOld[$field] = '';
 			}
 			//separating revisioned and static props
 			foreach ($fields as $column => $value)
@@ -838,10 +841,18 @@ class Database {
 							unset($revisionedParams[$field]);
 						}
 					}
-
-
-
-					self::checkUniqueConstraints($table, array_merge($revisionedParamsOld, $revisionedParams), $staticParams, $id);
+					//and fetching existing static props (just to have them for the check constraints stuff)
+					$q = self::$dbxlink->prepare("select ".implode(', ', array_keys($staticParamsOld))." from ${table} where id = ? for update");
+					$q->bindValue(1, $id);
+					$q->execute();
+					$row = $q->fetch(PDO::FETCH_ASSOC);
+					$q->closeCursor();
+					foreach ($staticParamsOld as $field => $prop)
+					{
+						$staticParamsOld[$field] = $row[$field];
+					}
+					
+					self::checkUniqueConstraints($table, array_merge($revisionedParamsOld, $revisionedParams), array_merge($staticParamsOld, $staticParams), $id);
 
 
 					$result = self::$dbxlink->query('select max(id) from revision for update');
