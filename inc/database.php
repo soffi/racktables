@@ -938,7 +938,7 @@ function getEmptyPortsOfType ($type_id)
 		"left join Link on Port.id=Link.porta or Port.id=Link.portb ".
 		"inner join PortCompat on Port.type = PortCompat.type2 ".
 		"where Chapter.name = 'PortType' and PortCompat.type1 = '$type_id' and Link.porta is NULL ".
-		"and Port.reservation_comment is null order by Object_name, Port_name";
+		"and ( Port.reservation_comment is null or Port.reservation_comment = '' ) order by Object_name, Port_name";
 	$result = Database::query ($query);
 	$ret = array();
 	$count=0;

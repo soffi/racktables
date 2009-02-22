@@ -291,11 +291,21 @@ CREATE TABLE `FileLink` (
 					{
 						$posValue = 0;
 						foreach($statFields as $f)
-							$statValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+						{
+							if ($row[$f] === NULL)
+								$statValues[$posValue++] = 'NULL';
+							else
+								$statValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+						{
 
 						$posValue = 0;
 						foreach($revFields as $f)
-							$revValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+						{
+							if ($row[$f] === NULL)
+								$revValues[$posValue++] = 'NULL';
+							else
+								$revValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+						}
 
 						$sqls = "insert into $tname (id".(count($statFields)>0?',':'')." ".implode(', ', $statFields).") values ($id".(count($statValues)>0?',':'')." ".implode(', ', $statValues).")";
 
@@ -314,11 +324,21 @@ CREATE TABLE `FileLink` (
 					{
 						$posValue = 0;
 						foreach($statFields as $f)
-							$statValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+						{
+							if ($row[$f] === NULL)
+								$statValues[$posValue++] = 'NULL';
+							else
+								$statValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+						{
 
 						$posValue = 0;
 						foreach($revFields as $f)
-							$revValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+						{
+							if ($row[$f] === NULL)
+								$revValues[$posValue++] = 'NULL';
+							else
+								$revValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
+						}
 
 						$sqls = "insert into $tname (".implode(', ', $statFields).") values (".implode(', ', $statValues).")";
 
