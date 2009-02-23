@@ -369,7 +369,8 @@ public static $database_meta = array (
 			)
 		),
 		'indices' => array(
-		)
+		),
+		'start_increment' => 10000
 	), //end of table Attribute
 	'AttributeMap' => array(
 		'fields' => array(
@@ -452,7 +453,8 @@ public static $database_meta = array (
 			)
 		),
 		'indices' => array(
-		)
+		),
+		'start_increment' => 50000
 	), //end of table Dictionary
 	'Chapter' => array(
 		'fields' => array(
@@ -473,7 +475,8 @@ public static $database_meta = array (
 			)
 		),
 		'indices' => array(
-		)
+		),
+		'start_increment' => 10000
 	), //end of table Chapter
 	'IPv4LB' => array(
 		'fields' => array(

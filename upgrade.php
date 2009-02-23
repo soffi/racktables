@@ -33,6 +33,7 @@ function getDBUpgradePath ($v1, $v2)
 		'0.16.5',
 		'0.16.6',
 		'0.17.0',
+		'0.18.0',
 	);
 	if (!in_array ($v1, $versionhistory) or !in_array ($v2, $versionhistory))
 		return NULL;
@@ -197,7 +198,8 @@ CREATE TABLE `FileLink` (
 			$query[] = "delete from Dictionary where chapter_id = 3";
 			
 			$query[] = "UPDATE Config SET varvalue = '0.17.0' WHERE varname = 'DB_VERSION'";
-
+			break;
+		case '0.18.0':
 
 			//revisioning stuff
 			$query[] = "create table revision (
@@ -353,7 +355,7 @@ CREATE TABLE `FileLink` (
 				}
 				$q->closeCursor();
 			}
-
+			$query[] = "UPDATE Config SET varvalue = '0.18.0' WHERE varname = 'DB_VERSION'";
 			break;
 		default:
 			showError ("executeUpgradeBatch () failed, because batch '${batchid}' isn't defined", __FILE__);

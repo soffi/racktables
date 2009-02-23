@@ -719,6 +719,8 @@ class Database {
 			$row = $result->fetch(PDO::FETCH_NUM);
 			$result->closeCursor();
 			$next_id = $row[0] + 1;
+			if (isset(self::$database_meta[$table]['start_increment']))
+				$next_id = max($next_id, self::$database_meta[$table]['start_increment']);
 			$result = self::$dbxlink->query('select max(id) from revision for update');
 			$row = $result->fetch(PDO::FETCH_NUM);
 			$next_revision = $row[0] + 1;

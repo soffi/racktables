@@ -11,7 +11,7 @@
 
 
 // Current code version is subject to change with each new release.
-define ('CODE_VERSION', '0.17.0');
+define ('CODE_VERSION', '0.18.0');
 define ('MAX_DICT_KEY', 933);
 
 // The name of hash used to store account password hashes
