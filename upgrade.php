@@ -1,6 +1,6 @@
 <?php
 
-require_once '../inc/orm.php';
+require_once 'inc/orm.php';
 $relnotes = array
 (
 	'0.17.0' => "This release requires more options to secret.php. Add the " .
@@ -223,7 +223,8 @@ CREATE TABLE `FileLink` (
 			$query[] = "drop table MountOperation";
 			$query[] = "drop table RackHistory";
 			$query[] = "drop table RackObjectHistory";
-
+			//a quick hack to handle the fact that Dictionary changed its dict_key to id
+			$dbxlink->exec("alter table Dictionary change dict_key id int unsigned NOT NULL auto_increment");
 			$database_meta = DatabaseMeta::$database_meta;
 			$noId = array();
 			$rev = 0;
@@ -300,7 +301,7 @@ CREATE TABLE `FileLink` (
 								$statValues[$posValue++] = 'NULL';
 							else
 								$statValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
-						{
+						}
 
 						$posValue = 0;
 						foreach($revFields as $f)
@@ -333,7 +334,7 @@ CREATE TABLE `FileLink` (
 								$statValues[$posValue++] = 'NULL';
 							else
 								$statValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
-						{
+						}
 
 						$posValue = 0;
 						foreach($revFields as $f)
@@ -421,6 +422,8 @@ catch (PDOException $e)
 {
 	die ("Database connection failed:\n\n" . $e->getMessage());
 }
+
+$dbxlink->exec ("set names 'utf8'");
 
 // Now we need to be sure that the current user is the administrator.
 // The rest doesn't matter within this context.

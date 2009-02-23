@@ -3002,24 +3002,20 @@ function saveScript ($name, $text)
 		showError ('Invalid argument');
 		return FALSE;
 	}
-	// delete regardless of existence
-	Database::deleteWhere('Script', array('script_name'=>$name));
-	Database::insert
-	(
-		array
-		(
-			'script_name' => $name,
-			'script_text' => $text
-		),
-		'Script'
-	);
+	$q = Database::getDBLink()->prepare("replace into Script set script_name = ? , script_text = ?");
+	$q->bindValue(1, $name);
+	$q->bindValue(2, $text);
+	$q->execute();
 	return '';
 }
 
 function saveUserPassword ($user_id, $newp)
 {
 	$newhash = hash (PASSWORD_HASH, $newp);
-	$query = "update UserAccount set user_password_hash = ${newhash} where user_id = ${user_id} limit 1";
+	$q = Database::getDBLink()->prepare("update UserAccount set user_password_hash = ? where user_id = ?");
+	$q->bindValue(1, $newhash);
+	$q->bindValue(2, $user_id);
+	$q->execute();
 }
 
 function objectIsPortless ($id = 0)

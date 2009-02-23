@@ -455,6 +455,11 @@ class Database {
 
 	}
 
+	public function getDBLink()
+	{
+		return self::$dbxlink;
+	}
+
 	public function commit()
 	{
 		self::$dbxlink->exec('commit');
