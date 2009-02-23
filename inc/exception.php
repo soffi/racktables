@@ -8,7 +8,8 @@ function printException($e)
 	echo '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />';
 	echo "<link rel=stylesheet type='text/css' href=pi.css />\n";
 	echo "<link rel=icon href='" . getFaviconURL() . "' type='image/x-icon' />";
-	echo '</head> <body><h2>Uncaught exception: '.get_class($e).'</h2><code>'.$e->getMessage().'</code> (<code>'.$e->getCode().'</code>)';
+	echo '</head> <body>';
+	echo '<h2>Uncaught exception: '.get_class($e).'</h2><code>'.$e->getMessage().'</code> (<code>'.$e->getCode().'</code>)';
 	echo '<p>at file <code>'.$e->getFile().'</code>, line <code>'.$e->getLine().'</code></p><pre>';
 	print_r($e->getTrace());
 	echo '</pre></body></html>';

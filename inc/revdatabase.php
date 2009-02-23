@@ -307,6 +307,7 @@ class Database {
 	private static $transactionStarted = false;
 
 	private static $currentRevision = 'head';
+	private static $userId = 0;
 
 	private static $lastInsertId = NULL;
 
@@ -335,6 +336,11 @@ class Database {
 	public function getRevision()
 	{
 		return self::$currentRevision;
+	}
+
+	public function setUser($u)
+	{
+		self::$userId = $u;
 	}
 
 	private function substituteTable($table)
@@ -544,8 +550,9 @@ class Database {
 					$q->execute();
 					$q->closeCursor();
 
-					$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now()");
+					$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_id = ?");
 					$q->bindValue(1, $next_revision);
+					$q->bindValue(2, self::$userId);
 					$q->execute();
 					$q->closeCursor();
 				}
@@ -688,8 +695,9 @@ class Database {
 			$q->execute();
 			$q->closeCursor();
 
-			$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now()");
+			$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_id = ?");
 			$q->bindValue(1, $next_revision);
+			$q->bindValue(2, self::$userId);
 			$q->execute();
 			$q->closeCursor();
 
@@ -875,8 +883,9 @@ class Database {
 						$q->execute();
 						$q->closeCursor();
 
-						$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now()");
+						$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_id = ?");
 						$q->bindValue(1, $next_revision);
+						$q->bindValue(2, self::$userId);
 						$q->execute();
 						$q->closeCursor();
 					}

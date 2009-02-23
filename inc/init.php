@@ -133,6 +133,8 @@ authenticate(); // sometimes this generates autotags, but never --- given tags
 // Note that we don't perform autorization here, so each 1st level page
 // has to do it in its way, e.g. by calling authorize() after fixContext().
 
+Database::setUser($accounts[$remote_username]['user_id']);
+
 if (!isset ($script_mode) or $script_mode !== TRUE)
 	session_start();
 
