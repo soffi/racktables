@@ -327,6 +327,9 @@ function getRackData ($rack_id = 0, $silent = FALSE)
 		$rack[$row['unit_no']][$loclist[$row['atom']]]['object_id'] = $row['object_id'];
 		if ($row['state'] == 'T' and $row['object_id']!=NULL)
 			$mounted_objects[$row['object_id']] = TRUE;
+		//We need to mark atoms as free, if their state is T, but object id is null
+		if ($rack[$row['unit_no']][$loclist[$row['atom']]]['state'] == 'T' and $rack[$row['unit_no']][$loclist[$row['atom']]]['object_id'] === NULL)
+			$rack[$row['unit_no']][$loclist[$row['atom']]]['state'] = 'F';
 	}
 	$rack['mountedObjects'] = array_keys($mounted_objects);
 	$result->closeCursor();
@@ -653,11 +656,11 @@ function getRackSpaceChangedBetween($rev1, $rev2)
 	$result = Database::getObjectsChangedBetween($rev1, $rev2, 'RackSpace');
 	while($row = $result->fetch())
 	{
-		$result1 = Database::query("select rack_id from RackSpace where id = ?", array(1=>$row[0]));
+		$result1 = Database::getStatic('RackSpace', $row[0]);
 		$row1 = $result1->fetch();
+		if (!in_array($row1['rack_id'], $racks))
+			$racks[] = $row1['rack_id'];
 		$result1->closeCursor();
-		if (!in_array($row1[0], $racks))
-			$racks[] = $row1[0];
 	}
 	$result->closeCursor();
 	return $racks;
@@ -666,15 +669,7 @@ function getRackSpaceChangedBetween($rev1, $rev2)
 // returns exactly what is's named after
 function lastInsertID ()
 {
-	//ToBeFixed_0.17.0
-	//This needs to be deleted
-	if (NULL == ($result = Database::query ('select last_insert_id()', __FUNCTION__)))
-	{
-		showError ('SQL query failed!', __FUNCTION__);
-		die;
-	}
-	$row = $result->fetch (PDO::FETCH_NUM);
-	return $row[0];
+	return Database::getLastInsertId();
 }
 
 function getHistoryForObject($object_type, $id=NULL)
@@ -740,7 +735,7 @@ function getHistoryForObject($object_type, $id=NULL)
 
 	else
 	{
-		throw new Eception ("Uknown object type '${object_type}'");
+		throw new Exception ("Unknown object type '${object_type}'");
 	}
 	foreach($history as &$row)
 		$row['hr_timestamp'] = date('d/m/Y H:i:s', $row['timestamp']);
@@ -2378,7 +2373,7 @@ function commitCreateVS ($vip = '', $vport = 0, $proto = '', $name = '', $vsconf
 {
 	if (empty ($vip) or $vport <= 0 or empty ($proto))
 		return __FUNCTION__ . ': invalid arguments';
-	Database::insert
+	$last_insert_id = Database::insert
 	(
 		array
 		(
@@ -2391,7 +2386,7 @@ function commitCreateVS ($vip = '', $vport = 0, $proto = '', $name = '', $vsconf
 		),
 		'IPv4VS'
 	);
-	return produceTagsForLastRecord ('ipv4vs', $taglist);
+	return produceTagsForLastRecord ('ipv4vs', $taglist, $last_insert_id);
 }
 
 function addLBtoRSPool ($pool_id = 0, $object_id = 0, $vs_id = 0, $vsconfig = '', $rsconfig = '')
@@ -2908,7 +2903,7 @@ function produceTagsForLastRecord ($realm, $tagidlist, $last_insert_id = 0)
 	if (!count ($tagidlist))
 		return '';
 	if (!$last_insert_id)
-		$last_insert_id = lastInsertID();
+		return 'Didn\'t get last insert ID';
 	$errcount = 0;
 	foreach (getExplicitTagsOnly (buildTagChainFromIds ($tagidlist)) as $taginfo)
 		if (addTagForEntity ($realm, $last_insert_id, $taginfo['id']) == FALSE)

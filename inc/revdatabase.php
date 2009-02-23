@@ -315,7 +315,7 @@ class Database {
 
 
 	private static $debugLevel = 0;
-	private static $debugTable = 'IPv4Network';
+	private static $debugTable = 'RackSpace';
 	private static $debugLongQueries = 0.1;
 
 
@@ -996,7 +996,35 @@ class Database {
 				"join UserAccount on revision.user_id = UserAccount.user_id ".
 				(isset($id)?"where ${table}__r.id = ? ":'').
 				"order by rev");
-			$q->bindValue(1, $id);
+			if (isset($id))
+				$q->bindValue(1, $id);
+			$q->execute();
+			return $q;
+		}
+		else
+		{
+			throw new Exception("Table $table is not versionized");
+		}
+	}
+
+	public function getStatic($table, $id)
+	{
+		if (isset(self::$database_meta[$table]))
+		{
+			$fields = array(
+				'id'
+			);
+			foreach(self::$database_meta[$table]['fields'] as $fname => $fvalue)
+				if (!$fvalue['revisioned'])
+					$fields[] = $fname;
+			$q = self::$dbxlink->prepare(
+				"select ".
+				implode(', ', $fields).
+				" from ${table} ".
+				(isset($id)?"where ${table}.id = ? ":'')
+			);
+			if (isset($id))
+				$q->bindValue(1, $id);
 			$q->execute();
 			return $q;
 		}
@@ -1078,15 +1106,11 @@ class Database {
 		
 	}
 
-	public function lastError()
-	{
-		return mysql_error();
-	}
-
 	public function get($field, $table, $id)
 	{
 		$result = self::query("select $field from $table where id = ?", array(1=>$id));
 		list($ret) = $result->fetch(PDO::FETCH_NUM);
+		$result->closeCursor();
 		return $ret;
 	}
 
