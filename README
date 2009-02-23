@@ -58,6 +58,10 @@ III-B. Manual installation.
 1. Edit install/init-auth.sql and change admin password
 
 2. Init database.
+Generate init-structure script
+[user@localhost racktables]$ cd install
+[user@localhost racktables]$ php init-structure.php > init-structure.sql
+Upload data to the DB
 mysql> use database_name;
 mysql> source install/init-structure.sql
 mysql> source install/init-auth.sql
