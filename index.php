@@ -58,6 +58,73 @@ foreach (array ('F', 'A', 'U', 'T', 'Th', 'Tw', 'Thw') as $statecode)
   </td>
  </tr>
 
+<tr>
+<td id="historyBar">
+<?php
+
+$params = $_GET;
+
+$first = true;
+$currentHref = '';
+foreach($_GET as $key => $value)
+{
+        if ($key == 'r') continue;
+        if ($first)
+        {
+                $currentHref = '?'.$key.'='.$value;
+                $first = false;
+        }
+        else
+        {
+                $currentHref .= '&'.$key.'='.$value;
+        }
+}
+
+if ($prev_milestone != null)
+        echo '<a href="'.$currentHref.'&r='.$prev_milestone.'"><img src="pix/tango-prev-mile.png" alt="Previous milestone" title="Previous milestone"></a>';
+else
+        echo '<img src="pix/tango-prev-mile-dis.png" alt="Previous milestone" title="Previous milestone">';
+
+if ($prev_revision >= 0)
+        echo '<a href="'.$currentHref.'&r='.$prev_revision.'"><img src="pix/tango-prev-rev.png" alt="Previous revision" title="Previous revision"></a>';
+else
+        echo '<img src="pix/tango-prev-rev-dis.png" alt="Previous revision" title="Previous revision">';
+if ($numeric_revision == $head_revision)
+        echo '<input type="text" id="revisionInput" value="'.$numeric_revision.'" disabled="disabled" class="headed"> ';
+else
+        echo '<input type="text" id="revisionInput" value="'.$numeric_revision.'" disabled="disabled"> ';
+echo '<input type="text" id="mileInput" value="'.$this_milestone.'" disabled="disabled">';
+if ($next_revision <= $head_revision)
+        echo '<a href="'.$currentHref.'&r='.$next_revision.'"><img src="pix/tango-next-rev.png" alt="Next revision" title="Next revision"></a>';
+else
+        echo '<img src="pix/tango-next-rev-dis.png" alt="Next revision" title="Next revision">';
+if ($next_milestone != null)
+        echo '<a href="'.$currentHref.'&r='.$next_milestone.'"><img src="pix/tango-next-mile.png" alt="Next milestone" title="Next milestone"></a>';
+else
+        echo '<img src="pix/tango-next-mile-dis.png" alt="Next milestone" title="Next milestone">';
+
+        echo '<span id="milestone">';
+        if ($numeric_revision == $head_revision)
+        {
+                if ($head_milestone_rev === NULL)
+                {
+                        echo ''.($head_revision - $head_milestone_rev)." changes <button>Register milestone</button>";
+                }
+                elseif ($head_milestone_rev < $head_revision)
+                {
+                        echo ''.($head_revision - $head_milestone_rev)." changes since MS $head_milestone <button onclick=\"${root}milestone.php?r=$head_revision\">Register milestone</button>";
+                }
+        }
+        echo '</span>';
+
+
+?>
+</td>
+</tr>
+
+
+
+
 	<tr>
 <?php
 	showTabs ($pageno, $tabno);

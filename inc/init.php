@@ -23,6 +23,7 @@ require_once 'inc/config.php';
 require_once 'inc/interface.php';
 require_once 'inc/functions.php';
 require_once 'inc/revdatabase.php';
+require_once 'inc/milestone.php';
 require_once 'inc/database.php';
 if (file_exists ('inc/secret.php'))
 	require_once 'inc/secret.php';
@@ -145,7 +146,9 @@ $pageno = (isset ($_REQUEST['page'])) ? $_REQUEST['page'] : 'index';
 // it is awailable, fall back to the default one.
 
 if (isset ($_REQUEST['tab']))
+{
 	$tabno = $_REQUEST['tab'];
+}
 elseif (basename($_SERVER['PHP_SELF']) == 'index.php' and getConfigVar ('SHOW_LAST_TAB') == 'yes' and isset ($_SESSION['RTLT'][$pageno]))
 {
 	$tabno = $_SESSION['RTLT'][$pageno];
@@ -161,15 +164,57 @@ elseif (basename($_SERVER['PHP_SELF']) == 'index.php' and getConfigVar ('SHOW_LA
 else
 	$tabno = 'default';
 
-
-
 $op = (isset ($_REQUEST['op'])) ? $_REQUEST['op'] : '';
+
+
+$revision = isset($_REQUEST['r'])?$_REQUEST['r']:'head';
+$head_revision = Database::getHeadRevision();
+if ($revision == $head_revision)
+         $revision = 'head';
+if ($revision != 'head')
+{
+        $numeric_revision = $revision;
+        $editable = false;
+}
+else
+{
+        $numeric_revision = $head_revision;
+        $editable = true;
+}
+
+require_once 'inc/navigation.php';
+
+
+if (basename($_SERVER['PHP_SELF']) == 'index.php')
+{
+	if ($numeric_revision != $head_revision and !in_array($tabno, $tabrev[$pageno]))
+	{
+		$url = "${root}?page=$pageno&tab=default";
+		foreach ($_GET as $name=>$value)
+		{
+			if ($name == 'page' or $name == 'tab') continue;
+			$url .= '&'.urlencode($name).'='.urlencode($value);
+		}
+		header('Location: '.$url);
+		exit();
+	}
+}
+
+
+
+Database::setRevision($revision);
+
+list($head_milestone, $head_milestone_rev) = Milestone::getHeadMilestone($numeric_revision);
+$prev_revision = $numeric_revision-1;
+$next_revision = $numeric_revision+1;
+$this_milestone = Milestone::getMilestoneId($numeric_revision);
+$prev_milestone = Milestone::getSubMilestone($numeric_revision);
+$next_milestone = Milestone::getSupMilestone($numeric_revision);
 
 $taglist = getTagList();
 $tagtree = treeFromList ($taglist);
 sortTree ($tagtree, 'taginfoCmp');
 
-require_once 'inc/navigation.php';
 require_once 'inc/pagetitles.php';
 require_once 'inc/ophandlers.php';
 require_once 'inc/triggers.php';

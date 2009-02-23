@@ -558,3 +558,46 @@ div.tagselector {
 	overflow: scroll;
 	max-height: 400px;
 }
+
+#historyBar {
+        padding: 2px 20px 2px 20px;
+}
+
+#revisionInput, #mileInput {
+        font-size:9px;
+        height:10px;
+        margin: 0px;
+        padding: 0px 0px 2px 0px;
+        position:relative;
+        top:-5px;
+        width:50px;
+        text-align: right;
+}
+
+#revisionInput:disabled, #mileInput:disabled {
+        color: black;
+        background-color: white;
+}
+
+#revisionInput.headed {
+        background-color: #dfb;
+}
+
+
+#historyBar img {
+        margin: 0px 3px 0px 3px;
+        border: none;
+}
+
+#milestone {
+        font-size:11px;
+        position:relative;
+        top:-5px;
+}
+
+#milestone button {
+        font-size:11px;
+        border: 1px solid black;
+
+}
+

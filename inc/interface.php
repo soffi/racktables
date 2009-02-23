@@ -5852,7 +5852,7 @@ function printIPv4NetInfoTDs ($netinfo, $tdclass = 'tdleft', $indent = 0, $symbo
 			echo '</a>';
 	}
 	if (isset ($netinfo['id']))
-		echo "<a href='${root}?page=ipv4net&id=${netinfo['id']}'>";
+		echo "<a href='".makeHref(array('page'=>'ipv4net', 'id'=>$netinfo['id']))."'>";
 	echo "${netinfo['ip']}/${netinfo['mask']}";
 	if (isset ($netinfo['id']))
 		echo '</a>';
