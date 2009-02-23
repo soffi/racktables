@@ -202,7 +202,8 @@ CREATE TABLE `FileLink` (
 			//revisioning stuff
 			$query[] = "create table revision (
 				id bigint unsigned not null,
-				timestamp datetime not null )
+				timestamp datetime not null,
+				user_id int unsigned not null )
 				engine=InnoDB DEFAULT CHARSET=utf8";
 			$query[] = "insert into revision set id=0, timestamp=now()";
 			$query[] = "create table Registry (
@@ -212,7 +213,8 @@ CREATE TABLE `FileLink` (
 				engine=InnoDB DEFAULT CHARSET=utf8";
 			$query[] = "create table  milestone (
 				id int unsigned not null,
-				rev bigint unsigned not null )
+				rev bigint unsigned not null,
+				user_id int unsigned not null )
 				engine=InnoDB DEFAULT CHARSET=utf8";
 /*			$query[] = "drop table Atom";
 			$query[] = "drop table Molecule";
