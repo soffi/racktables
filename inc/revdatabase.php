@@ -343,6 +343,7 @@ class Database {
 		self::$userId = $u;
 	}
 
+
 	private function substituteTable($table)
 	{
 		if (!isset(self::$database_meta[$table]))
@@ -492,6 +493,50 @@ class Database {
 		$row = $result->fetch(PDO::FETCH_NUM);
 		$result->closeCursor();
 		self::autoCommit();
+		return $row[0];
+	}
+
+	public function getObjectsChangedBetween($rev1, $rev2, $table)
+	{
+		$sql = "select distinct id from ${table}__r where rev > ? and rev <= ?";
+		$q = self::$dbxlink->prepare($sql);
+		$q->bindValue(1, $rev1);
+		$q->bindValue(2, $rev2);
+		$q->execute();
+		return $q;
+	}
+
+	public function getHeadRevisionForObject($table, $id)
+	{
+		$sql = "select max(rev) from ${table}__r where id = ?";
+		$q = self::$dbxlink->prepare($sql);
+		$q->bindValue(1, $id);
+		$q->execute();
+		$row = $q->fetch();
+		$q->closeCursor();
+		return $row[0];
+	}
+
+	public function getRevisionForObjectLessThan($table, $id, $revision)
+	{
+		$sql = "select max(rev) from ${table}__r where id = ? and rev < ?";
+		$q = self::$dbxlink->prepare($sql);
+		$q->bindValue(1, $id);
+		$q->bindValue(2, $revision);
+		$q->execute();
+		$row = $q->fetch();
+		$q->closeCursor();
+		return $row[0];
+	}
+
+	public function getTailRevisionForObject($table, $id)
+	{
+		$sql = "select min(rev) from ${table}__r where id = ?";
+		$q = self::$dbxlink->prepare($sql);
+		$q->bindValue(1, $id);
+		$q->execute();
+		$row = $q->fetch();
+		$q->closeCursor();
 		return $row[0];
 	}
 
@@ -849,15 +894,18 @@ class Database {
 							unset($revisionedParams[$field]);
 						}
 					}
-					//and fetching existing static props (just to have them for the check constraints stuff)
-					$q = self::$dbxlink->prepare("select ".implode(', ', array_keys($staticParamsOld))." from ${table} where id = ? for update");
-					$q->bindValue(1, $id);
-					$q->execute();
-					$row = $q->fetch(PDO::FETCH_ASSOC);
-					$q->closeCursor();
-					foreach ($staticParamsOld as $field => $prop)
+					if (count($staticParamsOld) > 0)
 					{
-						$staticParamsOld[$field] = $row[$field];
+						//and fetching existing static props (just to have them for the check constraints stuff)
+						$q = self::$dbxlink->prepare("select id, ".implode(', ', array_keys($staticParamsOld))." from ${table} where id = ? for update");
+						$q->bindValue(1, $id);
+						$q->execute();
+						$row = $q->fetch(PDO::FETCH_ASSOC);
+						$q->closeCursor();
+						foreach ($staticParamsOld as $field => $prop)
+						{
+							$staticParamsOld[$field] = $row[$field];
+						}
 					}
 					
 					self::checkUniqueConstraints($table, array_merge($revisionedParamsOld, $revisionedParams), array_merge($staticParamsOld, $staticParams), $id);
@@ -922,6 +970,39 @@ class Database {
 			$q->bindValue($paramno++, id);
 			$q->execute();
 			$q->closeCursor();
+		}
+	}
+
+	public function getHistory($table, $id)
+	{
+		if (isset(self::$database_meta[$table]))
+		{
+			$fields = array(
+				$table.'__r.id as id',
+				'rev', 
+				'rev_terminal',
+				'unix_timestamp(revision.timestamp) as timestamp',
+				'UserAccount.user_id as user_id', 
+				'UserAccount.user_name as user_name'
+			);
+			foreach(self::$database_meta[$table]['fields'] as $fname => $fvalue)
+				if ($fvalue['revisioned'])
+					$fields[] = $fname;
+			$q = self::$dbxlink->prepare(
+				"select ".
+				implode(', ', $fields).
+				" from ${table}__r ".
+				"join revision on ${table}__r.rev = revision.id ".
+				"join UserAccount on revision.user_id = UserAccount.user_id ".
+				(isset($id)?"where ${table}__r.id = ? ":'').
+				"order by rev");
+			$q->bindValue(1, $id);
+			$q->execute();
+			return $q;
+		}
+		else
+		{
+			throw new Exception("Table $table is not versionized");
 		}
 	}
 

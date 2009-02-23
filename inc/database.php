@@ -533,15 +533,6 @@ function commitDeleteObject ($object_id = 0)
 	Database::deleteWhere('IPv4NAT', array('object_id'=>$object_id));
 	Database::deleteWhere('RackSpace', array('object_id'=>$object_id));
 	Database::deleteWhere('TagStorage', array('entity_realm'=>'object', 'entity_id'=>$object_id));
-	$result = Database::query('SELECT new_molecule_id FROM MountOperation WHERE object_id = ?', array(1=>$object_id));
-		while ($row = $result->fetch(PDO::FETCH_NUM))
-		{
-			Database::deleteWhere('Atom', array('molecule_id'=>$row[0]));
-			Database::delete('Molecule', $row[0]);
-		}
-	$result->closeCursor();
-	Database::deleteWhere('MountOperation', array('object_id'=>$object_id));
-	Database::delete('RackObjectHistory', $object_id);
 	Database::delete('RackObject', $object_id);
 	return '';
 }
@@ -550,7 +541,6 @@ function commitDeleteRack($rack_id)
 {
 	Database::deleteWhere('RackSpace', array('rack_id'=>$rack_id));
 	Database::deleteWhere('TagStorage', array('entity_realm'=>'rack', 'entity_id'=>$rack_id));
-	Database::delete('RackHistory', $rack_id);
 	Database::delete('Rack', $rack_id);
 	return TRUE;
 }
@@ -610,31 +600,42 @@ function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_
 				return array ('code' => 500, 'message' => "${rack_name}: Rack ID ${rack_id}, unit ${unit_no}, 'atom ${atom}', cannot change state from '${state}' to '${newstate}'");
 			// Here we avoid using ON DUPLICATE KEY UPDATE by first performing DELETE
 			// anyway and then looking for probable need of INSERT.
-			Database::deleteWhere('RackSpace', array(
-				'rack_id'=>$rack_id, 
-				'unit_no'=>$unit_no,
-				'atom'=>$atom));
-			if ($newstate != 'F')
+			Database::startTransaction();
+			$result = Database::query("select id from RackSpace where rack_id = ? and unit_no = ? and atom = ?", array(1=>$rack_id, 2=>$unit_no, 3=>$atom));
+			if ($row = $result->fetch())
 			{
-				Database::insert(array(
-					'rack_id'=>$rack_id,
-					'unit_no'=>$unit_no,
-					'atom'=>$atom,
-					'state'=>$newstate), 'RackSpace');
+				$result->closeCursor();
+				if ($newstate == 'T' and $object_id != 0)
+				{
+					Database::update(array('object_id'=>$object_id, 'state'=>$newstate), 'RackSpace', $row[0]);
+				}
+				else
+				{
+					Database::update(array('state'=>$newstate), 'RackSpace', $row[0]);
+				}
 			}
-			if ($newstate == 'T' and $object_id != 0)
+			else
 			{
-				// At this point we already have a record in RackSpace.
-				$query =
-					"update RackSpace set object_id=${object_id} " .
-					"where rack_id=${rack_id} and unit_no=${unit_no} and atom='${atom}' limit 1";
-				Database::updateWhere(array('object_id'=>$object_id), 'RackSpace', array(
-					'rack_id'=>$rack_id,
-					'unit_no'=>$unit_no,
-					'atom'=>$atom
-				));
-				$rackData[$unit_no][$locidx]['object_id'] = $object_id;
+				if ($newstate == 'T' and $object_id != 0)
+				{
+					Database::insert(array(
+						'rack_id'=>$rack_id,
+						'unit_no'=>$unit_no,
+						'atom'=>$atom,
+						'object_id'=>$object_id,
+						'state'=>$newstate), 'RackSpace');
+
+				}
+				else
+				{
+					Database::insert(array(
+						'rack_id'=>$rack_id,
+						'unit_no'=>$unit_no,
+						'atom'=>$atom,
+						'state'=>$newstate), 'RackSpace');
+				}
 			}
+			Database::commit();
 		}
 	}
 	if ($rackchanged)
@@ -646,39 +647,20 @@ function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_
 		return array ('code' => 300, 'message' => "${rack_name}: No changes.");
 }
 
-// This function builds a list of rack-unit-atom records, which are assigned to
-// the requested object.
-function getMoleculeForObject ($object_id = 0)
+function getRackSpaceChangedBetween($rev1, $rev2)
 {
-	if ($object_id == 0)
+	$racks = array();
+	$result = Database::getObjectsChangedBetween($rev1, $rev2, 'RackSpace');
+	while($row = $result->fetch())
 	{
-		showError ("object_id == 0", __FUNCTION__);
-		return NULL;
+		$result1 = Database::query("select rack_id from RackSpace where id = ?", array(1=>$row[0]));
+		$row1 = $result1->fetch();
+		$result1->closeCursor();
+		if (!in_array($row1[0], $racks))
+			$racks[] = $row1[0];
 	}
-	$query =
-		"select rack_id, unit_no, atom from RackSpace " .
-		"where state = 'T' and object_id = ${object_id} order by rack_id, unit_no, atom";
-	$result = Database::query ($query);
-	$ret = $result->fetchAll (PDO::FETCH_ASSOC);
 	$result->closeCursor();
-	return $ret;
-}
-
-// This function builds a list of rack-unit-atom records for requested molecule.
-function getMolecule ($mid = 0)
-{
-	if ($mid == 0)
-	{
-		showError ("mid == 0", __FUNCTION__);
-		return NULL;
-	}
-	$query =
-		"select rack_id, unit_no, atom from Atom " .
-		"where molecule_id=${mid}";
-	$result = Database::query ($query);
-	$ret = $result->fetchAll (PDO::FETCH_ASSOC);
-	$result->closeCursor();
-	return $ret;
+	return $racks;
 }
 
 // returns exactly what is's named after
@@ -695,67 +677,74 @@ function lastInsertID ()
 	return $row[0];
 }
 
-// This function creates a new record in Molecule and number of linked
-// R-U-A records in Atom.
-function createMolecule ($molData)
+function getHistoryForObject($object_type, $id=NULL)
 {
-	//ToBeFixed_0.17.0
-	//This needs to be deleted
-	$molecule_id = Database::insert(array(), 'Molecule');
-	foreach ($molData as $rua)
+	if ($object_type == 'row')
 	{
-		$rack_id = $rua['rack_id'];
-		$unit_no = $rua['unit_no'];
-		$atom = $rua['atom'];
-		Database::insert(array(
-			'molecule_id'=>$molecule_id,
-			'rack_id'=>$rack_id,
-			'unit_no'=>$unit_no,
-			'atom'=>$atom), 'Atom');
+		$result = Database::getHistory('RackRow', $id);
+		while($row = $result->fetch())
+		{
+			$history[] = $row;
+		}
+		$result->closeCursor();
 	}
-	return $molecule_id;
-}
-
-
-function getRackspaceHistory ()
-{
-        //ToBeFixed_0.17.0
-        //This needs to be deleted
-	$query =
-		"select mo.id as mo_id, ro.id as ro_id, ro.name, mo.ctime, mo.comment, dict_value as objtype_name, user_name from " .
-		"MountOperation as mo inner join RackObject as ro on mo.object_id = ro.id " .
-		"inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
-		"where Chapter.name = 'RackObjectType' order by ctime desc";
-	$result = Database::query ($query);
-	$ret = $result->fetchAll(PDO::FETCH_ASSOC);
-	$result->closeCursor();
-	return $ret;
-}
-
-// This function is used in renderRackspaceHistory()
-function getOperationMolecules ($op_id = 0)
-{
-        //ToBeFixed_0.17.0
-        //This needs to be deleted
-
-	if ($op_id <= 0)
+	elseif ($object_type == 'rack')
 	{
-		showError ("Missing argument", __FUNCTION__);
-		return;
+		$result = Database::getHistory('Rack', $id);
+		while($row = $result->fetch())
+		{
+			$rev = Database::getRevision();
+			Database::setRevision($row['rev']);
+			$result1 = Database::query("select name from RackRow where id = ?", array(1=>$row['row_id']));
+			$row1 = $result1->fetch();
+			$row['row_name'] = $row1['name'];
+			$result1->closeCursor();
+			Database::setRevision($rev);
+			$history[] = $row;
+		}
+		$result->closeCursor();
 	}
-	$query = "select old_molecule_id, new_molecule_id from MountOperation where id = ${op_id}";
-	$result = Database::query ($query);
-	// We expect one row.
-	$row = $result->fetch (PDO::FETCH_ASSOC);
-	if ($row == NULL)
+	elseif ($object_type == 'object')
 	{
-		showError ("SQL query succeded, but returned no results.", __FUNCTION__);
-		return;
+		$result = Database::getHistory('RackObject', $id);
+		while($row = $result->fetch())
+		{
+			$rev = Database::getRevision();
+			Database::setRevision($row['rev']);
+			$result1 = Database::query("select dict_value from Dictionary join Chapter on Dictionary.chapter_id = Chapter.id where Chapter.name = 'RackObjectType' and Dictionary.id = ?", array(1=>$row['objtype_id']));
+			$row1 = $result1->fetch();
+			$row['objtype'] = $row1['dict_value'];
+			$result1->closeCursor();
+			Database::setRevision($rev);
+			$history[] = $row;
+		}
+		$result->closeCursor();
 	}
-	$omid = $row['old_molecule_id'];
-	$nmid = $row['new_molecule_id'];
-	$result->closeCursor();
-	return array ($omid, $nmid);
+	elseif ($object_type == 'rackspace')
+	{
+		$result = Database::getHistory('RackSpace', $id);
+		while($row = $result->fetch())
+		{
+			$rev = Database::getRevision();
+			Database::setRevision($row['rev']);
+			$result1 = Database::query("select RackObject.name as name, Dictionary.dict_value as object_type from RackObject left join Dictionary on RackObject.objtype_id = Dictionary.id join Chapter on Dictionary.chapter_id = Chapter.id where Chapter.name = 'RackObjectType' and RackObject.id = ?", array(1=>$row['object_id']));
+			$row1 = $result1->fetch();
+			$row['object_name'] = $row1['name'];
+			$row['objtype'] = $row1['object_type'];
+			$result1->closeCursor();
+			Database::setRevision($rev);
+			$history[] = $row;
+		}
+		$result->closeCursor();
+	}
+
+	else
+	{
+		throw new Eception ("Uknown object type '${object_type}'");
+	}
+	foreach($history as &$row)
+		$row['hr_timestamp'] = date('d/m/Y H:i:s', $row['timestamp']);
+	return $history;
 }
 
 function getResidentRacksData ($object_id = 0, $fetch_rackdata = TRUE)

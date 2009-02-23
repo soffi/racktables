@@ -216,12 +216,12 @@ CREATE TABLE `FileLink` (
 				rev bigint unsigned not null,
 				user_id int unsigned not null )
 				engine=InnoDB DEFAULT CHARSET=utf8";
-/*			$query[] = "drop table Atom";
+			$query[] = "drop table Atom";
 			$query[] = "drop table Molecule";
 			$query[] = "drop table MountOperation";
 			$query[] = "drop table RackHistory";
 			$query[] = "drop table RackObjectHistory";
-*/
+
 			$database_meta = DatabaseMeta::$database_meta;
 			$noId = array();
 			$rev = 0;

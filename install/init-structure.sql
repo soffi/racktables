@@ -1,13 +1,6 @@
 alter database character set utf8;
 set names 'utf8';
 
-CREATE TABLE `Atom` (
-  `molecule_id` int(10) unsigned default NULL,
-  `rack_id` int(10) unsigned default NULL,
-  `unit_no` int(10) unsigned default NULL,
-  `atom` enum('front','interior','rear') default NULL
-) ENGINE=MyISAM;
-
 CREATE TABLE `Attribute` (
   `id` int(10) unsigned NOT NULL auto_increment,
   `type` enum('string','uint','float','dict') default NULL,
@@ -153,22 +146,6 @@ CREATE TABLE `Link` (
   UNIQUE KEY `portb` (`portb`)
 ) ENGINE=MyISAM;
 
-CREATE TABLE `Molecule` (
-  `id` int(10) unsigned NOT NULL auto_increment,
-  PRIMARY KEY  (`id`)
-) ENGINE=MyISAM;
-
-CREATE TABLE `MountOperation` (
-  `id` int(10) unsigned NOT NULL auto_increment,
-  `object_id` int(10) unsigned NOT NULL,
-  `ctime` timestamp NOT NULL,
-  `user_name` char(64) default NULL,
-  `old_molecule_id` int(10) unsigned default NULL,
-  `new_molecule_id` int(10) unsigned default NULL,
-  `comment` text,
-  PRIMARY KEY  (`id`)
-) ENGINE=MyISAM;
-
 CREATE TABLE `Port` (
   `id` int(10) unsigned NOT NULL auto_increment,
   `object_id` int(10) unsigned NOT NULL,
@@ -222,18 +199,6 @@ CREATE TABLE `Rack` (
   UNIQUE KEY `name_in_row` (`row_id`,`name`)
 ) ENGINE=MyISAM;
 
-CREATE TABLE `RackHistory` (
-  `id` int(10) unsigned default NULL,
-  `name` char(255) default NULL,
-  `deleted` enum('yes','no') default NULL,
-  `row_id` int(10) unsigned default NULL,
-  `height` tinyint(3) unsigned default NULL,
-  `comment` text,
-  `thumb_data` blob,
-  `ctime` timestamp NOT NULL,
-  `user_name` char(64) default NULL
-) ENGINE=MyISAM;
-
 CREATE TABLE `RackObject` (
   `id` int(10) unsigned NOT NULL auto_increment,
   `name` char(255) default NULL,
@@ -248,20 +213,6 @@ CREATE TABLE `RackObject` (
   UNIQUE KEY `RackObject_asset_no` (`asset_no`),
   UNIQUE KEY `name` (`name`),
   UNIQUE KEY `barcode` (`barcode`)
-) ENGINE=MyISAM;
-
-CREATE TABLE `RackObjectHistory` (
-  `id` int(10) unsigned default NULL,
-  `name` char(255) default NULL,
-  `label` char(255) default NULL,
-  `barcode` char(16) default NULL,
-  `deleted` enum('yes','no') default NULL,
-  `objtype_id` int(10) unsigned default NULL,
-  `asset_no` char(64) default NULL,
-  `has_problems` enum('yes','no') NOT NULL default 'no',
-  `comment` text,
-  `ctime` timestamp NOT NULL,
-  `user_name` char(64) default NULL
 ) ENGINE=MyISAM;
 
 CREATE TABLE `RackSpace` (

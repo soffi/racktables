@@ -5,7 +5,7 @@ public static $database_meta = array (
 		'fields' => array(
 			'state' => array (
 				'revisioned' => true,
-				'type' => "enum('A','U','T','W')",
+				'type' => "enum('A','U','T','W','F')",
 				'null' => false
 			),
 			'object_id' => array (

@@ -1727,30 +1727,16 @@ function renderRackSpaceForObject ($object_id = 0)
 	echo "</tr></table>\n";
 }
 
-function renderMolecule ($mdata, $object_id)
+function renderMolecule ($racks, $revision)
 {
 	// sort data out
 	$rackpack = array();
-	global $loclist;
-	foreach ($mdata as $rua)
-	{
-		$rack_id = $rua['rack_id'];
-		$unit_no = $rua['unit_no'];
-		$atom = $rua['atom'];
-		if (!isset ($rackpack[$rack_id]))
-		{
-			$rackData = getRackData ($rack_id);
-			for ($i = $rackData['height']; $i > 0; $i--)
-				for ($locidx = 0; $locidx < 3; $locidx++)
-					$rackData[$i][$locidx]['state'] = 'F';
-			$rackpack[$rack_id] = $rackData;
-		}
-		$rackpack[$rack_id][$unit_no][$loclist[$atom]]['state'] = 'T';
-		$rackpack[$rack_id][$unit_no][$loclist[$atom]]['object_id'] = $object_id;
-	}
 	// now we have some racks to render
-	foreach ($rackpack as $rackData)
+	$rev = Database::getRevision();
+	Database::setRevision($revision);
+	foreach ($racks as $rack)
 	{
+		$rackData = getRackData($rack);
 		markAllSpans ($rackData);
 		echo "<table class=molecule cellspacing=0>\n";
 		echo "<caption>${rackData['name']}</caption>\n";
@@ -1767,7 +1753,9 @@ function renderMolecule ($mdata, $object_id)
 		}
 		echo "</table>\n";
 	}
+	Database::setRevision($rev);
 }
+
 
 function renderUnmountedObjectsPortlet ()
 {
@@ -1961,41 +1949,45 @@ function renderHistory ($object_type, $object_id)
 	switch ($object_type)
 	{
 		case 'row':
-			$query = "select ctime, user_name, name, deleted, comment from RackRowHistory where id = ${object_id} order by ctime";
-			$header = '<tr><th>change time</th><th>author</th><th>rack row name</th><th>is deleted?</th><th>rack row comment</th></tr>';
-			$extra = 4;
+			$fields = array(
+				'name'=>'Rack row name'
+			);
 			break;
 		case 'rack':
-			$query =
-				"select ctime, user_name, rh.name, rh.deleted, rr.name as name, rh.height, rh.comment " .
-				"from RackHistory as rh left join RackRow as rr on rh.row_id = rr.id " .
-				"where rh.id = ${object_id} order by ctime";
-			$header = '<tr><th>change time</th><th>author</th><th>rack name</th><th>is deleted?</th><th>rack row name</th><th>rack height</th><th>rack comment</th></tr>';
-			$extra = 6;
+			$fields = array(
+				'name'=>'Rack name',
+				'row_name'=>'Rack row',
+				'height'=>'Rack height',
+				'comment'=>'Comment'
+			);
 			break;
 		case 'object':
-			$query =
-				"select ctime, user_name, RackObjectHistory.name as name, label, barcode, asset_no, deleted, has_problems, dict_value, comment " .
-				"from RackObjectHistory inner join Dictionary on objtype_id = Dictionary.id join Chapter on Dictionary.chapter_id = Chapter.id " .
-				"where Chapter.name = 'RackObjectType' and RackObjectHistory.id=${object_id} order by ctime";
-			$header = '<tr><th>change time</th><th>author</th><th>common name</th><th>visible label</th><th>barcode</th><th>asset no</th><th>is deleted?</th><th>has problems?</th><th>object type</th><th>comment</th></tr>';
-			$extra = 9;
+			$fields = array(
+				'name'=>'Name',
+				'label'=>'Visible label',
+				'barcode'=>'Barcode',
+				'asset_no'=>'Asset number',
+				'has_problems'=>'Has problems?',
+				'objtype'=>'Object type',
+				'comment'=>'Comment'
+			);
 			break;
 		default:
-			showError ("Uknown object type '${object_type}'", __FUNCTION__);
-			return;
+			throw new Eception ("Uknown object type '${object_type}'");
 	}
-	global $dbxlink;
-	$result = Database::query ($query);
+	$history = getHistoryForObject($object_type, $object_id);
 	echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
 	$order = 'odd';
 	global $nextorder;
-	echo $header;
-	while ($row = $result->fetch (PDO::FETCH_NUM))
+	echo '<tr><th>Change time</th><th>Author</th>';
+	foreach($fields as $fvalue)
+		echo "<th>$fvalue</th>";
+	echo '</tr>';
+	foreach ($history as $row)
 	{
-		echo "<tr class=row_${order}><td>${row[0]}</td>";
-		for ($i = 1; $i <= $extra; $i++)
-			echo "<td>" . $row[$i] . "</td>";
+		echo "<tr class=row_${order}><td>${row['hr_timestamp']}</td><td>${row['user_name']}</td>";
+		foreach($fields as $fname => $fvalue)
+			echo "<td>" . $row[$fname] . "</td>";
 		echo "</tr>\n";
 		$order = $nextorder[$order];
 	}
@@ -2006,66 +1998,53 @@ function renderRackspaceHistory ()
 {
 	global $nextorder, $pageno, $tabno;
 	$order = 'odd';
-	$history = getRackspaceHistory();
+	$history = getHistoryForObject('rackspace');
 	// Show the last operation by default.
 	if (isset ($_REQUEST['op_id']))
 		$op_id = $_REQUEST['op_id'];
-	elseif (isset ($history[0]['mo_id']))
-		$op_id = $history[0]['mo_id'];
 	else $op_id = NULL;
+	if (isset ($_REQUEST['prev_op_id']))
+		$prev_op_id = $_REQUEST['prev_op_id'];
+	else $prev_op_id = NULL;
 	
-	$omid = NULL;
-	$nmid = NULL;
-	$object_id = 1;
-	if ($op_id)
-		list ($omid, $nmid) = getOperationMolecules ($op_id);
-
 	// Main layout starts.
 	echo "<table border=0 class=objectview cellspacing=0 cellpadding=0>";
-
-	// Left top portlet with old allocation.
-	echo "<tr><td class=pcleft>";
-	startPortlet ('Old allocation');
-	if ($omid)
+	if (isset($op_id) and isset($prev_op_id))
 	{
-		$oldMolecule = getMolecule ($omid);
-		renderMolecule ($oldMolecule, $object_id);
+		$racks = getRackSpaceChangedBetween($prev_op_id, $op_id);
+		// Left top portlet with old allocation.
+		echo "<tr><td class=pcleft>";
+		startPortlet ('Old allocation');
+		renderMolecule ($racks, $prev_op_id);
+		finishPortlet();
+		echo '</td><td class=pcright>';
+		// Right top portlet with new allocation
+		startPortlet ('New allocation');
+		renderMolecule ($racks, $op_id);
+		finishPortlet();
+
+		echo '</td></tr>';
 	}
-	else
-		echo "nothing";
-	finishPortlet();
-
-	echo '</td><td class=pcright>';
-
-	// Right top portlet with new allocation
-	startPortlet ('New allocation');
-	if ($nmid)
-	{
-		$newMolecule = getMolecule ($nmid);
-		renderMolecule ($newMolecule, $object_id);
-	}
-	else
-		echo "nothing";
-	finishPortlet();
-
-	echo '</td></tr><tr><td colspan=2>';
+	echo '<tr><td colspan=2>';
 
 	// Bottom portlet with list
 
 	startPortlet ('Rackspace allocation history');
 	echo "<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>\n";
 	echo "<tr><th>timestamp</th><th>author</th><th>rack object ID</th><th>rack object type</th><th>rack object name</th><th>comment</th></tr>\n";
+	$previousRev = -1;
 	foreach ($history as $row)
 	{
-		if ($row['mo_id'] == $op_id)
+		if ($row['rev'] == $op_id)
 			$class = 'hl';
 		else
 			$class = "row_${order}";
-		echo "<tr class=${class}><td><a href='".makeHref(array('page'=>$pageno, 'tab'=>$tabno, 'op_id'=>$row['mo_id']))."'>${row['ctime']}</a></td>";
+		echo "<tr class=${class}><td><a href='".makeHref(array('page'=>$pageno, 'tab'=>$tabno, 'op_id'=>$row['rev'], 'prev_op_id'=>$previousRev))."'>${row['hr_timestamp']}</a></td>";
 		echo "<td>${row['user_name']}</td>";
-		echo "<td>${row['ro_id']}</td><td>${row['objtype_name']}</td><td>${row['name']}</td><td>${row['comment']}</td>\n";
+		echo "<td>${row['object_id']}</td><td>${row['objtype']}</td><td>${row['object_name']}</td><td></td>\n";
 		echo "</tr>\n";
 		$order = $nextorder[$order];
+		$previousRev = $row['rev'];
 	}
 	echo "</table>\n";
 	finishPortlet();

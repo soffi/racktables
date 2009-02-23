@@ -683,7 +683,6 @@ function updateObjectAllocation ()
 		foreach ($workingRacksData as &$rackData)
 			applyObjectMountMask ($rackData, $object_id);
 
-		$oldMolecule = getMoleculeForObject ($object_id);
 		$worldchanged = FALSE;
 		$log = array();
 		foreach ($workingRacksData as $rack_id => $rackData)
