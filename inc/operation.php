@@ -22,6 +22,50 @@ class Operation {
 		self::$user_id = $u;
 	}
 
+	public function getOperationsForHistory($history)
+	{
+		$lastRevRow = end($history);
+		$lastRev = $lastRevRow['rev'];
+		$firstRevRow = reset($history);
+		$firstRev = $firstRevRow['rev'];
+		$lastOp = 0;
+		$operations = array();
+		$output = array();
+		$q = Database::getDBLink()->prepare("select id, rev, user_id from operation where rev >= ? and rev< ? or rev = (select min(rev) from operation where rev >= ?) order by rev");
+		$q->bindValue(1, $firstRev);
+		$q->bindValue(2, $lastRev);
+		$q->bindValue(3, $lastRev);
+		$q->execute();
+		while($row = $q->fetch())
+		{
+			$operations[$row['rev']] = $row;
+			$lastOp = $row['rev'];
+		}
+		$q->closeCursor();
+		$foundRev = NULL;
+		for($rev = $firstRev; $rev <= $lastOp; $rev++)
+		{
+			if (isset($history[$rev]) and isset($operations[$rev]))
+			{
+				$output[$rev] = $history[$rev];
+				$foundRev = NULL;
+			}
+			elseif (isset($history[$rev]))
+			{
+				$foundRev = $rev;
+			}
+			elseif (isset($operations[$rev]))
+			{
+				if (isset($foundRev))
+				{
+					$output[$rev] = $history[$foundRev];
+					$foundRev = NULL;
+				}
+			}
+		}
+		
+		return $output; 
+	}
 
 	public function finalize()
 	{

@@ -677,16 +677,19 @@ function getHistoryForObject($object_type, $id=NULL)
 	if ($object_type == 'row')
 	{
 		$result = Database::getHistory('RackRow', $id);
-		while($row = $result->fetch())
-		{
-			$history[] = $row;
-		}
+		$history = $result->fetchAll();
 		$result->closeCursor();
 	}
 	elseif ($object_type == 'rack')
 	{
 		$result = Database::getHistory('Rack', $id);
 		while($row = $result->fetch())
+		{
+			$history[$row['rev']] = $row;
+		}
+		$result->closeCursor();
+		$history = Operation::getOperationsForHistory($history);
+		foreach($history as &$row)
 		{
 			$rev = Database::getRevision();
 			Database::setRevision($row['rev']);
@@ -695,14 +698,18 @@ function getHistoryForObject($object_type, $id=NULL)
 			$row['row_name'] = $row1['name'];
 			$result1->closeCursor();
 			Database::setRevision($rev);
-			$history[] = $row;
 		}
-		$result->closeCursor();
 	}
 	elseif ($object_type == 'object')
 	{
 		$result = Database::getHistory('RackObject', $id);
 		while($row = $result->fetch())
+		{
+			$history[$row['rev']] = $row;
+		}
+		$result->closeCursor();
+		$history = Operation::getOperationsForHistory($history);
+		foreach($history as &$row)
 		{
 			$rev = Database::getRevision();
 			Database::setRevision($row['rev']);
@@ -711,14 +718,18 @@ function getHistoryForObject($object_type, $id=NULL)
 			$row['objtype'] = $row1['dict_value'];
 			$result1->closeCursor();
 			Database::setRevision($rev);
-			$history[] = $row;
 		}
-		$result->closeCursor();
 	}
 	elseif ($object_type == 'rackspace')
 	{
 		$result = Database::getHistory('RackSpace', $id);
 		while($row = $result->fetch())
+		{
+			$history[$row['rev']] = $row;
+		}
+		$result->closeCursor();
+		$history = Operation::getOperationsForHistory($history);
+		foreach($history as &$row)
 		{
 			$rev = Database::getRevision();
 			Database::setRevision($row['rev']);
@@ -728,9 +739,7 @@ function getHistoryForObject($object_type, $id=NULL)
 			$row['objtype'] = $row1['object_type'];
 			$result1->closeCursor();
 			Database::setRevision($rev);
-			$history[] = $row;
 		}
-		$result->closeCursor();
 	}
 
 	else
