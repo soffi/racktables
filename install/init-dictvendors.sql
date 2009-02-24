@@ -880,7 +880,7 @@ INSERT INTO `Dictionary` (`id`, `chapter_id`) VALUES (930,17);
 INSERT INTO `Dictionary` (`id`, `chapter_id`) VALUES (931,17);
 INSERT INTO `Dictionary` (`id`, `chapter_id`) VALUES (932,13);
 INSERT INTO `Dictionary` (`id`, `chapter_id`) VALUES (933,13);
-2a1435,1829
+
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (42,0,0,'noname/unknown');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (43,0,0,'IBM xSeries%GPASS%305');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (44,0,0,'IBM xSeries%GPASS%306');
@@ -1276,12 +1276,10 @@ INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (436,0,0,'Linux%GSKIP%RHEL5');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (437,0,0,'Dell PowerVault 210S');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (438,0,0,'Dell PowerVault 221S');
-4a1832,1835
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (441,0,0,'Linux%GSKIP%CentOS-2');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (442,0,0,'Linux%GSKIP%CentOS-3');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (443,0,0,'Linux%GSKIP%CentOS-4');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (444,0,0,'Linux%GSKIP%CentOS-5');
-7a1839,2071
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (448,0,0,'[[Avocent DSR1021 | http://www.avocent.com/WorkArea/linkit.aspx?LinkIdentifier=id&ItemID=2418]]');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (449,0,0,'[[Avocent DSR1022 | http://www.avocent.com/WorkArea/linkit.aspx?LinkIdentifier=id&ItemID=2498]]');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (450,0,0,'[[Avocent DSR1024 | http://www.avocent.com/WorkArea/linkit.aspx?LinkIdentifier=id&ItemID=2588]]');
@@ -1515,7 +1513,6 @@ INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (678,0,0,'[[Raisecom%GPASS%RC805-120B | http://www.raisecom-international.com/p/RC800120.htm]]');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (679,0,0,'[[Raisecom%GPASS%RC805-240B | http://www.raisecom-international.com/p/RC800120.htm]]');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (680,0,0,'[[Raisecom%GPASS%RC805-480B | http://www.raisecom-international.com/p/RC800120.htm]]');
-9a2074,2188
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (683,0,0,'[[Force10%GPASS%S2410P | http://www.force10networks.com/products/s2410.asp]]');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (684,0,0,'[[Extreme Networks%GPASS%Summit X150-24t | http://www.extremenetworks.com/products/summit-x150.aspx]]');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (685,0,0,'[[Extreme Networks%GPASS%Summit X150-48t | http://www.extremenetworks.com/products/summit-x150.aspx]]');
@@ -1631,7 +1628,6 @@ INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (795,0,0,'[[Cisco%GPASS%Catalyst 3032-DEL | http://www.cisco.com/en/US/products/ps8772/index.html]]');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (796,0,0,'Linux%GSKIP%Ubuntu 8.10');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (797,0,0,'[[BSD%GSKIP%OpenBSD 4.4 | http://openbsd.org/44.html]]');
-0a2190,2324
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (799,0,0,'Cisco%GPASS%ASA 5505');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (800,0,0,'Cisco%GPASS%ASA 5510');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (801,0,0,'Cisco%GPASS%ASA 5520');

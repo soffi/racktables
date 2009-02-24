@@ -45,7 +45,7 @@ CREATE TABLE `milestone` (
   `user_id` int(10) unsigned NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `operation' (
+CREATE TABLE `operation` (
   `id` int(10) unsigned NOT NULL,
   `rev` bigint(20) unsigned NOT NULL,
   `user_id` int(10) unsigned NOT NULL
