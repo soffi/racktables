@@ -449,4 +449,6 @@ INSERT INTO `PortCompat` (`type1`, `type2`) VALUES (682,682);
 INSERT INTO `Script` (`script_name`, `script_text`) VALUES ('RackCode','allow {$userid_1}');
 
 
-INSERT INTO `revision` (`id`, `timestamp`, `user_id`) VALUES (0,now(),0);
+INSERT INTO `revision` (`id`, `timestamp`, `user_id`) VALUES (0,now(),1);
+INSERT INTO `operation` (`id`, `rev`, `user_id`) VALUES (0,0,1);
+INSERT INTO `milestone` (`id`, `rev`, `user_id`) VALUES (0,0,1);

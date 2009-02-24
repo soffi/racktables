@@ -41,14 +41,21 @@ CREATE TABLE `revision` (
 
 CREATE TABLE `milestone` (
   `id` int(10) unsigned NOT NULL,
-  `rev` bigint(20) unsigned NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+  `rev` bigint(20) unsigned NOT NULL,
+  `user_id` int(10) unsigned NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE `operation' (
+  `id` int(10) unsigned NOT NULL,
+  `rev` bigint(20) unsigned NOT NULL,
+  `user_id` int(10) unsigned NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `Registry` (
   `id` char(64) NOT NULL,
   `data` text,
   PRIMARY KEY  (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 <?php
 

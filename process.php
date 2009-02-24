@@ -28,7 +28,10 @@ try {
 	}
 	else
 	{
+		Operation::init();
+		Operation::setUser($accounts[$remote_username]['user_id']);
 		$location = $ophandler[$pageno][$tabno][$op]();
+		Operation::finalize();
 		if (empty ($location))
 		{
 			showError ('Operation handler failed to return its status', __FILE__);

@@ -1,5 +1,6 @@
 set names 'utf8';
 
+
 INSERT INTO `AttributeValue` (`id`, `object_id`, `attr_id`) VALUES (1,905,2);
 INSERT INTO `AttributeValue` (`id`, `object_id`, `attr_id`) VALUES (2,906,2);
 INSERT INTO `AttributeValue` (`id`, `object_id`, `attr_id`) VALUES (3,915,2);
