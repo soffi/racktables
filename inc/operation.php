@@ -22,6 +22,59 @@ class Operation {
 		self::$user_id = $u;
 	}
 
+	public function getOperationsSince($rev)
+	{
+		$q = Database::getDBLink()->prepare("select operation.id as id, operation.rev as rev from operation where rev > ?");
+		$q->bindValue(1, $rev);
+		$q->execute();
+		$result = $q->fetchAll();
+		$q->closeCursor();
+		return $result;
+	}
+
+        public function getHeadOperation()
+        {
+                $result = Database::getDBLink()->query("select operation.id as id, operation.rev as rev from operation join (select max(rev) as rev from operation) as o on operation.rev = o.rev ");
+                if ($row = $result->fetch())
+                {
+                        $result->closeCursor();
+                        return $row;
+                }
+                else
+                        return array(null, null);
+        }
+
+
+	public function getOperationId($rev)
+	{
+		$result = Database::getDBLink()->query("select id from operation where rev = $rev");
+		if ($row = $result->fetch())
+		{
+			$result->closeCursor();
+			return $row[0];
+		}
+		else
+			return null;
+	}
+
+	public function getSupOperation($rev)
+	{
+		$result = Database::getDBLink()->query("select operation.id as id, operation.rev as rev from operation join (select min(rev) as rev from operation where rev > $rev) as o on operation.rev = o.rev ");
+		$row = $result->fetch();
+		$result->closeCursor();
+		return $row;
+	}
+
+	public function getSubOperation($rev)
+	{
+		$result = Database::getDBLink()->query("select operation.id as id, operation.rev as rev from operation join (select max(rev) as rev from operation where rev < $rev) as o on operation.rev = o.rev ");
+		$row = $result->fetch();
+		$result->closeCursor();
+		return $row;
+	}
+
+
+
 	public function getOperationsForHistory($history)
 	{
 		$lastRevRow = end($history);

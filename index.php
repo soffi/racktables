@@ -81,38 +81,35 @@ foreach($_GET as $key => $value)
 }
 
 if ($prev_milestone != null)
-        echo '<a href="'.$currentHref.'&r='.$prev_milestone.'"><img src="pix/tango-prev-mile.png" alt="Previous milestone" title="Previous milestone"></a>';
+        echo '<a href="'.$currentHref.'&r='.$prev_milestone['rev'].'"><img src="pix/tango-prev-mile.png" alt="Previous milestone" title="Previous milestone"></a>';
 else
         echo '<img src="pix/tango-prev-mile-dis.png" alt="Previous milestone" title="Previous milestone">';
 
-if ($prev_revision >= 0)
-        echo '<a href="'.$currentHref.'&r='.$prev_revision.'"><img src="pix/tango-prev-rev.png" alt="Previous revision" title="Previous revision"></a>';
+if ($prev_op['rev'] >= 0)
+        echo '<a href="'.$currentHref.'&r='.$prev_op['rev'].'"><img src="pix/tango-prev-rev.png" alt="Previous revision" title="Previous revision"></a>';
 else
         echo '<img src="pix/tango-prev-rev-dis.png" alt="Previous revision" title="Previous revision">';
 if ($numeric_revision == $head_revision)
-        echo '<input type="text" id="revisionInput" value="'.$numeric_revision.'" disabled="disabled" class="headed"> ';
+        echo '<input type="text" id="revisionInput" value="'.$this_op.'" disabled="disabled" class="headed"> ';
 else
-        echo '<input type="text" id="revisionInput" value="'.$numeric_revision.'" disabled="disabled"> ';
+        echo '<input type="text" id="revisionInput" value="'.$this_op.'" disabled="disabled"> ';
 echo '<input type="text" id="mileInput" value="'.$this_milestone.'" disabled="disabled">';
-if ($next_revision <= $head_revision)
-        echo '<a href="'.$currentHref.'&r='.$next_revision.'"><img src="pix/tango-next-rev.png" alt="Next revision" title="Next revision"></a>';
+if (isset($next_op['rev']) and $next_op['rev'] <= $head_op_rev)
+        echo '<a href="'.$currentHref.'&r='.$next_op['rev'].'"><img src="pix/tango-next-rev.png" alt="Next revision" title="Next revision"></a>';
 else
         echo '<img src="pix/tango-next-rev-dis.png" alt="Next revision" title="Next revision">';
 if ($next_milestone != null)
-        echo '<a href="'.$currentHref.'&r='.$next_milestone.'"><img src="pix/tango-next-mile.png" alt="Next milestone" title="Next milestone"></a>';
+        echo '<a href="'.$currentHref.'&r='.$next_milestone['rev'].'"><img src="pix/tango-next-mile.png" alt="Next milestone" title="Next milestone"></a>';
 else
         echo '<img src="pix/tango-next-mile-dis.png" alt="Next milestone" title="Next milestone">';
 
         echo '<span id="milestone">';
         if ($numeric_revision == $head_revision)
         {
-                if ($head_milestone_rev === NULL)
+                if ($head_milestone_rev < $head_op_rev)
                 {
-                        echo ''.($head_revision - $head_milestone_rev)." changes <button>Register milestone</button>";
-                }
-                elseif ($head_milestone_rev < $head_revision)
-                {
-                        echo ''.($head_revision - $head_milestone_rev)." changes since MS $head_milestone <button onclick=\"${root}milestone.php?r=$head_revision\">Register milestone</button>";
+			$operations = Operation::getOperationsSince($head_milestone_rev);
+                        echo ''.count($operations)." changes since MS $head_milestone <button onclick=\"${root}milestone.php?r=$head_revision\">Register milestone</button>";
                 }
         }
         echo '</span>';

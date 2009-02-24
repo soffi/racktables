@@ -2015,7 +2015,8 @@ function renderRackspaceHistory ()
 		// Left top portlet with old allocation.
 		echo "<tr><td class=pcleft>";
 		startPortlet ('Old allocation');
-		renderMolecule ($racks, $prev_op_id);
+		if ($prev_op_id >= 0)
+			renderMolecule ($racks, $prev_op_id);
 		finishPortlet();
 		echo '</td><td class=pcright>';
 		// Right top portlet with new allocation

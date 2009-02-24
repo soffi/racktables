@@ -213,12 +213,16 @@ if (basename($_SERVER['PHP_SELF']) == 'index.php')
 
 Database::setRevision($revision);
 
-list($head_milestone, $head_milestone_rev) = Milestone::getHeadMilestone($numeric_revision);
+list($head_milestone, $head_milestone_rev) = Milestone::getHeadMilestone();
 $prev_revision = $numeric_revision-1;
 $next_revision = $numeric_revision+1;
 $this_milestone = Milestone::getMilestoneId($numeric_revision);
 $prev_milestone = Milestone::getSubMilestone($numeric_revision);
 $next_milestone = Milestone::getSupMilestone($numeric_revision);
+list($head_op, $head_op_rev) = Operation::getHeadOperation();
+$this_op = Operation::getOperationId($numeric_revision);
+$prev_op = Operation::getSubOperation($numeric_revision);
+$next_op = Operation::getSupOperation($numeric_revision);
 
 $taglist = getTagList();
 $tagtree = treeFromList ($taglist);
