@@ -92,8 +92,8 @@ else
         {
                 if ($head_milestone_rev < $head_op_rev)
                 {
-			$operations = Operation::getOperationsSince($head_milestone_rev);
-                        echo ''.count($operations)." changes since MS $head_milestone <button onclick=\"${root}milestone.php?r=$head_revision\">Register milestone</button>";
+			$num_operations = count(Operation::getOperationsSince($head_milestone_rev));
+                        echo "<input id=\"numOperations\" disabled=\"disabled\" title=\"$num_operations changes since MS $head_milestone\" value=\"$num_operations\"> <button onclick=\"${root}milestone.php?r=$head_revision\">Register milestone</button>";
                 }
         }
 	else

@@ -626,6 +626,13 @@ $tabhandler['reports']['rackcode'] = 'renderRackCodeReports';
 $tabhandler['reports']['ipv4'] = 'renderIPv4Reports';
 $tabhandler['reports']['local'] = 'renderLocalReports';
 
+$page['history']['title'] = 'Reports';
+$page['history']['parent'] = 'index';
+$tab['history']['default'] = 'View';
+$tabrev['history'] = array('default');
+$tabhandler['history']['default'] = 'renderMainHistory';
+
+
 $page['files']['title'] = 'Files';
 $page['files']['parent'] = 'index';
 $tab['files']['default'] = 'View';

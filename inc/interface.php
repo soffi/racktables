@@ -63,6 +63,9 @@ $image['config']['height'] = 200;
 $image['reports']['path'] = 'pix/report.png';
 $image['reports']['width'] = 218;
 $image['reports']['height'] = 200;
+$image['history']['path'] = 'pix/history.png';
+$image['history']['width'] = 218;
+$image['history']['height'] = 200;
 $image['download']['path'] = 'pix/download.png';
 $image['download']['width'] = 16;
 $image['download']['height'] = 16;
@@ -240,7 +243,10 @@ function renderIndex ()
 						<h1><a href='<?php echo makeHref(array('page'=>'ipv4slb')) ?>'>IPv4 SLB<br>
 						<?php printImageHREF ('ipv4slb'); ?></a></h1>
 					</td>
-					<td>&nbsp;</td>
+					<td>
+						<h1><a href='<?php echo makeHref(array('page'=>'history')) ?>'>History<br>
+						<?php printImageHREF ('history'); ?></a></h1>
+					</td>
 				</tr>
 			</table>
 			</div>
@@ -6047,6 +6053,16 @@ function renderTextEditor ($file_id)
 	echo $fullInfo['contents'] . '</textarea></td></tr>';
 	echo "<tr><td class=submit><input type=submit value='Save' onclick='file_text.toggleEditor();'>";
 	echo "</td></tr>\n</table></form>\n";
+}
+
+function renderMainHistory()
+{
+	$start_rev = 0;
+	if (isset($_REQUEST['start_rev']))
+		$start_rev = 0;
+	list($start_op, $start_op_rev) = Operation::getCorrespondingOperation($start_rev);
+
+	echo "Showing history starting from operation $start_op";
 }
 
 ?>
