@@ -49,7 +49,7 @@ function getRackspace ($tagfilter = array(), $tfmode = 'any')
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		foreach ($clist as $cname)
 			$ret[$row['row_id']][$cname] = $row[$cname];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -76,7 +76,7 @@ function getRackRows ()
 	$rows = array();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		$rows[$row['id']] = parseWikiLink ($row['name'], 'o');
-	$result->closeCursor();
+	Database::closeCursor($result);
 	asort ($rows);
 	return $rows;
 }
@@ -102,7 +102,7 @@ function commitDeleteRow($rackrow_id)
 	if (($result!=NULL) && ($row = $result->fetch(PDO::FETCH_NUM)) )
 		if ($row[0] == 0)
 			Database::delete('RackRow', $rackrow_id);
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return TRUE;
 }
 
@@ -238,7 +238,7 @@ function getObjectList ($type_id = 0, $tagfilter = array(), $tfmode = 'any')
 			$ret[$row['id']][$cname] = $row[$cname];
 		$ret[$row['id']]['dname'] = displayedName ($ret[$row['id']]);
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -266,7 +266,7 @@ function getRacksForRow ($row_id = 0, $tagfilter = array(), $tfmode = 'any')
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		foreach ($clist as $cname)
 			$ret[$row['id']][$cname] = $row[$cname];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -295,7 +295,7 @@ function getRackData ($rack_id = 0, $silent = FALSE)
 	);
 	foreach ($clist as $cname)
 		$rack[$cname] = $row[$cname];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 
 	// start with default rackspace
@@ -322,7 +322,7 @@ function getRackData ($rack_id = 0, $silent = FALSE)
 			$rack[$row['unit_no']][$loclist[$row['atom']]]['state'] = 'F';
 	}
 	$rack['mountedObjects'] = array_keys($mounted_objects);
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $rack;
 }
 
@@ -348,7 +348,7 @@ function getObjectInfo ($object_id = 0)
 	$ret['asset_no'] = $row['asset_no'];
 	$ret['dname'] = displayedName ($ret);
 	$ret['comment'] = $row['comment'];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -510,7 +510,7 @@ function commitDeleteObject ($object_id = 0)
 	$result = Database::query('SELECT file_id FROM FileLink WHERE entity_id = \'object\' AND entity_id = ?', array(1=>$object_id));
 	while ($row = $result->fetch(PDO::FETCH_NUM))
 		Database::delete('File', $row[0]);
-	$result->closeCursor();
+	Database::closeCursor($result);
 	Database::deleteWhere('IPv4LB', array('object_id'=>$object_id));
 	Database::deleteWhere('IPv4Allocation', array('object_id'=>$object_id));
 	Database::deleteWhere('Port', array('object_id'=>$object_id));
@@ -588,7 +588,7 @@ function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_
 			$result = Database::query("select id from RackSpace where rack_id = ? and unit_no = ? and atom = ?", array(1=>$rack_id, 2=>$unit_no, 3=>$atom));
 			if ($row = $result->fetch())
 			{
-				$result->closeCursor();
+				Database::closeCursor($result);
 				if ($newstate == 'T' and $object_id != 0)
 				{
 					Database::update(array('object_id'=>$object_id, 'state'=>$newstate), 'RackSpace', $row[0]);
@@ -641,9 +641,9 @@ function getRackSpaceChangedBetween($rev1, $rev2)
 		$row1 = $result1->fetch();
 		if (!in_array($row1['rack_id'], $racks))
 			$racks[] = $row1['rack_id'];
-		$result1->closeCursor();
+		Database::closeCursor($result1);
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $racks;
 }
 
@@ -659,7 +659,7 @@ function getHistoryForObject($object_type, $id=NULL)
 	{
 		$result = Database::getHistory('RackRow', $id);
 		$history = $result->fetchAll();
-		$result->closeCursor();
+		Database::closeCursor($result);
 	}
 	elseif ($object_type == 'rack')
 	{
@@ -668,7 +668,7 @@ function getHistoryForObject($object_type, $id=NULL)
 		{
 			$history[$row['rev']] = $row;
 		}
-		$result->closeCursor();
+		Database::closeCursor($result);
 		$history = Operation::getOperationsForHistory($history);
 		foreach($history as &$row)
 		{
@@ -677,7 +677,7 @@ function getHistoryForObject($object_type, $id=NULL)
 			$result1 = Database::query("select name from RackRow where id = ?", array(1=>$row['row_id']));
 			$row1 = $result1->fetch();
 			$row['row_name'] = $row1['name'];
-			$result1->closeCursor();
+			Database::closeCursor($result1);
 			Database::setRevision($rev);
 		}
 	}
@@ -688,7 +688,7 @@ function getHistoryForObject($object_type, $id=NULL)
 		{
 			$history[$row['rev']] = $row;
 		}
-		$result->closeCursor();
+		Database::closeCursor($result);
 		$history = Operation::getOperationsForHistory($history);
 		foreach($history as &$row)
 		{
@@ -697,7 +697,7 @@ function getHistoryForObject($object_type, $id=NULL)
 			$result1 = Database::query("select dict_value from Dictionary join Chapter on Dictionary.chapter_id = Chapter.id where Chapter.name = 'RackObjectType' and Dictionary.id = ?", array(1=>$row['objtype_id']));
 			$row1 = $result1->fetch();
 			$row['objtype'] = $row1['dict_value'];
-			$result1->closeCursor();
+			Database::closeCursor($result1);
 			Database::setRevision($rev);
 		}
 	}
@@ -709,7 +709,7 @@ function getHistoryForObject($object_type, $id=NULL)
 		{
 			$history[$row['rev']] = $row;
 		}
-		$result->closeCursor();
+		Database::closeCursor($result);
 		$history = Operation::getOperationsForHistory($history);
 		foreach($history as &$row)
 		{
@@ -719,7 +719,7 @@ function getHistoryForObject($object_type, $id=NULL)
 			$row1 = $result1->fetch();
 			$row['object_name'] = $row1['name'];
 			$row['objtype'] = $row1['object_type'];
-			$result1->closeCursor();
+			Database::closeCursor($result1);
 			Database::setRevision($rev);
 		}
 	}
@@ -743,7 +743,7 @@ function getResidentRacksData ($object_id = 0, $fetch_rackdata = TRUE)
 	$query = "select distinct rack_id from RackSpace where object_id = ${object_id} order by rack_id";
 	$result = Database::query ($query);
 	$rows = $result->fetchAll (PDO::FETCH_NUM);
-	$result->closeCursor();
+	Database::closeCursor($result);
 	$ret = array();
 	foreach ($rows as $row)
 	{
@@ -755,7 +755,7 @@ function getResidentRacksData ($object_id = 0, $fetch_rackdata = TRUE)
 		$rackData = getRackData ($row[0]);
 		$ret[$row[0]] = $rackData;
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -778,7 +778,7 @@ function getObjectGroupInfo ()
 			foreach ($clist as $cname)
 				$ret[$row['id']][$cname] = $row[$cname];
 		}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	$ret[0]['count'] = $total;
 	return $ret;
 }
@@ -802,7 +802,7 @@ function getUnmountedObjects ()
 			$ret[$row['id']][$cname] = $row[$cname];
 		$ret[$row['id']]['dname'] = displayedName ($ret[$row['id']]);
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -821,7 +821,7 @@ function getProblematicObjects ()
 			$ret[$row['id']][$cname] = $row[$cname];
 		$ret[$row['id']]['dname'] = displayedName ($ret[$row['id']]);
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -905,7 +905,7 @@ function getAllIPv4Allocations ()
 		$ret[$count]['ip']=$row['ip'];
 		$count++;
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -941,7 +941,7 @@ function getEmptyPortsOfType ($type_id)
 		$ret[$count]['Port_type_name']=$row['Port_type_name'];
 		$count++;
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -1311,7 +1311,7 @@ function updateAddress ($ip = 0, $name = '', $reserved = 'no')
 	$result = Database::query ('select ip from IPv4Address where ip = INET_ATON( ? )', array(1 => $ip));
 	if ($result->rowCount() > 0)
 	{
-		$result->closeCursor();
+		Database::closeCursor($result);
 		Database::updateWhere( 
 			array (
 				'name' => $name, 
@@ -1325,7 +1325,7 @@ function updateAddress ($ip = 0, $name = '', $reserved = 'no')
 	}
 	else
 	{
-		$result->closeCursor();
+		Database::closeCursor($result);
 		Database::insert(
 			array (
 				'name' => $name, 
@@ -1372,7 +1372,7 @@ function getUserAccounts ($tagfilter = array(), $tfmode = 'any')
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		foreach ($clist as $cname)
 			$ret[$row['user_name']][$cname] = $row[$cname];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -1384,7 +1384,7 @@ function searchByl2address ($port_l2address)
 		"where l2address = '${db_l2address}'";
 	$result = Database::query ($query);
 	$rows = $result->fetchAll (PDO::FETCH_ASSOC);
-	$result->closeCursor();
+	Database::closeCursor($result);
 	if (count ($rows) == 0) // No results.
 		return NULL;
 	if (count ($rows) == 1) // Target found.
@@ -1548,7 +1548,7 @@ function getPortID ($object_id, $port_name)
 	if (count ($rows) != 1)
 		return NULL;
 	$ret = $rows[0][0];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -1588,7 +1588,7 @@ function getPortCompat ()
 		"where c1.name = 'PortType' and c2.name = 'PortType'";
 	$result = Database::query ($query);
 	$ret = $result->fetchAll (PDO::FETCH_ASSOC);
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -1646,7 +1646,7 @@ function getDict ($parse_links = FALSE)
 			$dict[$chapter_no]['refcnt'][$row['dict_key']] = 0;
 		}
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 // Find the list of all assigned values of dictionary-addressed attributes, each with
 // chapter/word keyed reference counters. Use the structure to adjust reference counters
@@ -1660,7 +1660,7 @@ function getDict ($parse_links = FALSE)
 	$result = Database::query ($query2);
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		$dict[$row['chapter_no']]['refcnt'][$row['uint_value']] = $row['refcnt'];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $dict;
 }
 
@@ -1681,7 +1681,7 @@ function getDictStats ()
 		$uc++;
 		$uw += $row['wc'];;
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 	$query = "select count(ro.id) as attrc from RackObject as ro left join " .
 		"AttributeValue as av on ro.id = av.object_id group by ro.id";
@@ -1696,7 +1696,7 @@ function getDictStats ()
 			$ta += $row['attrc'];
 		}
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	$ret = array();
 	$ret['Total chapters in dictionary'] = $tc;
 	$ret['Total words in dictionary'] = $tw;
@@ -1726,7 +1726,7 @@ function getIPv4Stats ()
 		$result = Database::query ($item['q']);
 		$row = $result->fetch (PDO::FETCH_NUM);
 		$ret[$item['txt']] = $row[0];
-		$result->closeCursor();
+		Database::closeCursor($result);
 		unset ($result);
 	}
 	return $ret;
@@ -1746,7 +1746,7 @@ function getRackspaceStats ()
 		$result = Database::query ($item['q']);
 		$row = $result->fetch (PDO::FETCH_NUM);
 		$ret[$item['txt']] = empty ($row[0]) ? 0 : $row[0];
-		$result->closeCursor();
+		Database::closeCursor($result);
 		unset ($result);
 	}
 	return $ret;
@@ -1899,7 +1899,7 @@ function readChapter ($chapter_name = '')
 	$chapter = array();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		$chapter[$row['dict_key']] = parseWikiLink ($row['dict_value'], 'o');
-	$result->closeCursor();
+	Database::closeCursor($result);
 	// SQL ORDER BY had no sense, because we need to sort after link rendering, not before.
 	asort ($chapter);
 	return $chapter;
@@ -1939,7 +1939,7 @@ function getAttrMap ()
 		}
 		$ret[$attr_id]['application'][] = $application;
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2067,7 +2067,7 @@ function getAttrValues ($object_id, $strip_optgroup = FALSE)
 		}
 		$ret[$row['attr_id']] = $record;
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2093,7 +2093,7 @@ function commitUpdateAttrValue ($object_id = 0, $attr_id = 0, $value = '')
 	$result = Database::query("select type as attr_type from Attribute where id = ?", array(1=>$attr_id));
 	$row = $result->fetch (PDO::FETCH_NUM);
 	$attr_type = $row[0];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	switch ($attr_type)
 	{
 		case 'uint':
@@ -2133,7 +2133,7 @@ function loadConfigCache ()
 	$cache = array();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		$cache[$row['varname']] = $row;
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $cache;
 }
 
@@ -2145,7 +2145,7 @@ function storeConfigVar ($varname = NULL, $varvalue = NULL)
 	$query = "update Config set varvalue='${varvalue}' where varname='${varname}' limit 1";
 	$result = Database::getDBLink()->exec($query);
 	$rc = $result->rowCount();
-	$result->closeCursor();
+	Database::closeCursor($result);
 	if ($rc == 0 or $rc == 1)
 		return TRUE;
 	throw new Exception ("Something went wrong for args '${varname}', '${varvalue}'");
@@ -2167,11 +2167,11 @@ function getDatabaseVersion ()
 	$rows = $result->fetchAll (PDO::FETCH_NUM);
 	if (count ($rows) != 1 || empty ($rows[0][0]))
 	{
-		$result->closeCursor();
+		Database::closeCursor($result);
 		die (__FUNCTION__ . ': Cannot guess database version. Config table is present, but DB_VERSION is missing or invalid. Giving up.');
 	}
 	$ret = $rows[0][0];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2206,7 +2206,7 @@ function getSLBSummary ()
 			'name' => $row['pool_name']
 		);
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2224,7 +2224,7 @@ function getVServiceInfo ($vsid = 0)
 	foreach (array ('id', 'vip', 'vport', 'proto', 'name', 'vsconfig', 'rsconfig') as $cname)
 		$vsinfo[$cname] = $row[$cname];
 	$vsinfo['rspool'] = array();
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 	$query2 = "select pool.id, name, pool.vsconfig, pool.rsconfig, object_id, " .
 		"lb.vsconfig as lb_vsconfig, lb.rsconfig as lb_rsconfig from " .
@@ -2248,7 +2248,7 @@ function getVServiceInfo ($vsid = 0)
 			'rsconfig' => $row['lb_rsconfig']
 		);
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $vsinfo;
 }
 
@@ -2268,7 +2268,7 @@ function getRSPoolInfo ($id = 0)
 	$row = $result->fetch (PDO::FETCH_ASSOC);
 	foreach (array ('id', 'name', 'vsconfig', 'rsconfig') as $c)
 		$ret[$c] = $row[$c];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 	$ret['lblist'] = array();
 	$ret['rslist'] = array();
@@ -2279,7 +2279,7 @@ function getRSPoolInfo ($id = 0)
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		foreach (array ('vsconfig', 'rsconfig') as $c)
 			$ret['lblist'][$row['object_id']][$row['vs_id']][$c] = $row[$c];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 	$query3 = "select id, inservice, inet_ntoa(rsip) as rsip, rsport, rsconfig from " .
 		"IPv4RS where rspool_id = ${id} order by IPv4RS.rsip, rsport";
@@ -2287,7 +2287,7 @@ function getRSPoolInfo ($id = 0)
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		foreach (array ('inservice', 'rsip', 'rsport', 'rsconfig') as $c)
 			$ret['rslist'][$row['id']][$c] = $row[$c];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2453,7 +2453,7 @@ function getVSList ($tagfilter = array(), $tfmode = 'any')
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		foreach (array ('vip', 'vport', 'proto', 'name', 'vsconfig', 'rsconfig', 'poolcount') as $cname)
 			$ret[$row['id']][$cname] = $row[$cname];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2470,7 +2470,7 @@ function getRSPoolList ($tagfilter = array(), $tfmode = 'any')
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		foreach (array ('name', 'refcnt', 'vsconfig', 'rsconfig') as $cname)
 			$ret[$row['id']][$cname] = $row[$cname];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2482,7 +2482,7 @@ function loadThumbCache ($rack_id = 0)
 	$row = $result->fetch (PDO::FETCH_ASSOC);
 	if ($row)
 		$ret = base64_decode ($row['thumb_data']);
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2525,7 +2525,7 @@ function getRSPoolsForObject ($object_id = 0)
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		foreach (array ('vip', 'vport', 'proto', 'name', 'pool_id', 'pool_name', 'rscount', 'vsconfig', 'rsconfig') as $cname)
 			$ret[$row['vs_id']][$cname] = $row[$cname];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2578,7 +2578,7 @@ function getRSList ()
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		foreach (array ('inservice', 'rsip', 'rsport', 'rspool_id', 'rsconfig') as $cname)
 			$ret[$row['id']][$cname] = $row[$cname];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2591,7 +2591,7 @@ function getLBList ()
 	$ret = array ();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		$ret[$row['object_id']] = $row['poolcount'];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2627,7 +2627,7 @@ function getSLBConfig ($object_id)
 		foreach (array ('rsip', 'rsport', 'rs_rsconfig') as $c)
 			$ret[$vs_id]['rslist'][$row['rs_id']][$c] = $row[$c];
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2667,7 +2667,7 @@ function loadEntityTags ($entity_realm = '', $entity_id = 0)
 	$result = Database::query ($query);
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		$ret[$row['id']] = $row;
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return getExplicitTagsOnly ($ret);
 }
 
@@ -2730,7 +2730,7 @@ function getTagList ()
 		if ($row['realm'])
 			$ret[$row['id']]['refcnt'][$row['realm']] = $row['refcnt'];
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2953,7 +2953,7 @@ function objectIsPortless ($id = 0)
 	$result = Database::query ("select count(id) from Port where object_id = ${id}"); 
 	$row = $result->fetch (PDO::FETCH_NUM);
 	$count = $row[0];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 	return $count === '0';
 }
@@ -2982,7 +2982,7 @@ function recordExists ($id = 0, $realm = 'object')
 	}
 	$row = $result->fetch (PDO::FETCH_NUM);
 	$count = $row[0];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 	return $count === '1';
 }
@@ -2992,7 +2992,7 @@ function tagExistsInDatabase ($tname)
 	$result = Database::query ("select count(*) from TagTree where lower(tag) = lower('${tname}')");
 	$row = $result->fetch (PDO::FETCH_NUM);
 	$count = $row[0];
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 	return $count !== '0';
 }
@@ -3077,7 +3077,7 @@ function getNATv4ForObject ($object_id)
 			$ret['out'][$count][$cname] = $row[$cname];
 		$count++;
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	unset ($result);
 
 	$query =
@@ -3101,7 +3101,7 @@ function getNATv4ForObject ($object_id)
 			$ret['in'][$count][$cname] = $row[$cname];
 		$count++;
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 
 	return $ret;
 }
@@ -3171,7 +3171,7 @@ function getAllFiles ()
 		$ret[$count]['comment'] = $row['comment'];
 		$count++;
 	}
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -3232,7 +3232,7 @@ function getFileList ($entity_type = NULL, $tagfilter = array(), $tfmode = 'any'
 		$ret[$row['id']]['mtime'] = 0;
 	}
 	
-	$result->closeCursor();
+	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -3278,7 +3278,7 @@ function getFile ($file_id = 0)
 	$ret['atime'] = $row['atime'];
 	$ret['contents'] = $row['contents'];
 	$ret['comment'] = $row['comment'];
-	$query->closeCursor();
+	Database::closeCursor($query);
 
 	// Someone accessed this file, update atime
 	Database::update(array('atime'=>date('YmdHis')), 'File', $file_id);
@@ -3301,7 +3301,7 @@ function getFileInfo ($file_id = 0)
 	$ret['mtime'] = $row['mtime'];
 	$ret['atime'] = $row['atime'];
 	$ret['comment'] = $row['comment'];
-	$query->closeCursor();
+	Database::closeCursor($query);
 	return $ret;
 }
 
@@ -3394,7 +3394,7 @@ function getFileLinkInfo ()
 				$ret[$i][$cname] = $row[$cname];
 				$i++;
 		}
-	$result->closeCursor();
+	Database::closeCursor($result);
 
 	// Find number of files without any linkage
 	$linkless_sql =
@@ -3403,13 +3403,13 @@ function getFileLinkInfo ()
 		'WHERE FileLink.id is null';
 	$q_linkless = Database::query ($linkless_sql);
 	$ret[1] = array ('entity_type' => 'no_links', 'name' => 'Files w/no links', 'count' => $q_linkless->fetchColumn ());
-	$q_linkless->closeCursor();
+	Database::closeCursor($q_linkless);
 
 	// Find total number of files
 	$total_sql = 'SELECT COUNT(*) FROM File';
 	$q_total = Database::query ($total_sql);
 	$ret[0]['count'] = $q_total->fetchColumn ();
-	$q_total->closeCursor();
+	Database::closeCursor($q_total);
 
 	ksort($ret);
 	return $ret;

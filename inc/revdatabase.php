@@ -443,7 +443,7 @@ class Database {
 							self::$database_meta[$table]['fields'][$field]['nullable'] = true;
 					}
 				}
-				$result1->closeCursor();
+				self::closeCursor($result1);
 				$result1 = self::$dbxlink->query("describe ${table}__r");
 				while($row1 = $result1->fetch(PDO::FETCH_NUM))
 				{
@@ -459,7 +459,7 @@ class Database {
 							self::$database_meta[$table]['fields'][$field]['nullable'] = true;
 					}
 				}
-				$result1->closeCursor();
+				self::closeCursor($result1);
 			}
 			else
 			{
@@ -480,11 +480,11 @@ class Database {
 								self::$database_meta_nonrev[$table]['fields'][$field]['nullable'] = true;
 						}
 					}
-					$result1->closeCursor();
+					self::closeCursor($result1);
 				}
 			}
 		}
-		$result->closeCursor();	
+		self::closeCursor($result);	
 	}
 
 
@@ -522,10 +522,10 @@ class Database {
 		$q->execute();
 		if (!($row = $q->fetch(PDO::FETCH_NUM)))
 		{
-			$q->closeCursor();
+			self::closeCursor($q);
 			throw new Exception ("Id $id has never been registered in table $table");
 		}
-		$q->closeCursor();
+		self::closeCursor($q);
 		if ($row[0] == 0)
 			return false;
 		else
@@ -537,7 +537,7 @@ class Database {
 		self::startTransaction(true);
 		$result = self::$dbxlink->query('select max(id) from revision for update');
 		$row = $result->fetch(PDO::FETCH_NUM);
-		$result->closeCursor();
+		self::closeCursor($result);
 		self::autoCommit();
 		return $row[0];
 	}
@@ -559,7 +559,7 @@ class Database {
 		$q->bindValue(1, $id);
 		$q->execute();
 		$row = $q->fetch();
-		$q->closeCursor();
+		self::closeCursor($q);
 		return $row[0];
 	}
 
@@ -571,7 +571,7 @@ class Database {
 		$q->bindValue(2, $revision);
 		$q->execute();
 		$row = $q->fetch();
-		$q->closeCursor();
+		self::closeCursor($q);
 		return $row[0];
 	}
 
@@ -582,7 +582,7 @@ class Database {
 		$q->bindValue(1, $id);
 		$q->execute();
 		$row = $q->fetch();
-		$q->closeCursor();
+		self::closeCursor($q);
 		return $row[0];
 	}
 
@@ -612,7 +612,7 @@ class Database {
 			{
 				self::delete($table, $id);
 			}
-			$result->closeCursor();
+			self::closeCursor($result);
 		}
 
 	}
@@ -627,30 +627,30 @@ class Database {
 			$q->execute();
 			if ($q->rowCount() > 0)
 			{
-				$q->closeCursor();
+				self::closeCursor($q);
 				if (! self::isDeleted($table, $id))
 				{
 					$q = self::$dbxlink->query('select max(id) from revision for update');
 					$row = $q->fetch(PDO::FETCH_NUM);
-					$q->closeCursor();
+					self::closeCursor($q);
 					$next_revision = $row[0] + 1;
 
 					$q = self::$dbxlink->prepare("insert into ${table}__r set id = ?, rev = ?, rev_terminal=true");
 					$q->bindValue(1, $id);
 					$q->bindValue(2, $next_revision);
 					$q->execute();
-					$q->closeCursor();
+					self::closeCursor($q);
 
 					$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_id = ?");
 					$q->bindValue(1, $next_revision);
 					$q->bindValue(2, self::$userId);
 					$q->execute();
-					$q->closeCursor();
+					self::closeCursor($q);
 				}
 			}
 			else
 			{
-				$q->closeCursor();
+				self::closeCursor($q);
 			}
 			self::autoCommit();
 		}
@@ -659,7 +659,7 @@ class Database {
 			$q = self::$dbxlink->prepare("delete from $table where id = ?");
 			$q->bindValue(1, $id);
 			$q->execute();
-			$q->closeCursor();
+			self::closeCursor($q);
 		}
 
 	}
@@ -763,7 +763,7 @@ class Database {
 			self::checkUniqueConstraints($table, $revisionedParamsMap, $staticParamsMap);
 			$result = self::$dbxlink->query("select max(id) from $table for update");
 			$row = $result->fetch(PDO::FETCH_NUM);
-			$result->closeCursor();
+			self::closeCursor($result);
 			$next_id = $row[0] + 1;
 			if (isset(self::$database_meta[$table]['start_increment']))
 				$next_id = max($next_id, self::$database_meta[$table]['start_increment']);
@@ -778,7 +778,7 @@ class Database {
 			foreach($revisionedValues as $value)
 				$q->bindValue($paramno++, $value);
 			$q->execute();
-			$q->closeCursor();
+			self::closeCursor($q);
 
 			$q = self::$dbxlink->prepare("insert into $table set id = ?".(count($staticParams)>0?',':'')." ".implode(', ', $staticParams));
 			$q->bindValue(1, $next_id);
@@ -786,13 +786,13 @@ class Database {
 			foreach($staticValues as $value)
 				$q->bindValue($paramno++, $value);
 			$q->execute();
-			$q->closeCursor();
+			self::closeCursor($q);
 
 			$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_id = ?");
 			$q->bindValue(1, $next_revision);
 			$q->bindValue(2, self::$userId);
 			$q->execute();
-			$q->closeCursor();
+			self::closeCursor($q);
 
 			self::autoCommit();
 			self::$lastInsertId = $next_id;
@@ -821,10 +821,10 @@ class Database {
 			foreach($values as $value)
 				$q->bindValue($paramno++, $value);
 			$q->execute();
-			$q->closeCursor();
+			self::closeCursor($q);
 			$q = self::$dbxlink->query("select last_insert_id()");
 			list($lastId) = $q->fetch(PDO::FETCH_NUM);
-			$q->closeCursor();
+			self::closeCursor($q);
 			self::$lastInsertId = $lastId;
 			return $lastId;
 		}
@@ -877,7 +877,7 @@ class Database {
 			{
 				self::update($fields, $table, $id);
 			}
-			$result->closeCursor();
+			self::closeCursor($result);
 		}
 
 	}
@@ -924,7 +924,7 @@ class Database {
 			$q->execute();
 			if ($q->rowCount() > 0)
 			{
-				$q->closeCursor();
+				self::closeCursor($q);
 				if (! self::isDeleted($table, $id))
 				{
 					//fetching existing revisioned props
@@ -932,7 +932,7 @@ class Database {
 					$q->bindValue(1, $id);
 					$q->execute();
 					$row = $q->fetch(PDO::FETCH_ASSOC);
-					$q->closeCursor();
+					self::closeCursor($q);
 					//and comparing them to update request
 					foreach ($revisionedParamsOld as $field => $prop)
 					{
@@ -949,7 +949,7 @@ class Database {
 						$q->bindValue(1, $id);
 						$q->execute();
 						$row = $q->fetch(PDO::FETCH_ASSOC);
-						$q->closeCursor();
+						self::closeCursor($q);
 						foreach ($staticParamsOld as $field => $prop)
 						{
 							$staticParamsOld[$field] = $row[$field];
@@ -961,7 +961,7 @@ class Database {
 
 					$result = self::$dbxlink->query('select max(id) from revision for update');
 					$row = $result->fetch(PDO::FETCH_NUM);
-					$result->closeCursor();
+					self::closeCursor($result);
 					$next_revision = $row[0] + 1;
 					if (count($revisionedParams) > 0)
 					{
@@ -977,13 +977,13 @@ class Database {
 							else
 								$q->bindValue($paramno++, $value);
 						$q->execute();
-						$q->closeCursor();
+						self::closeCursor($q);
 
 						$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_id = ?");
 						$q->bindValue(1, $next_revision);
 						$q->bindValue(2, self::$userId);
 						$q->execute();
-						$q->closeCursor();
+						self::closeCursor($q);
 					}
 					if (count($staticParams) > 0)
 					{
@@ -996,12 +996,12 @@ class Database {
 								$q->bindValue($paramno++, $value);
 						$q->bindValue($paramno++, $id);
 						$q->execute();
-						$q->closeCursor();
+						self::closeCursor($q);
 					}
 				}
 				else
 				{
-					$result->closeCursor();
+					self::closeCursor($result);
 				}
 			}
 			self::autoCommit();
@@ -1017,7 +1017,7 @@ class Database {
 					$q->bindValue($paramno++, $value);
 			$q->bindValue($paramno++, id);
 			$q->execute();
-			$q->closeCursor();
+			self::closeCursor($q);
 		}
 	}
 
@@ -1158,7 +1158,7 @@ class Database {
 	{
 		$result = self::query("select $field from $table where id = ?", array(1=>$id));
 		list($ret) = $result->fetch(PDO::FETCH_NUM);
-		$result->closeCursor();
+		self::closeCursor($result);
 		return $ret;
 	}
 
@@ -1179,7 +1179,7 @@ class Database {
 				$disappeared = $row[0]-1;
 			}
 		}
-		$q->closeCursor();
+		self::closeCursor($q);
 		if ($appeared == -1)
 			return null;
 		return array($appeared, $disappeared);
@@ -1194,6 +1194,12 @@ class Database {
 		if (self::$currentRevision >= $appeared and (self::$currentRevision < $disappeared or $disappeared == -1 ))
 			return array($appeared, $disappeared);
 		throw new OutOfRevisionRangeException($table, $id, $appeared, $disappeared);
+	}
+
+	public function closeCursor(&$result)
+	{
+		$result->closeCursor();
+		unset($result);
 	}
 
 	private function __construct() {}

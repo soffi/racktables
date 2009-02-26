@@ -6,7 +6,7 @@ class Milestone {
 		$result = Database::getDBLink()->query("select milestone.id as id, milestone.rev as rev from milestone join (select max(rev) as rev from milestone) as m on milestone.rev = m.rev ");
 		if ($row = $result->fetch())
 		{
-			$result->closeCursor();
+			Database::closeCursor($result);
 			return $row;
 		}
 		else
@@ -17,7 +17,7 @@ class Milestone {
 	{
 		$result = Database::getDBLink()->query("select rev from milestone where id = $id");
 		$row = $result->fetch();
-		$result->closeCursor();
+		Database::closeCursor($result);
 		return $row[0];
 	}
 
@@ -26,7 +26,7 @@ class Milestone {
 		$result = Database::getDBLink()->query("select id from milestone where rev = $rev");
 		if ($row = $result->fetch())
 		{
-			$result->closeCursor();
+			Database::closeCursor($result);
 			return $row[0];
 		}
 		else
@@ -37,7 +37,7 @@ class Milestone {
 	{
 		$result = Database::getDBLink()->query("select milestone.id as id, milestone.rev as rev from milestone join (select min(rev) as rev from milestone where rev > $rev) as m on milestone.rev = m.rev ");
 		$row = $result->fetch();
-		$result->closeCursor();
+		Database::closeCursor($result);
 		return $row;
 	}
 
@@ -45,7 +45,7 @@ class Milestone {
 	{
 		$result = Database::getDBLink()->query("select milestone.id as id, milestone.rev as rev from milestone join (select max(rev) as rev from milestone where rev < $rev) as m on milestone.rev = m.rev ");
 		$row = $result->fetch();
-		$result->closeCursor();
+		Database::closeCursor($result);
 		return $row;
 	}
 
@@ -54,7 +54,7 @@ class Milestone {
 		Database::startTransaction();
 		$result = Database::getDBLink()->query("select milestone.id as id, milestone.rev as rev from milestone join (select max(rev) as rev from milestone) as m on milestone.rev = m.rev for update");
 		$row = $result->fetch();
-		$result->closeCursor();
+		Database::closeCursor($result);
 		if ($rev > $row[1])
 			Database::getDBLink()->exec("insert into milestone set id=".($row[0]+1).", rev = $rev");
 		Database::commit();

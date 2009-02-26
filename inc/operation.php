@@ -12,7 +12,7 @@ class Operation {
 		$q = Database::getDBLink()->query("select max(id) from operation");
 		$row = $q->fetch();
 		self::$maxop = $row[0];
-		$q->closeCursor();
+		Database::closeCursor($q);
 
 		self::$headRev = Database::getHeadRevision();
 	}
@@ -28,7 +28,7 @@ class Operation {
 		$q->bindValue(1, $rev);
 		$q->execute();
 		$result = $q->fetchAll();
-		$q->closeCursor();
+		Database::closeCursor($q);
 		return $result;
 	}
 
@@ -37,7 +37,7 @@ class Operation {
                 $result = Database::getDBLink()->query("select operation.id as id, operation.rev as rev from operation join (select max(rev) as rev from operation) as o on operation.rev = o.rev ");
                 if ($row = $result->fetch())
                 {
-                        $result->closeCursor();
+                        Database::closeCursor($result);
                         return $row;
                 }
                 else
@@ -50,7 +50,7 @@ class Operation {
 		$result = Database::getDBLink()->query("select id from operation where rev = $rev");
 		if ($row = $result->fetch())
 		{
-			$result->closeCursor();
+			Database::closeCursor($result);
 			return $row[0];
 		}
 		else
@@ -61,7 +61,7 @@ class Operation {
 	{
 		$result = Database::getDBLink()->query("select operation.id as id, operation.rev as rev from operation join (select min(rev) as rev from operation where rev > $rev) as o on operation.rev = o.rev ");
 		$row = $result->fetch();
-		$result->closeCursor();
+		Database::closeCursor($result);
 		return $row;
 	}
 
@@ -69,7 +69,7 @@ class Operation {
 	{
 		$result = Database::getDBLink()->query("select operation.id as id, operation.rev as rev from operation join (select max(rev) as rev from operation where rev < $rev) as o on operation.rev = o.rev ");
 		$row = $result->fetch();
-		$result->closeCursor();
+		Database::closeCursor($result);
 		return $row;
 	}
 
@@ -107,7 +107,7 @@ class Operation {
 			$operations[$row['rev']] = $row;
 			$lastOp = $row['rev'];
 		}
-		$q->closeCursor();
+		Database::closeCursor($q);
 		$foundRev = NULL;
 		for($rev = $firstRev; $rev <= $lastOp; $rev++)
 		{
@@ -143,7 +143,7 @@ class Operation {
 			$q->bindValue(2, $newRev);
 			$q->bindValue(3, self::$user_id);
 			$q->execute();
-			$q->closeCursor();
+			Database::closeCursor($q);
 		}
 		Database::commit();
 	}
