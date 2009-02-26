@@ -769,6 +769,7 @@ class Database {
 				$next_id = max($next_id, self::$database_meta[$table]['start_increment']);
 			$result = self::$dbxlink->query('select max(id) from revision for update');
 			$row = $result->fetch(PDO::FETCH_NUM);
+			self::closeCursor($result);
 			$next_revision = $row[0] + 1;
 
 			$q = self::$dbxlink->prepare("insert into ${table}__r set id = ?, rev = ?".(count($revisionedParams)>0?',':'')." ".implode(', ', $revisionedParams));
