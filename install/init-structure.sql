@@ -152,9 +152,9 @@ CREATE TABLE Link__r (
 	id int unsigned not null,
 	rev bigint unsigned not null,
 	rev_terminal tinyint not null,
-	label char(255) not null,
-	labela char(255) not null,
-	labelb char(255) not null,
+	label char(255) ,
+	labela char(255) ,
+	labelb char(255) ,
 	key(id), key(rev), key(rev_terminal), unique id_rev(id, rev)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
