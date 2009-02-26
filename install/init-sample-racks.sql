@@ -48,7 +48,6 @@ INSERT INTO `AttributeValue` (`id`, `object_id`, `attr_id`) VALUES (44,960,2);
 INSERT INTO `AttributeValue` (`id`, `object_id`, `attr_id`) VALUES (45,960,4);
 INSERT INTO `AttributeValue` (`id`, `object_id`, `attr_id`) VALUES (46,961,2);
 INSERT INTO `AttributeValue` (`id`, `object_id`, `attr_id`) VALUES (47,962,2);
-0a308,354
 INSERT INTO `AttributeValue__r` (`id`, `rev`, `rev_terminal`, `string_value`, `uint_value`, `float_value`) VALUES (1,0,0,NULL,269,NULL);
 INSERT INTO `AttributeValue__r` (`id`, `rev`, `rev_terminal`, `string_value`, `uint_value`, `float_value`) VALUES (2,0,0,NULL,165,NULL);
 INSERT INTO `AttributeValue__r` (`id`, `rev`, `rev_terminal`, `string_value`, `uint_value`, `float_value`) VALUES (3,0,0,NULL,118,NULL);
@@ -96,7 +95,6 @@ INSERT INTO `AttributeValue__r` (`id`, `rev`, `rev_terminal`, `string_value`, `u
 INSERT INTO `AttributeValue__r` (`id`, `rev`, `rev_terminal`, `string_value`, `uint_value`, `float_value`) VALUES (45,0,0,NULL,791,NULL);
 INSERT INTO `AttributeValue__r` (`id`, `rev`, `rev_terminal`, `string_value`, `uint_value`, `float_value`) VALUES (46,0,0,NULL,755,NULL);
 INSERT INTO `AttributeValue__r` (`id`, `rev`, `rev_terminal`, `string_value`, `uint_value`, `float_value`) VALUES (47,0,0,NULL,470,NULL);
-14a2509,2543
 INSERT INTO `IPv4Address` (`id`, `ip`) VALUES (1,180879678);
 INSERT INTO `IPv4Address` (`id`, `ip`) VALUES (2,180879617);
 INSERT INTO `IPv4Address` (`id`, `ip`) VALUES (3,180879680);
@@ -132,7 +130,6 @@ INSERT INTO `IPv4Address` (`id`, `ip`) VALUES (32,180879676);
 INSERT INTO `IPv4Address` (`id`, `ip`) VALUES (33,180879675);
 INSERT INTO `IPv4Address` (`id`, `ip`) VALUES (34,180880254);
 INSERT INTO `IPv4Address` (`id`, `ip`) VALUES (35,180880504);
-35a2565,2599
 INSERT INTO `IPv4Address__r` (`id`, `rev`, `rev_terminal`, `name`, `reserved`) VALUES (1,0,0,'default gw','no');
 INSERT INTO `IPv4Address__r` (`id`, `rev`, `rev_terminal`, `name`, `reserved`) VALUES (2,0,0,'',NULL);
 INSERT INTO `IPv4Address__r` (`id`, `rev`, `rev_terminal`, `name`, `reserved`) VALUES (3,0,0,'network','yes');
@@ -168,7 +165,6 @@ INSERT INTO `IPv4Address__r` (`id`, `rev`, `rev_terminal`, `name`, `reserved`) V
 INSERT INTO `IPv4Address__r` (`id`, `rev`, `rev_terminal`, `name`, `reserved`) VALUES (33,0,0,'',NULL);
 INSERT INTO `IPv4Address__r` (`id`, `rev`, `rev_terminal`, `name`, `reserved`) VALUES (34,0,0,'',NULL);
 INSERT INTO `IPv4Address__r` (`id`, `rev`, `rev_terminal`, `name`, `reserved`) VALUES (35,0,0,'for field engineer','yes');
-51a2616,2670
 INSERT INTO `IPv4Allocation` (`id`, `object_id`, `ip`) VALUES (1,905,180879678);
 INSERT INTO `IPv4Allocation` (`id`, `object_id`, `ip`) VALUES (2,906,180879617);
 INSERT INTO `IPv4Allocation` (`id`, `object_id`, `ip`) VALUES (3,910,180879681);
@@ -224,7 +220,6 @@ INSERT INTO `IPv4Allocation` (`id`, `object_id`, `ip`) VALUES (52,907,180879998)
 INSERT INTO `IPv4Allocation` (`id`, `object_id`, `ip`) VALUES (53,927,180879998);
 INSERT INTO `IPv4Allocation` (`id`, `object_id`, `ip`) VALUES (54,908,180880446);
 INSERT INTO `IPv4Allocation` (`id`, `object_id`, `ip`) VALUES (55,961,180880385);
-72a2692,2746
 INSERT INTO `IPv4Allocation__r` (`id`, `rev`, `rev_terminal`, `name`, `type`) VALUES (1,0,0,'fa2/0','router');
 INSERT INTO `IPv4Allocation__r` (`id`, `rev`, `rev_terminal`, `name`, `type`) VALUES (2,0,0,'','regular');
 INSERT INTO `IPv4Allocation__r` (`id`, `rev`, `rev_terminal`, `name`, `type`) VALUES (3,0,0,'eth0','regular');
@@ -280,15 +275,12 @@ INSERT INTO `IPv4Allocation__r` (`id`, `rev`, `rev_terminal`, `name`, `type`) VA
 INSERT INTO `IPv4Allocation__r` (`id`, `rev`, `rev_terminal`, `name`, `type`) VALUES (53,0,0,'','shared');
 INSERT INTO `IPv4Allocation__r` (`id`, `rev`, `rev_terminal`, `name`, `type`) VALUES (54,0,0,'fa1/0','router');
 INSERT INTO `IPv4Allocation__r` (`id`, `rev`, `rev_terminal`, `name`, `type`) VALUES (55,0,0,'','regular');
-89a2764,2766
 INSERT INTO `IPv4LB` (`id`, `object_id`, `rspool_id`, `vs_id`) VALUES (1,928,1,1);
 INSERT INTO `IPv4LB` (`id`, `object_id`, `rspool_id`, `vs_id`) VALUES (2,929,1,1);
 INSERT INTO `IPv4LB` (`id`, `object_id`, `rspool_id`, `vs_id`) VALUES (3,929,2,2);
-10a2788,2790
 INSERT INTO `IPv4LB__r` (`id`, `rev`, `rev_terminal`, `vsconfig`, `rsconfig`) VALUES (1,0,0,NULL,NULL);
 INSERT INTO `IPv4LB__r` (`id`, `rev`, `rev_terminal`, `vsconfig`, `rsconfig`) VALUES (2,0,0,NULL,NULL);
 INSERT INTO `IPv4LB__r` (`id`, `rev`, `rev_terminal`, `vsconfig`, `rsconfig`) VALUES (3,0,0,NULL,NULL);
-25a2806,2812
 INSERT INTO `IPv4NAT` (`id`, `object_id`) VALUES (1,915);
 INSERT INTO `IPv4NAT` (`id`, `object_id`) VALUES (2,915);
 INSERT INTO `IPv4NAT` (`id`, `object_id`) VALUES (3,915);
@@ -296,7 +288,6 @@ INSERT INTO `IPv4NAT` (`id`, `object_id`) VALUES (4,915);
 INSERT INTO `IPv4NAT` (`id`, `object_id`) VALUES (5,915);
 INSERT INTO `IPv4NAT` (`id`, `object_id`) VALUES (6,915);
 INSERT INTO `IPv4NAT` (`id`, `object_id`) VALUES (7,915);
-50a2838,2844
 INSERT INTO `IPv4NAT__r` (`id`, `rev`, `rev_terminal`, `proto`, `localip`, `localport`, `remoteip`, `remoteport`, `description`) VALUES (1,0,0,'TCP',180879675,80,180879681,80,'');
 INSERT INTO `IPv4NAT__r` (`id`, `rev`, `rev_terminal`, `proto`, `localip`, `localport`, `remoteip`, `remoteport`, `description`) VALUES (2,0,0,'TCP',180879675,80,180879682,80,'');
 INSERT INTO `IPv4NAT__r` (`id`, `rev`, `rev_terminal`, `proto`, `localip`, `localport`, `remoteip`, `remoteport`, `description`) VALUES (3,0,0,'TCP',180879675,80,180879683,80,'');
@@ -304,7 +295,6 @@ INSERT INTO `IPv4NAT__r` (`id`, `rev`, `rev_terminal`, `proto`, `localip`, `loca
 INSERT INTO `IPv4NAT__r` (`id`, `rev`, `rev_terminal`, `proto`, `localip`, `localport`, `remoteip`, `remoteport`, `description`) VALUES (5,0,0,'UDP',180879676,53,180879685,53,'');
 INSERT INTO `IPv4NAT__r` (`id`, `rev`, `rev_terminal`, `proto`, `localip`, `localport`, `remoteip`, `remoteport`, `description`) VALUES (6,0,0,'TCP',180879677,443,180879686,443,'');
 INSERT INTO `IPv4NAT__r` (`id`, `rev`, `rev_terminal`, `proto`, `localip`, `localport`, `remoteip`, `remoteport`, `description`) VALUES (7,0,0,'TCP',180879677,443,180879687,443,'');
-66a2861,2871
 INSERT INTO `IPv4Network` (`id`, `ip`, `mask`) VALUES (96,180879616,26);
 INSERT INTO `IPv4Network` (`id`, `ip`, `mask`) VALUES (97,180879680,26);
 INSERT INTO `IPv4Network` (`id`, `ip`, `mask`) VALUES (98,180879872,26);
@@ -316,7 +306,6 @@ INSERT INTO `IPv4Network` (`id`, `ip`, `mask`) VALUES (104,180879364,31);
 INSERT INTO `IPv4Network` (`id`, `ip`, `mask`) VALUES (105,180879366,31);
 INSERT INTO `IPv4Network` (`id`, `ip`, `mask`) VALUES (106,180880384,26);
 INSERT INTO `IPv4Network` (`id`, `ip`, `mask`) VALUES (107,180880448,26);
-86a2892,2902
 INSERT INTO `IPv4Network__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (96,0,0,'London network devices and VIPs');
 INSERT INTO `IPv4Network__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (97,0,0,'London HA server farm');
 INSERT INTO `IPv4Network__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (98,0,0,'New-York network devices');
@@ -328,7 +317,6 @@ INSERT INTO `IPv4Network__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (105,0
 INSERT INTO `IPv4Network__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (106,0,0,'Moscow network devices');
 INSERT INTO `IPv4Network__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (107,0,0,'Moscow servers');
 INSERT INTO `IPv4Network__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (108,0,0,'Tokyo server farm');
-01a2918,2927
 INSERT INTO `IPv4RS` (`id`, `rspool_id`) VALUES (1,1);
 INSERT INTO `IPv4RS` (`id`, `rspool_id`) VALUES (2,1);
 INSERT INTO `IPv4RS` (`id`, `rspool_id`) VALUES (3,1);
@@ -339,13 +327,10 @@ INSERT INTO `IPv4RS` (`id`, `rspool_id`) VALUES (7,2);
 INSERT INTO `IPv4RS` (`id`, `rspool_id`) VALUES (8,2);
 INSERT INTO `IPv4RS` (`id`, `rspool_id`) VALUES (9,2);
 INSERT INTO `IPv4RS` (`id`, `rspool_id`) VALUES (10,2);
-15a2942,2943
 INSERT INTO `IPv4RSPool` (`id`) VALUES (1);
 INSERT INTO `IPv4RSPool` (`id`) VALUES (2);
-37a2966,2967
 INSERT INTO `IPv4RSPool__r` (`id`, `rev`, `rev_terminal`, `name`, `vsconfig`, `rsconfig`) VALUES (1,0,0,'Apache servers',NULL,NULL);
 INSERT INTO `IPv4RSPool__r` (`id`, `rev`, `rev_terminal`, `name`, `vsconfig`, `rsconfig`) VALUES (2,0,0,'Resin servers',NULL,NULL);
-60a2991,3000
 INSERT INTO `IPv4RS__r` (`id`, `rev`, `rev_terminal`, `inservice`, `rsip`, `rsport`, `rsconfig`) VALUES (1,0,0,'yes',180879973,80,NULL);
 INSERT INTO `IPv4RS__r` (`id`, `rev`, `rev_terminal`, `inservice`, `rsip`, `rsport`, `rsconfig`) VALUES (2,0,0,'yes',180879974,80,NULL);
 INSERT INTO `IPv4RS__r` (`id`, `rev`, `rev_terminal`, `inservice`, `rsip`, `rsport`, `rsconfig`) VALUES (3,0,0,'no',180879975,80,NULL);
@@ -356,13 +341,10 @@ INSERT INTO `IPv4RS__r` (`id`, `rev`, `rev_terminal`, `inservice`, `rsip`, `rspo
 INSERT INTO `IPv4RS__r` (`id`, `rev`, `rev_terminal`, `inservice`, `rsip`, `rsport`, `rsconfig`) VALUES (8,0,0,'yes',180879980,8080,NULL);
 INSERT INTO `IPv4RS__r` (`id`, `rev`, `rev_terminal`, `inservice`, `rsip`, `rsport`, `rsconfig`) VALUES (9,0,0,'yes',180879981,8080,NULL);
 INSERT INTO `IPv4RS__r` (`id`, `rev`, `rev_terminal`, `inservice`, `rsip`, `rsport`, `rsconfig`) VALUES (10,0,0,'yes',180879982,8080,NULL);
-74a3015,3016
 INSERT INTO `IPv4VS` (`id`) VALUES (1);
 INSERT INTO `IPv4VS` (`id`) VALUES (2);
-99a3042,3043
 INSERT INTO `IPv4VS__r` (`id`, `rev`, `rev_terminal`, `vip`, `vport`, `proto`, `name`, `vsconfig`, `rsconfig`) VALUES (1,0,0,180879877,80,'TCP','virtual web','lvs_sched wlc\r\nlvs_method NAT\r\ndelay_loop 3\r\nalpha\r\nomega\r\nquorum 3\r\nhysteresis 1\r\n\r\n# this is a comment\r\n# VS name is %VNAME%\r\n#\r\n','HTTP_GET {\r\nurl {\r\npath /\r\nstatus_code 200\r\n}\r\nconnect_timeout 1\r\n}');
 INSERT INTO `IPv4VS__r` (`id`, `rev`, `rev_terminal`, `vip`, `vport`, `proto`, `name`, `vsconfig`, `rsconfig`) VALUES (2,0,0,180879878,80,'TCP','virtual app','lvs_sched wlc\r\nlvs_method NAT\r\ndelay_loop 3\r\nalpha\r\nomega\r\nquorum 3\r\nhysteresis 1\r\n\r\n','HTTP_GET {\r\nurl {\r\npath /\r\nstatus_code 200\r\n}\r\nconnect_timeout 1\r\n}');
-15a3060,3095
 INSERT INTO `Link` (`id`, `porta`, `portb`) VALUES (1,3057,3071);
 INSERT INTO `Link` (`id`, `porta`, `portb`) VALUES (2,3058,3084);
 INSERT INTO `Link` (`id`, `porta`, `portb`) VALUES (3,3059,3069);
@@ -435,7 +417,6 @@ INSERT INTO `Link__r` (`id`, `rev`, `rev_terminal`, `label`, `labela`, `labelb`)
 INSERT INTO `Link__r` (`id`, `rev`, `rev_terminal`, `label`, `labela`, `labelb`) VALUES (34,0,0,NULL,NULL,NULL);
 INSERT INTO `Link__r` (`id`, `rev`, `rev_terminal`, `label`, `labela`, `labelb`) VALUES (35,0,0,NULL,NULL,NULL);
 INSERT INTO `Link__r` (`id`, `rev`, `rev_terminal`, `label`, `labela`, `labelb`) VALUES (36,0,0,NULL,NULL,NULL);
-52a3169,3284
 INSERT INTO `Port` (`id`, `object_id`) VALUES (3057,905);
 INSERT INTO `Port` (`id`, `object_id`) VALUES (3058,905);
 INSERT INTO `Port` (`id`, `object_id`) VALUES (3059,905);
@@ -552,7 +533,6 @@ INSERT INTO `Port` (`id`, `object_id`) VALUES (3170,962);
 INSERT INTO `Port` (`id`, `object_id`) VALUES (3171,962);
 INSERT INTO `Port` (`id`, `object_id`) VALUES (3178,927);
 INSERT INTO `Port` (`id`, `object_id`) VALUES (3179,908);
-70a3403,3518
 INSERT INTO `Port__r` (`id`, `rev`, `rev_terminal`, `name`, `type`, `l2address`, `reservation_comment`, `label`) VALUES (3057,0,0,'se1/0',32,NULL,NULL,'');
 INSERT INTO `Port__r` (`id`, `rev`, `rev_terminal`, `name`, `type`, `l2address`, `reservation_comment`, `label`) VALUES (3058,0,0,'se1/1',32,NULL,NULL,'');
 INSERT INTO `Port__r` (`id`, `rev`, `rev_terminal`, `name`, `type`, `l2address`, `reservation_comment`, `label`) VALUES (3059,0,0,'fa2/0',19,'00000000A001',NULL,'');
@@ -669,7 +649,6 @@ INSERT INTO `Port__r` (`id`, `rev`, `rev_terminal`, `name`, `type`, `l2address`,
 INSERT INTO `Port__r` (`id`, `rev`, `rev_terminal`, `name`, `type`, `l2address`, `reservation_comment`, `label`) VALUES (3171,0,0,'net',19,'020002003333',NULL,'');
 INSERT INTO `Port__r` (`id`, `rev`, `rev_terminal`, `name`, `type`, `l2address`, `reservation_comment`, `label`) VALUES (3178,0,0,'fa1/0',19,NULL,NULL,'');
 INSERT INTO `Port__r` (`id`, `rev`, `rev_terminal`, `name`, `type`, `l2address`, `reservation_comment`, `label`) VALUES (3179,0,0,'fa1/0',19,NULL,NULL,'');
-85a3534,3541
 INSERT INTO `Rack` (`id`, `thumb_data`) VALUES (40,NULL);
 INSERT INTO `Rack` (`id`, `thumb_data`) VALUES (41,NULL);
 INSERT INTO `Rack` (`id`, `thumb_data`) VALUES (42,NULL);
@@ -678,7 +657,6 @@ INSERT INTO `Rack` (`id`, `thumb_data`) VALUES (44,NULL);
 INSERT INTO `Rack` (`id`, `thumb_data`) VALUES (45,NULL);
 INSERT INTO `Rack` (`id`, `thumb_data`) VALUES (46,NULL);
 INSERT INTO `Rack` (`id`, `thumb_data`) VALUES (47,NULL);
-99a3556,3613
 INSERT INTO `RackObject` (`id`) VALUES (905);
 INSERT INTO `RackObject` (`id`) VALUES (906);
 INSERT INTO `RackObject` (`id`) VALUES (907);
@@ -737,7 +715,6 @@ INSERT INTO `RackObject` (`id`) VALUES (959);
 INSERT INTO `RackObject` (`id`) VALUES (960);
 INSERT INTO `RackObject` (`id`) VALUES (961);
 INSERT INTO `RackObject` (`id`) VALUES (962);
-25a3640,3697
 INSERT INTO `RackObject__r` (`id`, `rev`, `rev_terminal`, `name`, `label`, `barcode`, `objtype_id`, `asset_no`, `has_problems`, `comment`) VALUES (905,0,0,'london router','bbrtr1',NULL,7,'net247','no','');
 INSERT INTO `RackObject__r` (`id`, `rev`, `rev_terminal`, `name`, `label`, `barcode`, `objtype_id`, `asset_no`, `has_problems`, `comment`) VALUES (906,0,0,'londonswitch1','',NULL,8,NULL,'no','');
 INSERT INTO `RackObject__r` (`id`, `rev`, `rev_terminal`, `name`, `label`, `barcode`, `objtype_id`, `asset_no`, `has_problems`, `comment`) VALUES (907,0,0,'New-York router 1','bbrtr2a',NULL,7,'net55','no','');
@@ -796,17 +773,14 @@ INSERT INTO `RackObject__r` (`id`, `rev`, `rev_terminal`, `name`, `label`, `barc
 INSERT INTO `RackObject__r` (`id`, `rev`, `rev_terminal`, `name`, `label`, `barcode`, `objtype_id`, `asset_no`, `has_problems`, `comment`) VALUES (960,0,0,'mps5','','200112',4,NULL,'no',NULL);
 INSERT INTO `RackObject__r` (`id`, `rev`, `rev_terminal`, `name`, `label`, `barcode`, `objtype_id`, `asset_no`, `has_problems`, `comment`) VALUES (961,0,0,'mskswitch','',NULL,8,'sw0001','no',NULL);
 INSERT INTO `RackObject__r` (`id`, `rev`, `rev_terminal`, `name`, `label`, `barcode`, `objtype_id`, `asset_no`, `has_problems`, `comment`) VALUES (962,0,0,'moscow kvm switch','','300221',445,'sw0002','no',NULL);
-39a3712,3715
 INSERT INTO `RackRow` (`id`) VALUES (50000);
 INSERT INTO `RackRow` (`id`) VALUES (50001);
 INSERT INTO `RackRow` (`id`) VALUES (50002);
 INSERT INTO `RackRow` (`id`) VALUES (50003);
-59a3736,3739
 INSERT INTO `RackRow__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (50000,0,0,'Moscow');
 INSERT INTO `RackRow__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (50001,0,0,'Tokyo');
 INSERT INTO `RackRow__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (50002,0,0,'New-York');
 INSERT INTO `RackRow__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (50003,0,0,'London');
-76a3757,4024
 INSERT INTO `RackSpace` (`id`, `rack_id`, `unit_no`, `atom`) VALUES (1,41,9,'interior');
 INSERT INTO `RackSpace` (`id`, `rack_id`, `unit_no`, `atom`) VALUES (2,41,9,'front');
 INSERT INTO `RackSpace` (`id`, `rack_id`, `unit_no`, `atom`) VALUES (3,41,10,'interior');
@@ -1075,7 +1049,6 @@ INSERT INTO `RackSpace` (`id`, `rack_id`, `unit_no`, `atom`) VALUES (265,45,35,'
 INSERT INTO `RackSpace` (`id`, `rack_id`, `unit_no`, `atom`) VALUES (266,45,35,'rear');
 INSERT INTO `RackSpace` (`id`, `rack_id`, `unit_no`, `atom`) VALUES (267,45,34,'interior');
 INSERT INTO `RackSpace` (`id`, `rack_id`, `unit_no`, `atom`) VALUES (268,45,34,'rear');
-97a4046,4313
 INSERT INTO `RackSpace__r` (`id`, `rev`, `rev_terminal`, `state`, `object_id`) VALUES (1,0,0,'T',905);
 INSERT INTO `RackSpace__r` (`id`, `rev`, `rev_terminal`, `state`, `object_id`) VALUES (2,0,0,'T',905);
 INSERT INTO `RackSpace__r` (`id`, `rev`, `rev_terminal`, `state`, `object_id`) VALUES (3,0,0,'T',905);
@@ -1344,7 +1317,6 @@ INSERT INTO `RackSpace__r` (`id`, `rev`, `rev_terminal`, `state`, `object_id`) V
 INSERT INTO `RackSpace__r` (`id`, `rev`, `rev_terminal`, `state`, `object_id`) VALUES (266,0,0,'T',961);
 INSERT INTO `RackSpace__r` (`id`, `rev`, `rev_terminal`, `state`, `object_id`) VALUES (267,0,0,'T',962);
 INSERT INTO `RackSpace__r` (`id`, `rev`, `rev_terminal`, `state`, `object_id`) VALUES (268,0,0,'T',962);
-20a4337,4344
 INSERT INTO `Rack__r` (`id`, `rev`, `rev_terminal`, `name`, `row_id`, `height`, `comment`) VALUES (40,0,0,'L01',50003,42,'test');
 INSERT INTO `Rack__r` (`id`, `rev`, `rev_terminal`, `name`, `row_id`, `height`, `comment`) VALUES (41,0,0,'L02',50003,12,'network equipment mini-rack');
 INSERT INTO `Rack__r` (`id`, `rev`, `rev_terminal`, `name`, `row_id`, `height`, `comment`) VALUES (42,0,0,'L03',50003,42,'');
@@ -1353,7 +1325,6 @@ INSERT INTO `Rack__r` (`id`, `rev`, `rev_terminal`, `name`, `row_id`, `height`, 
 INSERT INTO `Rack__r` (`id`, `rev`, `rev_terminal`, `name`, `row_id`, `height`, `comment`) VALUES (45,0,0,'M01',50000,42,'');
 INSERT INTO `Rack__r` (`id`, `rev`, `rev_terminal`, `name`, `row_id`, `height`, `comment`) VALUES (46,0,0,'NY102',50002,42,'server farm wing B');
 INSERT INTO `Rack__r` (`id`, `rev`, `rev_terminal`, `name`, `row_id`, `height`, `comment`) VALUES (47,0,0,'T01',50001,16,'');
-69a4394,4483
 INSERT INTO `TagStorage` (`id`, `entity_realm`, `entity_id`, `tag_id`) VALUES (1,'ipv4net',96,8);
 INSERT INTO `TagStorage` (`id`, `entity_realm`, `entity_id`, `tag_id`) VALUES (2,'ipv4net',96,19);
 INSERT INTO `TagStorage` (`id`, `entity_realm`, `entity_id`, `tag_id`) VALUES (3,'ipv4net',97,8);
@@ -1444,7 +1415,6 @@ INSERT INTO `TagStorage` (`id`, `entity_realm`, `entity_id`, `tag_id`) VALUES (8
 INSERT INTO `TagStorage` (`id`, `entity_realm`, `entity_id`, `tag_id`) VALUES (88,'rack',46,13);
 INSERT INTO `TagStorage` (`id`, `entity_realm`, `entity_id`, `tag_id`) VALUES (89,'rack',47,10);
 INSERT INTO `TagStorage` (`id`, `entity_realm`, `entity_id`, `tag_id`) VALUES (90,'rack',47,14);
-88a4503,4592
 INSERT INTO `TagStorage__r` (`id`, `rev`, `rev_terminal`) VALUES (1,0,0);
 INSERT INTO `TagStorage__r` (`id`, `rev`, `rev_terminal`) VALUES (2,0,0);
 INSERT INTO `TagStorage__r` (`id`, `rev`, `rev_terminal`) VALUES (3,0,0);
@@ -1535,7 +1505,6 @@ INSERT INTO `TagStorage__r` (`id`, `rev`, `rev_terminal`) VALUES (87,0,0);
 INSERT INTO `TagStorage__r` (`id`, `rev`, `rev_terminal`) VALUES (88,0,0);
 INSERT INTO `TagStorage__r` (`id`, `rev`, `rev_terminal`) VALUES (89,0,0);
 INSERT INTO `TagStorage__r` (`id`, `rev`, `rev_terminal`) VALUES (90,0,0);
-02a4607,4625
 INSERT INTO `TagTree` (`id`) VALUES (1);
 INSERT INTO `TagTree` (`id`) VALUES (2);
 INSERT INTO `TagTree` (`id`) VALUES (3);
@@ -1555,7 +1524,6 @@ INSERT INTO `TagTree` (`id`) VALUES (16);
 INSERT INTO `TagTree` (`id`) VALUES (17);
 INSERT INTO `TagTree` (`id`) VALUES (18);
 INSERT INTO `TagTree` (`id`) VALUES (19);
-24a4648,4666
 INSERT INTO `TagTree__r` (`id`, `rev`, `rev_terminal`, `parent_id`, `valid_realm`, `tag`) VALUES (1,0,0,16,'file,ipv4net,ipv4vs,ipv4rspool,object,rack,user','east');
 INSERT INTO `TagTree__r` (`id`, `rev`, `rev_terminal`, `parent_id`, `valid_realm`, `tag`) VALUES (2,0,0,16,'file,ipv4net,ipv4vs,ipv4rspool,object,rack,user','west');
 INSERT INTO `TagTree__r` (`id`, `rev`, `rev_terminal`, `parent_id`, `valid_realm`, `tag`) VALUES (3,0,0,NULL,'file,ipv4net,ipv4vs,ipv4rspool,object,rack,user','testing');
