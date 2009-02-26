@@ -185,17 +185,17 @@ public static $database_meta = array (
 			'label' => array (
 				'revisioned' => true,
 				'type' => "char(255)",
-				'null' => false
+				'null' => true
 			),
 			'labela' => array (
 				'revisioned' => true,
 				'type' => "char(255)",
-				'null' => false
+				'null' => true
 			),
 			'labelb' => array (
 				'revisioned' => true,
 				'type' => "char(255)",
-				'null' => false
+				'null' => true
 			),
 			'porta' => array (
 				'revisioned' => false,

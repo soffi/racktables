@@ -703,6 +703,7 @@ function getHistoryForObject($object_type, $id=NULL)
 	}
 	elseif ($object_type == 'rackspace')
 	{
+		$history = array();
 		$result = Database::getHistory('RackSpace', $id);
 		while($row = $result->fetch())
 		{
