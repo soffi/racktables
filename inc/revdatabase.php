@@ -413,7 +413,7 @@ class Database {
 		{
 			self::$commitMe = false;
 		}
-		self::$dbxlink->exec('start transaction');
+		self::$dbxlink->beginTransaction();
 		self::$transactionStarted = true;
 	}
 
@@ -503,7 +503,7 @@ class Database {
 
 	public function commit()
 	{
-		self::$dbxlink->exec('commit');
+		self::$dbxlink->commit();
 		self::$transactionStarted = false;
 	}
 
@@ -622,10 +622,12 @@ class Database {
 		if (isset(self::$database_meta[$table]))
 		{
 			self::startTransaction(true);
-			$q = self::$dbxlink->prepare("select id from $table where id = ? for update");
+			$q = self::$dbxlink->prepare("select count(*) from $table where id = ? for update");
 			$q->bindValue(1, $id);
 			$q->execute();
-			if ($q->rowCount() > 0)
+			$numRows = $q->fetchColumn();
+			self::closeCursor($q);
+			if ($numRows > 0)
 			{
 				self::closeCursor($q);
 				if (! self::isDeleted($table, $id))
@@ -920,10 +922,12 @@ class Database {
 			}
 
 			self::startTransaction(true);
-			$q = self::$dbxlink->prepare("select id from $table where id = ? for update");
+			$q = self::$dbxlink->prepare("select count(*) from $table where id = ? for update");
 			$q->bindValue(1, $id);
 			$q->execute();
-			if ($q->rowCount() > 0)
+			$numRows = $q->fetchColumn();
+			self::closeCursor($q);
+			if ($numRows > 0)
 			{
 				self::closeCursor($q);
 				if (! self::isDeleted($table, $id))
@@ -1199,8 +1203,9 @@ class Database {
 
 	public function closeCursor(&$result)
 	{
-		$result->closeCursor();
-		unset($result);
+		if (get_class($result) == 'PDOStatement')
+			$result->closeCursor();
+		$result = NULL;
 	}
 
 	private function __construct() {}

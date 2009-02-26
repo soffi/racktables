@@ -44,6 +44,10 @@ else
 try
 {
 	$dbxlink = new PDO ($pdo_dsn, $db_username, $db_password);
+	if ($dbxlink->getAttribute(PDO::ATTR_DRIVER_NAME) == 'mysql')
+	{
+		$dbxlink->setAttribute(PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, TRUE);
+	}
 }
 catch (PDOException $e)
 {

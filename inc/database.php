@@ -1308,10 +1308,11 @@ function updateRange ($id=0, $name='')
 // (MySQL 4.0 workaround).
 function updateAddress ($ip = 0, $name = '', $reserved = 'no')
 {
-	$result = Database::query ('select ip from IPv4Address where ip = INET_ATON( ? )', array(1 => $ip));
-	if ($result->rowCount() > 0)
+	$result = Database::query ('select count(*) from IPv4Address where ip = INET_ATON( ? )', array(1 => $ip));
+	$numRows = $result->fetchColumn();
+	Database::closeCursor($result);
+	if ($numRows > 0)
 	{
-		Database::closeCursor($result);
 		Database::updateWhere( 
 			array (
 				'name' => $name, 
@@ -1325,7 +1326,6 @@ function updateAddress ($ip = 0, $name = '', $reserved = 'no')
 	}
 	else
 	{
-		Database::closeCursor($result);
 		Database::insert(
 			array (
 				'name' => $name, 
