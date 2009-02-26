@@ -5,6 +5,47 @@ class UniqueConstraintException extends Exception
 
 }
 
+class ObjectNotFoundException extends Exception
+{
+
+}
+
+class OutOfRevisionRangeException extends Exception
+{
+	private $appeared;
+	private $disappeared;
+	private $table;
+	private $id;
+	function __construct($table, $id, $appeared, $disappeared)
+	{
+		parent::__construct("Object '$table' id '$id' is not available in the current revision. The lifetime is (rev#$appeared, rev#$disappeared)");
+		$this->appeared = $appeared;
+		$this->disappeared = $disappeared;
+		$this->table = $table;
+		$this->id = $id;
+	}
+	function getLifetime()
+	{
+		return array($this->appeared, $this->disappeared);
+	}
+	function getAppeared()
+	{
+		return $this->appeared;
+	}
+	function getDisappeared()
+	{
+		return $this->disappeared>-1?$this->disappeared:'head';
+	}
+	function getTable()
+	{
+		return $this->table;
+	}
+	function getId()
+	{
+		return $this->id;
+	}
+}
+
 
 class ParseToTable
 {
@@ -315,7 +356,7 @@ class Database {
 
 
 	private static $debugLevel = 0;
-	private static $debugTable = 'RackSpace';
+	private static $debugTable = 'Rack';
 	private static $debugLongQueries = 0.1;
 
 
@@ -329,7 +370,7 @@ class Database {
 	{
 		if ($r == 'head')
 			self::$currentRevision = $r;
-		elseif (is_numeric($r) and intval($r) > 0)
+		elseif (is_numeric($r) and intval($r) >= 0)
 			self::$currentRevision = intval($r);
 	}
 
@@ -356,7 +397,7 @@ class Database {
 		$sql.= " from ${table}__r ";
 		$sql .= " join ( ";
 		$sql .= "select id, max(rev) as rev from ${table}__r";
-		if (self::$currentRevision != 'head')
+		if (self::$currentRevision !== 'head')
 			$sql .= " where rev <= ".self::$currentRevision;
 		$sql .= " group by id ) as tmp__r on ${table}__r.id = tmp__r.id and ${table}__r.rev = tmp__r.rev ";
 		$sql .= " join ${table} ";
@@ -1142,6 +1183,17 @@ class Database {
 		if ($appeared == -1)
 			return null;
 		return array($appeared, $disappeared);
+	}
+
+	public function inLifetime($table, $id)
+	{
+		$lifetime = self::lifetime($table, $id);
+		if (is_null($lifetime))
+			throw new ObjectNotFoundException("Object '$table' id '$id' is not found");
+		list($appeared, $disappeared) = $lifetime;
+		if (self::$currentRevision >= $appeared and (self::$currentRevision < $disappeared or $disappeared == -1 ))
+			return array($appeared, $disappeared);
+		throw new OutOfRevisionRangeException($table, $id, $appeared, $disappeared);
 	}
 
 	private function __construct() {}

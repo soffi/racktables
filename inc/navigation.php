@@ -698,13 +698,24 @@ function showPathAndSearch ($pageno)
 		if (isset ($page[$no]['title']))
 			$title['name'] = $page[$no]['title'];
 		elseif (isset ($page[$no]['title_handler']))
-			$title = $page[$no]['title_handler']($no);
+			try {
+				$title = $page[$no]['title_handler']($no);
+			} catch (OutOfRevisionRangeException $e) {
+				$title = array('name'=>'', 'params'=>NULL);
+			}
 		else
 			$title['name'] = '[N/A]';
-		echo ": <a href='".makeHref(array('page'=>$no, 'tab'=>'default'));;
-		foreach ($title['params'] as $param_name => $param_value)
-			echo "&${param_name}=${param_value}";
-		echo "'>" . $title['name'] . "</a>";
+		if (!is_null($title['params']))
+		{
+			echo ": <a href='".makeHref(array('page'=>$no, 'tab'=>'default'));;
+			foreach ($title['params'] as $param_name => $param_value)
+				echo "&${param_name}=${param_value}";
+			echo "'>" . $title['name'] . "</a>";
+		}
+		else
+		{
+			echo ': '.$title['name'];
+		}
 	}
 	echo "</td>";
 	// Search form.
@@ -722,8 +733,12 @@ function getTitle ($pageno, $tabno)
 		return $page[$pageno]['title'];
 	elseif (isset ($page[$pageno]['title_handler']))
 	{
-		$tmp = $page[$pageno]['title_handler']($pageno);
-		return $tmp['name'];
+		try {
+			$tmp = $page[$pageno]['title_handler']($pageno);
+			return $tmp['name'];
+		} catch (OutOfRevisionRangeException $e) {
+			return '';
+		}
 	}
 	else
 		return getConfigVar ('enterprise');

@@ -64,29 +64,13 @@ foreach (array ('F', 'A', 'U', 'T', 'Th', 'Tw', 'Thw') as $statecode)
 
 $params = $_GET;
 
-$first = true;
-$currentHref = '';
-foreach($_GET as $key => $value)
-{
-        if ($key == 'r') continue;
-        if ($first)
-        {
-                $currentHref = '?'.$key.'='.$value;
-                $first = false;
-        }
-        else
-        {
-                $currentHref .= '&'.$key.'='.$value;
-        }
-}
-
 if ($prev_milestone != null)
-        echo '<a href="'.$currentHref.'&r='.$prev_milestone['rev'].'"><img src="pix/tango-prev-mile.png" alt="Previous milestone" title="Previous milestone"></a>';
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$prev_milestone['rev']))).'"><img src="pix/tango-prev-mile.png" alt="Previous milestone" title="Previous milestone"></a>';
 else
         echo '<img src="pix/tango-prev-mile-dis.png" alt="Previous milestone" title="Previous milestone">';
 
 if ($prev_op['rev'] >= 0)
-        echo '<a href="'.$currentHref.'&r='.$prev_op['rev'].'"><img src="pix/tango-prev-rev.png" alt="Previous revision" title="Previous revision"></a>';
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$prev_op['rev']))).'"><img src="pix/tango-prev-rev.png" alt="Previous revision" title="Previous revision"></a>';
 else
         echo '<img src="pix/tango-prev-rev-dis.png" alt="Previous revision" title="Previous revision">';
 if ($numeric_revision == $head_revision)
@@ -95,11 +79,11 @@ else
         echo '<input type="text" id="revisionInput" value="'.$this_op.'" disabled="disabled"> ';
 echo '<input type="text" id="mileInput" value="'.$this_milestone.'" disabled="disabled">';
 if (isset($next_op['rev']) and $next_op['rev'] <= $head_op_rev)
-        echo '<a href="'.$currentHref.'&r='.$next_op['rev'].'"><img src="pix/tango-next-rev.png" alt="Next revision" title="Next revision"></a>';
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$next_op['rev']))).'"><img src="pix/tango-next-rev.png" alt="Next revision" title="Next revision"></a>';
 else
         echo '<img src="pix/tango-next-rev-dis.png" alt="Next revision" title="Next revision">';
 if ($next_milestone != null)
-        echo '<a href="'.$currentHref.'&r='.$next_milestone['rev'].'"><img src="pix/tango-next-mile.png" alt="Next milestone" title="Next milestone"></a>';
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$next_milestone['rev']))).'"><img src="pix/tango-next-mile.png" alt="Next milestone" title="Next milestone"></a>';
 else
         echo '<img src="pix/tango-next-mile-dis.png" alt="Next milestone" title="Next milestone">';
 
@@ -112,6 +96,10 @@ else
                         echo ''.count($operations)." changes since MS $head_milestone <button onclick=\"${root}milestone.php?r=$head_revision\">Register milestone</button>";
                 }
         }
+	else
+	{
+		echo "<button onclick=\"document.location.href='".makeHref(array_merge($_GET, array('r'=>$head_op_rev)))."'\">Jump to HEAD</button>";
+	}
         echo '</span>';
 
 
@@ -153,7 +141,20 @@ if (isset ($tabhandler[$pageno][$tabno]))
 				showError ('Dispatching error for bypass parameter', __FILE__);
 				break;
 		}
-		$tabhandler[$pageno][$tabno] ($_REQUEST[$page[$pageno]['bypass']]);
+		try {
+			$tabhandler[$pageno][$tabno] ($_REQUEST[$page[$pageno]['bypass']]);
+		} catch (OutOfRevisionRangeException $e) {
+			startPortlet('Out of revision range');
+			echo '<p>Object \''.$e->getTable().'\' id \''.$e->getId().'\' does not exist in the current point of time</p>';
+			list($appearOp, $appearOpRev) = Operation::getCorrespondingOperation($e->getAppeared());
+			list($disappearOp, $disappearOpRev) = Operation::getCorrespondingOperation($e->getDisappeared());
+			echo '<p>It is available from <a href="'.
+				makeHref(array_merge($_GET, array('r'=>$appearOpRev))).
+				'">operation '.$appearOp.'</a> to <a href="'.
+				makeHref(array_merge($_GET, array('r'=>$disappearOpRev))).
+				'">operation '.$disappearOp.'</a>';				
+			finishPortlet();
+		}
 	}
 	else
 		$tabhandler[$pageno][$tabno] ();
@@ -161,7 +162,7 @@ if (isset ($tabhandler[$pageno][$tabno]))
 elseif (isset ($page[$pageno]['handler']))
 	$page[$pageno]['handler'] ($tabno);
 else
-	showError ("Failed to find handler for page '${pageno}', tab '${tabno}'", __FILE__);
+	throw new Exception ("Failed to find handler for page '${pageno}', tab '${tabno}'");
 ?>
 	</td>
 	</tr>

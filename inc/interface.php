@@ -823,16 +823,8 @@ function renderRackObject ($object_id = 0)
 {
 	global $nextorder, $aac;
 	if ($object_id <= 0)
-	{
-		showError ('Invalid object_id', __FUNCTION__);
-		return;
-	}
+	throw new Exception ('Invalid object_id');
 	$info = getObjectInfo ($object_id);
-	if ($info == NULL)
-	{
-		showError ('getObjectInfo() failed', __FUNCTION__);
-		return;
-	}
 	// Main layout starts.
 	echo "<table border=0 class=objectview cellspacing=0 cellpadding=0>";
 	echo "<tr><td colspan=2 align=center><h1>${info['dname']}</h1></td></tr>\n";

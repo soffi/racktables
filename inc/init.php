@@ -171,8 +171,10 @@ else
 
 $op = (isset ($_REQUEST['op'])) ? $_REQUEST['op'] : '';
 
-
-$revision = isset($_REQUEST['r'])?$_REQUEST['r']:'head';
+if (isset($_REQUEST['r']) and $_REQUEST['r'] != '')
+	$revision = $_REQUEST['r'];
+else
+	$revision = 'head';
 $head_revision = Database::getHeadRevision();
 if ($revision == $head_revision)
          $revision = 'head';

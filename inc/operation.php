@@ -73,7 +73,20 @@ class Operation {
 		return $row;
 	}
 
-
+	public function getCorrespondingOperation($rev)
+	{
+		if ($rev == 'head')
+			return self::getHeadOperation();;
+		$op = self::getOperationId($rev);
+		if (is_null($op))
+		{
+			$row = self::getSupOperation($rev);
+			if (is_null($row))
+				throw new Exception ("Got unknown operation for revision $rev");
+			return $row; //that will be 'id'=>..., 'rev'=>...
+		}
+		return array(0=>$op, 1=>$rev, 'id'=>$op, 'rev'=>$rev);
+	}
 
 	public function getOperationsForHistory($history)
 	{

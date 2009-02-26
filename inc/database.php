@@ -56,6 +56,7 @@ function getRackspace ($tagfilter = array(), $tfmode = 'any')
 // Return detailed information about one rack row.
 function getRackRowInfo ($rackrow_id)
 {
+	Database::inLifetime('RackRow', $rackrow_id);
 	$query =
 		"select RackRow.id as id, RackRow.name as name, count(Rack.id) as count, " .
 		"if(isnull(sum(Rack.height)),0,sum(Rack.height)) as sum " .
@@ -63,10 +64,8 @@ function getRackRowInfo ($rackrow_id)
 		" " .
 		"group by RackRow.id";
 	$result = Database::query ($query);
-	if ($row = $result->fetch (PDO::FETCH_ASSOC))
-		return $row;
-	else
-		return NULL;
+	$row = $result->fetch (PDO::FETCH_ASSOC);
+	return $row;
 }
 
 
@@ -276,23 +275,14 @@ function getRacksForRow ($row_id = 0, $tagfilter = array(), $tfmode = 'any')
 function getRackData ($rack_id = 0, $silent = FALSE)
 {
 	if ($rack_id == 0)
-	{
-		if ($silent == FALSE)
-			showError ('Invalid rack_id', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid rack_id $rack_id');
+	Database::inLifetime('Rack', $rack_id);
 	$query =
 		"select Rack.id, Rack.name, row_id, height, Rack.comment, RackRow.name as row_name from " .
 		"Rack left join RackRow on Rack.row_id = RackRow.id  " .
 		"where  Rack.id='${rack_id}'";
 	$result = Database::query ($query);
-	if (($row = $result->fetch (PDO::FETCH_ASSOC)) == NULL)
-	{
-		if ($silent == FALSE)
-			showError ('Query #1 succeded, but returned no data', __FUNCTION__);
-		return NULL;
-	}
-
+	$row = $result->fetch (PDO::FETCH_ASSOC);
 	// load metadata
 	$clist = array
 	(
@@ -340,34 +330,25 @@ function getRackData ($rack_id = 0, $silent = FALSE)
 function getObjectInfo ($object_id = 0)
 {
 	if ($object_id == 0)
-	{
-		showError ('Invalid object_id', __FUNCTION__);
-		return;
-	}
+		throw new Exception ('Invalid object_id');
+	Database::inLifetime('RackObject', $object_id);
 	$query =
 		"select RackObject.id as id, RackObject.name as name, label, barcode, dict_value as objtype_name, asset_no, Dictionary.id as objtype_id, has_problems, comment from " .
 		"RackObject inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
 		"where RackObject.id = '${object_id}' and Chapter.name = 'RackObjectType' limit 1";
 	$result = Database::query ($query);
-	if (($row = $result->fetch (PDO::FETCH_ASSOC)) == NULL)
-	{
-		$ret = NULL;
-	}
-	else
-	{
-		$ret['id'] = $row['id'];
-		$ret['name'] = $row['name'];
-		$ret['label'] = $row['label'];
-		$ret['barcode'] = $row['barcode'];
-		$ret['objtype_name'] = $row['objtype_name'];
-		$ret['objtype_id'] = $row['objtype_id'];
-		$ret['has_problems'] = $row['has_problems'];
-		$ret['asset_no'] = $row['asset_no'];
-		$ret['dname'] = displayedName ($ret);
-		$ret['comment'] = $row['comment'];
-	}
+	$row = $result->fetch (PDO::FETCH_ASSOC);
+	$ret['id'] = $row['id'];
+	$ret['name'] = $row['name'];
+	$ret['label'] = $row['label'];
+	$ret['barcode'] = $row['barcode'];
+	$ret['objtype_name'] = $row['objtype_name'];
+	$ret['objtype_id'] = $row['objtype_id'];
+	$ret['has_problems'] = $row['has_problems'];
+	$ret['asset_no'] = $row['asset_no'];
+	$ret['dname'] = displayedName ($ret);
+	$ret['comment'] = $row['comment'];
 	$result->closeCursor();
-	unset ($result);
 	return $ret;
 }
 
@@ -771,11 +752,6 @@ function getResidentRacksData ($object_id = 0, $fetch_rackdata = TRUE)
 			continue;
 		}
 		$rackData = getRackData ($row[0]);
-		if ($rackData == NULL)
-		{
-			showError ('getRackData() failed', __FUNCTION__);
-			return NULL;
-		}
 		$ret[$row[0]] = $rackData;
 	}
 	$result->closeCursor();
@@ -1210,16 +1186,12 @@ function scanIPv4Space ($pairlist)
 function getIPv4NetworkInfo ($id = 0)
 {
 	if ($id <= 0)
-	{
-		showError ('Invalid arg', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid arg');
+	Database::inLifetime('IPv4Network', $id);
 	$query = "select INET_NTOA(ip) as ip, mask, name ".
 		"from IPv4Network where id = $id";
 	$result = Database::query ($query);
 	$ret = $result->fetch (PDO::FETCH_ASSOC);
-	if ($ret == NULL)
-		return NULL;
 	unset ($result);
 	$ret['id'] = $id;
 	$ret['ip_bin'] = ip2long ($ret['ip']);
@@ -1233,10 +1205,7 @@ function getIPv4NetworkInfo ($id = 0)
 function getIPv4Address ($dottedquad = '')
 {
 	if ($dottedquad == '')
-	{
-		showError ('Invalid arg', __FUNCTION__);
-		return NULL;
-	}
+		throw ('Invalid arg');
 	$i32 = ip2long ($dottedquad); // signed 32 bit
 	$scanres = scanIPv4Space (array (array ('i32_first' => $i32, 'i32_last' => $i32)));
 	if (!isset ($scanres[$i32]))
@@ -1419,8 +1388,7 @@ function searchByl2address ($port_l2address)
 		return NULL;
 	if (count ($rows) == 1) // Target found.
 		return $rows[0];
-	showError ('More than one results was found. This is probably a broken unique key.', __FUNCTION__);
-	return NULL;
+	throw new Exception ('More than one results was found. This is probably a broken unique key.');
 }
 
 function getIPv4PrefixSearchResult ($terms)
@@ -1600,16 +1568,10 @@ function commitCreateUserAccount ($username, $realname, $password)
 function commitUpdateUserAccount ($id, $new_username, $new_realname, $new_password)
 {
 	//Direct DB work is left here, as UserAccount doesn't have id and it won't work with our Database wrapper
-	global $dbxlink;
 	$query =
 		"update UserAccount set user_name = '${new_username}', user_realname = '${new_realname}', " .
 		"user_password_hash = '${new_password}' where user_id = ${id} limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		die;
-	}
+	$result = Database::getDBLink()->exec ($query);
 	return TRUE;
 }
 
@@ -1928,10 +1890,7 @@ function commitDeleteChapter ($chapter_no = 0)
 function readChapter ($chapter_name = '')
 {
 	if (empty ($chapter_name))
-	{
-		showError ('invalid argument', __FUNCTION__);
-		return NULL;
-	}
+		throw ('invalid argument');
 	$query =
 		"select Dictionary.id as dict_key, dict_value from Dictionary join Chapter on Chapter.id = Dictionary.chapter_id " .
 		"where Chapter.name = '${chapter_name}'";
@@ -2069,10 +2028,7 @@ function commitReduceAttrMap ($attr_id = 0, $objtype_id)
 function getAttrValues ($object_id, $strip_optgroup = FALSE)
 {
 	if ($object_id <= 0)
-	{
-		showError ('Invalid argument', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception('Invalid argument');
 	$ret = array();
 	$query =
 		"select A.id as attr_id, A.name as attr_name, A.type as attr_type, C.name as chapter_name, " .
@@ -2129,19 +2085,12 @@ function commitResetAttrValue ($object_id = 0, $attr_id = 0)
 function commitUpdateAttrValue ($object_id = 0, $attr_id = 0, $value = '')
 {
 	if ($object_id <= 0 or $attr_id <= 0)
-	{
-		showError ('Invalid arguments', __FUNCTION__);
-		die;
-	}
+		throw new Exception ('Invalid arguments');
+	Database::inLifetime('Attribute', $attr_id);
 	if (empty ($value))
 		return commitResetAttrValue ($object_id, $attr_id);
 	$result = Database::query("select type as attr_type from Attribute where id = ?", array(1=>$attr_id));
 	$row = $result->fetch (PDO::FETCH_NUM);
-	if ($row == NULL)
-	{
-		showError ('SQL query #1 returned no results', __FUNCTION__);
-		die;
-	}
 	$attr_type = $row[0];
 	$result->closeCursor();
 	switch ($attr_type)
@@ -2190,40 +2139,29 @@ function loadConfigCache ()
 // setConfigVar() is expected to perform all necessary filtering
 function storeConfigVar ($varname = NULL, $varvalue = NULL)
 {
-	global $dbxlink;
 	if (empty ($varname) || $varvalue === NULL)
-	{
-		showError ('Invalid arguments', __FUNCTION__);
-		return FALSE;
-	}
+		throw new Exception ('Invalid arguments');
 	$query = "update Config set varvalue='${varvalue}' where varname='${varname}' limit 1";
-	$result = $dbxlink->query ($query);
-	if ($result == NULL)
-	{
-		showError ("SQL query '${query}' failed", __FUNCTION__);
-		return FALSE;
-	}
+	$result = Database::getDBLink()->exec($query);
 	$rc = $result->rowCount();
 	$result->closeCursor();
 	if ($rc == 0 or $rc == 1)
 		return TRUE;
-	showError ("Something went wrong for args '${varname}', '${varvalue}'", __FUNCTION__);
-	return FALSE;
+	throw new Exception ("Something went wrong for args '${varname}', '${varvalue}'");
 }
 
 // Database version detector. Should behave corretly on any
 // working dataset a user might have.
 function getDatabaseVersion ()
 {
-	global $dbxlink;
 	$query = "select varvalue from Config where varname = 'DB_VERSION' and vartype = 'string'";
-	$result = $dbxlink->query ($query);
+	$result = Database::getDBLink()->query ($query);
 	if ($result == NULL)
 	{
 		$errorInfo = $dbxlink->errorInfo();
 		if ($errorInfo[0] == '42S02') // ER_NO_SUCH_TABLE
 			return '0.14.4';
-		die (__FUNCTION__ . ': SQL query #1 failed with error ' . $errorInfo[2]);
+		throw new Exception ('SQL query #1 failed with error ' . $errorInfo[2]);
 	}
 	$rows = $result->fetchAll (PDO::FETCH_NUM);
 	if (count ($rows) != 1 || empty ($rows[0][0]))
@@ -2276,13 +2214,12 @@ function getSLBSummary ()
 // will be returned as well.
 function getVServiceInfo ($vsid = 0)
 {
+	Database::inLifetime('IPv4VS', $vsid);
 	$query1 = "select id, inet_ntoa(vip) as vip, vport, proto, name, vsconfig, rsconfig " .
 		"from IPv4VS where id = ${vsid}";
 	$result = Database::query ($query1);
 	$vsinfo = array ();
 	$row = $result->fetch (PDO::FETCH_ASSOC);
-	if (!$row)
-		return NULL;
 	foreach (array ('id', 'vip', 'vport', 'proto', 'name', 'vsconfig', 'rsconfig') as $cname)
 		$vsinfo[$cname] = $row[$cname];
 	$vsinfo['rspool'] = array();
@@ -2322,13 +2259,12 @@ function getVServiceInfo ($vsid = 0)
 
 function getRSPoolInfo ($id = 0)
 {
+	Database::inLifetime('IPv4RSPool', $id);
 	$query1 = "select id, name, vsconfig, rsconfig from " .
 		"IPv4RSPool where id = ${id}";
 	$result = Database::query ($query1);
 	$ret = array();
 	$row = $result->fetch (PDO::FETCH_ASSOC);
-	if (!$row)
-		return NULL;
 	foreach (array ('id', 'name', 'vsconfig', 'rsconfig') as $c)
 		$ret[$c] = $row[$c];
 	$result->closeCursor();
@@ -2357,10 +2293,7 @@ function getRSPoolInfo ($id = 0)
 function addRStoRSPool ($pool_id = 0, $rsip = '', $rsport = 0, $inservice = 'no', $rsconfig = '')
 {
 	if ($pool_id <= 0)
-	{
-		showError ('Invalid arguments', __FUNCTION__);
-		die;
-	}
+		throw new Exception ('Invalid arguments');
 	if (empty ($rsport) or $rsport == 0)
 		$rsport = NULL;
 	Database::insert
@@ -2555,10 +2488,7 @@ function loadThumbCache ($rack_id = 0)
 function saveThumbCache ($rack_id = 0, $cache = NULL)
 {
 	if ($rack_id == 0 or $cache == NULL)
-	{
-		showError ('Invalid arguments', __FUNCTION__);
-		return;
-	}
+		throw new Exception ('Invalid arguments');
 	$data = base64_encode ($cache);
 	Database::update(array('thumb_data'=>$data), 'Rack', $rack_id);
 }
@@ -2581,10 +2511,7 @@ function resetThumbCache ($rack_id = 0)
 function getRSPoolsForObject ($object_id = 0)
 {
 	if ($object_id <= 0)
-	{
-		showError ('Invalid object_id', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid object_id');
 	$query = 'select vs_id, inet_ntoa(vip) as vip, vport, proto, vs.name, pool.id as pool_id, ' .
 		'pool.name as pool_name, count(rsip) as rscount, lb.vsconfig, lb.rsconfig from ' .
 		'IPv4LB as lb inner join IPv4RSPool as pool on lb.rspool_id = pool.id ' .
@@ -2674,10 +2601,7 @@ function getLBList ()
 function getSLBConfig ($object_id)
 {
 	if ($object_id <= 0)
-	{
-		showError ('Invalid arg', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid arg');
 	$ret = array();
 	$query = 'select vs_id, inet_ntoa(vip) as vip, vport, proto, vs.name as vs_name, ' .
 		'vs.vsconfig as vs_vsconfig, vs.rsconfig as vs_rsconfig, ' .
@@ -2709,10 +2633,7 @@ function getSLBConfig ($object_id)
 function commitSetInService ($rs_id = 0, $inservice = '')
 {
 	if ($rs_id <= 0 or empty ($inservice))
-	{
-		showError ('Invalid args', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid args');
 	Database::update(array('inservice'=>$inservice), 'IPv4RS', $rs_id);
 	return TRUE;
 }
@@ -2736,10 +2657,7 @@ function executeAutoPorts ($object_id = 0, $type_id = 0)
 function loadEntityTags ($entity_realm = '', $entity_id = 0)
 {
 	if ($entity_realm == '' or $entity_id <= 0)
-	{
-		showError ('Invalid or missing arguments', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid or missing arguments');
 	$ret = array();
 	$query = "select tt.id, tag from " .
 		"TagStorage as ts inner join TagTree as tt on ts.tag_id = tt.id " .
@@ -3030,15 +2948,8 @@ function saveUserPassword ($user_id, $newp)
 function objectIsPortless ($id = 0)
 {
 	if ($id <= 0)
-	{
-		showError ('Invalid argument', __FUNCTION__);
-		return;
-	}
-	if (($result = Database::query ("select count(id) from Port where object_id = ${id}")) == NULL) 
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		return;
-	}
+		throw new Exception ('Invalid argument');
+	$result = Database::query ("select count(id) from Port where object_id = ${id}"); 
 	$row = $result->fetch (PDO::FETCH_NUM);
 	$count = $row[0];
 	$result->closeCursor();
@@ -3268,10 +3179,7 @@ function getAllFiles ()
 function getAllUnlinkedFiles ($entity_type = NULL, $entity_id = 0)
 {
 	if ($entity_type == NULL || $entity_id == 0)
-	{
-		showError ('Invalid parameters', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid parameters');
 	$sql =
 		'SELECT File.id as id, name FROM File ' .
 		'left join FileLink on File.id = FileLink.file_id '.
@@ -3330,10 +3238,7 @@ function getFileList ($entity_type = NULL, $tagfilter = array(), $tfmode = 'any'
 function getFilesOfEntity ($entity_type = NULL, $entity_id = 0)
 {
 	if ($entity_type == NULL || $entity_id == 0)
-	{
-		showError ('Invalid parameters', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid parameters');
 	$sql =
 		'SELECT FileLink.file_id, FileLink.id AS link_id, name, type, size, atime, comment ' .
 		'FROM FileLink LEFT JOIN File ON FileLink.file_id = File.id ' .
@@ -3358,72 +3263,51 @@ function getFilesOfEntity ($entity_type = NULL, $entity_id = 0)
 function getFile ($file_id = 0)
 {
 	if ($file_id == 0)
-	{
-		showError ('Invalid file_id', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid file_id');
+	Database::inLifetime('File', $file_id);
 	$query = Database::query('SELECT * FROM File WHERE id = ?', array(1=>$file_id));
-	if (($row = $query->fetch (PDO::FETCH_ASSOC)) == NULL)
-	{
-		showError ('Query succeeded, but returned no data', __FUNCTION__);
-		$ret = NULL;
-	}
-	else
-	{
-		$ret = array();
-		$ret['id'] = $row['id'];
-		$ret['name'] = $row['name'];
-		$ret['type'] = $row['type'];
-		$ret['size'] = $row['size'];
-		$ret['ctime'] = 0;
-		$ret['mtime'] = 0;
-		$ret['atime'] = $row['atime'];
-		$ret['contents'] = $row['contents'];
-		$ret['comment'] = $row['comment'];
-		$query->closeCursor();
+	$row = $query->fetch (PDO::FETCH_ASSOC);
+	$ret = array();
+	$ret['id'] = $row['id'];
+	$ret['name'] = $row['name'];
+	$ret['type'] = $row['type'];
+	$ret['size'] = $row['size'];
+	$ret['ctime'] = 0;
+	$ret['mtime'] = 0;
+	$ret['atime'] = $row['atime'];
+	$ret['contents'] = $row['contents'];
+	$ret['comment'] = $row['comment'];
+	$query->closeCursor();
 
-		// Someone accessed this file, update atime
-		Database::update(array('atime'=>date('YmdHis')), 'File', $file_id);
-	}
+	// Someone accessed this file, update atime
+	Database::update(array('atime'=>date('YmdHis')), 'File', $file_id);
 	return $ret;
 }
 
 function getFileInfo ($file_id = 0)
 {
 	if ($file_id == 0)
-	{
-		showError ('Invalid file_id', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid file_id');
+	Database::inLifetime('File', $file_id);
 	$query = Database::query('SELECT id, name, type, size, ctime, mtime, atime, comment FROM File WHERE id = ?', array(1=>$file_id));
-	if (($row = $query->fetch (PDO::FETCH_ASSOC)) == NULL)
-	{
-		showError ('Query succeeded, but returned no data', __FUNCTION__);
-		$ret = NULL;
-	}
-	else
-	{
-		$ret = array();
-		$ret['id'] = $row['id'];
-		$ret['name'] = $row['name'];
-		$ret['type'] = $row['type'];
-		$ret['size'] = $row['size'];
-		$ret['ctime'] = $row['ctime'];
-		$ret['mtime'] = $row['mtime'];
-		$ret['atime'] = $row['atime'];
-		$ret['comment'] = $row['comment'];
-		$query->closeCursor();
-	}
+	$row = $query->fetch (PDO::FETCH_ASSOC);
+	$ret = array();
+	$ret['id'] = $row['id'];
+	$ret['name'] = $row['name'];
+	$ret['type'] = $row['type'];
+	$ret['size'] = $row['size'];
+	$ret['ctime'] = $row['ctime'];
+	$ret['mtime'] = $row['mtime'];
+	$ret['atime'] = $row['atime'];
+	$ret['comment'] = $row['comment'];
+	$query->closeCursor();
 	return $ret;
 }
 
 function getFileLinks ($file_id = 0)
 {
 	if ($file_id <= 0)
-	{
-		showError ('Invalid file_id', __FUNCTION__);
-		return NULL;
-	}
+		throw new Exception ('Invalid file_id');
 
 	$query = Database::query('SELECT * FROM FileLink WHERE file_id = ? ORDER BY entity_id', array(1=>$file_id));
 	$rows = $query->fetchAll (PDO::FETCH_ASSOC);

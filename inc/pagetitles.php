@@ -44,24 +44,23 @@ function dynamic_title_row ()
 	{
 		case 'rack':
 			assertUIntArg ('rack_id', __FUNCTION__);
-			$rack = getRackData ($_REQUEST['rack_id']);
-			if ($rack == NULL)
-			{
-				showError ('getRackData() failed', __FUNCTION__);
-				return NULL;
+			try {
+				$rack = getRackData ($_REQUEST['rack_id']);
+				$ret['name'] = $rack['row_name'];
+				$ret['params']['row_id'] = $rack['row_id'];
+			} catch (OutOfRevisionRangeException $e) {
+				$ret['name'] = '';
+				$ret['params'] = NULL;
 			}
-			$ret['name'] = $rack['row_name'];
-			$ret['params']['row_id'] = $rack['row_id'];
 			break;
 		case 'row':
 			assertUIntArg ('row_id', __FUNCTION__);
-			$rowInfo = getRackRowInfo ($_REQUEST['row_id']);
-			if ($rowInfo == NULL)
-			{
-				showError ('getRackRowInfo() failed', __FUNCTION__);
-				return NULL;
+			try {
+				$rowInfo = getRackRowInfo ($_REQUEST['row_id']);
+				$ret['name'] = $rowInfo['name'];
+			} catch (OutOfRevisionRangeException $e) {
+				$ret['name'] = 'Unknown Row '.$_REQUEST['row_id'];
 			}
-			$ret['name'] = $rowInfo['name'];
 			$ret['params']['row_id'] = $_REQUEST['row_id'];
 			break;
 		default:
@@ -72,8 +71,12 @@ function dynamic_title_row ()
 
 function dynamic_title_rack ()
 {
-	$rack = getRackData ($_REQUEST['rack_id']);
-	return array ('name' => $rack['name'], 'params' => array ('rack_id' => $_REQUEST['rack_id']));
+	try {
+		$rack = getRackData ($_REQUEST['rack_id']);
+		return array ('name' => $rack['name'], 'params' => array ('rack_id' => $_REQUEST['rack_id']));
+	} catch (OutOfRevisionRangeException $e) {
+		return array ('name' => 'Unknown rack '.$_REQUEST['rack_id'], 'params' => array ('rack_id' => $_REQUEST['rack_id']));
+	}
 }
 
 function dynamic_title_object ()
@@ -84,13 +87,12 @@ function dynamic_title_object ()
 	{
 		case 'object':
 			assertUIntArg ('object_id', __FUNCTION__);
-			$object = getObjectInfo ($_REQUEST['object_id']);
-			if ($object == NULL)
-			{
-				showError ('getObjectInfo() failed', __FUNCTION__);
-				return NULL;
+			try {
+				$object = getObjectInfo ($_REQUEST['object_id']);
+				$ret['name'] = $object['dname'];
+			} catch (OutOfRevisionRangeException $e) {
+				$ret['name'] = 'Unknown object '.$_REQUEST['object_id'];
 			}
-			$ret['name'] = $object['dname'];
 			$ret['params']['object_id'] = $_REQUEST['object_id'];
 			break;
 		default:
@@ -107,7 +109,11 @@ function dynamic_title_vservice ()
 	{
 		case 'ipv4vs':
 			assertUIntArg ('vs_id', __FUNCTION__);
-			$ret['name'] = buildVServiceName (getVServiceInfo ($_REQUEST['vs_id']));
+			try {
+				$ret['name'] = buildVServiceName (getVServiceInfo ($_REQUEST['vs_id']));
+			} catch (OutOfRevisionRangeException $e) {
+				$ret['name'] = 'Unknown VService '.$_REQUEST['vs_id'];
+			}
 			$ret['params']['vs_id'] = $_REQUEST['vs_id'];
 			break;
 		default:
@@ -124,8 +130,12 @@ function dynamic_title_rspool ()
 	{
 		case 'ipv4rspool':
 			assertUIntArg ('pool_id', __FUNCTION__);
-			$poolInfo = getRSPoolInfo ($_REQUEST['pool_id']);
-			$ret['name'] = empty ($poolInfo['name']) ? 'ANONYMOUS' : $poolInfo['name'];
+			try {
+				$poolInfo = getRSPoolInfo ($_REQUEST['pool_id']);
+				$ret['name'] = empty ($poolInfo['name']) ? 'ANONYMOUS' : $poolInfo['name'];
+			} catch (OutOfRevisionRangeException $e) {
+				$ret['name'] = 'Unknown RSPool '.$_REQUEST['pool_id'];
+			}
 			$ret['params']['pool_id'] = $_REQUEST['pool_id'];
 			break;
 		default:
@@ -159,24 +169,22 @@ function dynamic_title_objgroup ()
 			assertUIntArg ('group_id', __FUNCTION__, TRUE);
 			$group_id = $_REQUEST['group_id'];
 			$groupInfo = getObjectGroupInfo();
-			if ($groupInfo == NULL)
-			{
-				showError ('getObjectGroupInfo() failed', __FUNCTION__);
-				return NULL;
-			}
-			$ret['name'] = $groupInfo[$group_id]['name'];
+			if (isset($groupInfo[$group_id]))
+				$ret['name'] = $groupInfo[$group_id]['name'];
+			else
+				$ret['name'] = 'Unknown objectgroup '.$group_id;
 			$ret['params']['group_id'] = $group_id;
 			break;
 		case 'object':
 			assertUIntArg ('object_id', __FUNCTION__);
-			$objectInfo = getObjectInfo ($_REQUEST['object_id']);
-			if ($objectInfo == NULL)
-			{
-				showError ('getObjectInfo() failed', __FUNCTION__);
-				return NULL;
+			try {
+				$objectInfo = getObjectInfo ($_REQUEST['object_id']);
+				$ret['name'] = $objectInfo['objtype_name'];
+				$ret['params']['group_id'] = $objectInfo['objtype_id'];
+			} catch (OutOfRevisionRangeException $e) {
+				$ret['name'] = 'Unknown objectgroup';
+				$ret['params'] = NULL;
 			}
-			$ret['name'] = $objectInfo['objtype_name'];
-			$ret['params']['group_id'] = $objectInfo['objtype_id'];
 			break;
 		default:
 			return NULL;
@@ -202,13 +210,12 @@ function dynamic_title_file ()
 	{
 		case 'file':
 			assertUIntArg ('file_id', __FUNCTION__);
-			$file = getFileInfo ($_REQUEST['file_id']);
-			if ($file == NULL)
-			{
-				showError ('getFileInfo() failed', __FUNCTION__);
-				return NULL;
+			try {
+				$file = getFileInfo ($_REQUEST['file_id']);
+				$ret['name'] = $file['name'];
+			} catch (OutOfRevisionRangeException $e) {
+				$ret['name'] = 'Unknown file '.$_REQUEST['file_id'];
 			}
-			$ret['name'] = $file['name'];
 			$ret['params']['file_id'] = $_REQUEST['file_id'];
 			break;
 		case 'filesbylink':

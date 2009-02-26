@@ -990,13 +990,18 @@ function loadRackObjectAutoTags ()
 {
 	assertUIntArg ('object_id', __FUNCTION__);
 	$object_id = $_REQUEST['object_id'];
-	$oinfo = getObjectInfo ($object_id);
 	$ret = array();
-	$ret[] = array ('tag' => '$id_' . $object_id);
-	$ret[] = array ('tag' => '$typeid_' . $oinfo['objtype_id']);
-	$ret[] = array ('tag' => '$any_object');
-	if (validTagName ($oinfo['name']))
-		$ret[] = array ('tag' => '$cn_' . $oinfo['name']);
+	try {
+		$oinfo = getObjectInfo ($object_id);
+		$ret[] = array ('tag' => '$id_' . $object_id);
+		$ret[] = array ('tag' => '$typeid_' . $oinfo['objtype_id']);
+		$ret[] = array ('tag' => '$any_object');
+		if (validTagName ($oinfo['name']))
+			$ret[] = array ('tag' => '$cn_' . $oinfo['name']);
+	} catch (OutOfRevisionRangeException $e) {
+		$ret[] = array ('tag' => '$id_' . $object_id);
+		$ret[] = array ('tag' => '$any_object');
+	}
 	return $ret;
 }
 
