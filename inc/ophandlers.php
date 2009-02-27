@@ -1271,10 +1271,7 @@ function saveEntityTags ()
 {
 	global $explicit_tags, $implicit_tags, $page, $pageno, $etype_by_pageno;
 	if (!isset ($etype_by_pageno[$pageno]) or !isset ($page[$pageno]['bypass']))
-	{
-		showError ('Internal error', __FUNCTION__);
-		die;
-	}
+		throw new Exception ('Internal error');
 	$realm = $etype_by_pageno[$pageno];
 	$bypass = $page[$pageno]['bypass'];
 	assertUIntArg ($bypass, __FUNCTION__);
@@ -1282,18 +1279,23 @@ function saveEntityTags ()
 	$taglist = isset ($_REQUEST['taglist']) ? $_REQUEST['taglist'] : array();
 	// Build a chain from the submitted data, minimize it,
 	// then wipe existing records and store the new set instead.
-	destroyTagsForEntity ($realm, $entity_id);
+	$oldTags = getTagsForEntity($realm, $entity_id);
 	$newchain = getExplicitTagsOnly (buildTagChainFromIds ($taglist));
 	$n_succeeds = $n_errors = 0;
 	foreach ($newchain as $taginfo)
-		if (addTagForEntity ($realm, $entity_id, $taginfo['id']))
+	{
+		if (!isset($oldTags[$taginfo['id']]))
+		{
+			addTagForEntity ($realm, $entity_id, $taginfo['id']);
 			$n_succeeds++;
+		}
 		else
-			$n_errors++;
-	if ($n_errors)
-		return buildRedirectURL (__FUNCTION__, 'ERR', array ($n_succeeds, $n_errors));
-	else
-		return buildRedirectURL (__FUNCTION__, 'OK', array ($n_succeeds));
+			unset($oldTags[$taginfo['id']]);
+
+	}
+	foreach ($oldTags as $tagid=>$tag)
+		deleteTagForEntity($realm, $entity_id, $tagid);
+	return buildRedirectURL (__FUNCTION__, 'OK', array ($n_succeeds));
 }
 
 function destroyTag ()

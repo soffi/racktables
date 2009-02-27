@@ -2765,7 +2765,17 @@ function commitUpdateTag ($tag_id, $tag_name, $parent_id)
 	Database::update(array('tag'=>$tag_name, 'parent_id'=>$parent_id), 'TagTree', $tag_id);
 	return '';
 }
-
+function getTagsForEntity($entity_realm, $entity_id)
+{
+	$result = Database::query("select TagStorage.tag_id as id, TagTree.tag as tag from TagStorage join TagTree on TagStorage.tag_id = TagTree.id where TagStorage.entity_realm = ? and TagStorage.entity_id = ?", array(1=>$entity_realm, 2=>$entity_id));
+	$ret = array();
+	while($row = $result->fetch())
+	{
+		$ret[$row['id']] = $row;
+	}
+	Database::closeCursor($result);
+	return $ret;
+}
 // Drop the whole chain stored.
 function destroyTagsForEntity ($entity_realm, $entity_id)
 {
@@ -2795,7 +2805,7 @@ function addTagForEntity ($realm = '', $entity_id, $tag_id)
 		),
 		'TagStorage'
 	);
-	return '';
+	return TRUE;
 }
 
 // Add records into TagStorage, if this makes sense (IOW, they don't appear
