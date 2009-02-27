@@ -970,7 +970,9 @@ class Database {
 			);
 			foreach(self::$database_meta[$table]['fields'] as $fname => $fvalue)
 				if ($fvalue['revisioned'])
-					$fields[] = $fname;
+					$fields[] = "${table}__r.$fname as $fname";
+				else
+					$fields[] = "${table}.$fname as $fname";
 			$where = array();
 			$whereValues = array();
 			if (isset($id))
@@ -988,13 +990,13 @@ class Database {
 				$where[] = "rev <= ?";
 				$whereValues[] = $end_rev;
 			}
-		
 			$q = self::$dbxlink->prepare(
 				"select ".
 				implode(', ', $fields).
 				" from ${table}__r ".
 				"join revision on ${table}__r.rev = revision.id ".
 				"join UserAccount on revision.user_id = UserAccount.user_id ".
+				"join ${table} on ${table}__r.id = ${table}.id ".
 				(count($where)>0 ? 'where ' : '').
 				(implode(' and ', $where)).
 				" order by rev");

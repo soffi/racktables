@@ -3496,6 +3496,8 @@ function makeMainHistory($start_rev, $end_rev)
 	$operations = array();
 	foreach($ops as $op)
 	{
+		if ($op['rev']>$end_rev)
+			break;
 		$op['hr_timestamp'] = date('d/m/Y H:i:s', $op['timestamp']);
 		$operations[$op['rev']] = $op;
 	}

@@ -6256,22 +6256,53 @@ function displayObjectForHistory($object)
 
 function renderMainHistory()
 {
-	global $revision;
-	$start_rev = 0;
-	$end_rev = $revision;
-	if (isset($_REQUEST['start_rev']))
+	global $revision, $numeric_revision;
+	$start_rev = 1;
+	$end_rev = $numeric_revision;
+	if (isset($_REQUEST['start_rev']) and !empty($_REQUEST['start_rev']))
 		$start_rev = $_REQUEST['start_rev'];
-	if (isset($_REQUEST['end_rev']))
+	if (isset($_REQUEST['end_rev']) and !empty($_REQUEST['end_rev']))
 		$end_rev = $_REQUEST['end_rev'];
 	if ($end_rev < $start_rev)
 		$end_rev = $start_rev;
-	list($start_op, $start_op_rev) = Operation::getCorrespondingOperation($start_rev);
+	list($start_op, $start_op_rev) = Operation::getSubOperation($start_rev);
 	list($end_op, $end_op_rev) = Operation::getCorrespondingOperation($end_rev);
-
-	startPortlet("History since operation $start_op to operation $end_op");
-
 	$operations = Operation::getOperationsSince(0);
-	echo '<div id="HistoryOperations"><ul>';
+
+	$root = makeHref(array('page'=>'history'));
+	echo <<< ENDJAVASCRIPT
+<script type="text/javascript"><!--
+function jumpToHistory()
+{
+	var startrev = $('#StartRev')[0].value;
+	var endrev = $('#EndRev')[0].value;
+	var root = '$root'; 
+	document.location.href = root+'&start_rev='+startrev+'&end_rev='+endrev;
+}
+//--></script>
+ENDJAVASCRIPT;
+
+
+	startPortlet("History");
+	echo '<h2>From operation <select name="start_rev" id="StartRev" onchange="jumpToHistory()">';
+	foreach ($operations as $op)
+	{
+		$op['hr_timestamp'] = date('d/m/Y H:i:s', $op['timestamp']);
+		if ($start_op+1 == $op['id']) 
+			echo '<option selected value="'.$op['rev'].'">'.$op['id'].' ('.$op['hr_timestamp'].')'.'</option>';
+		else
+			echo '<option value="'.$op['rev'].'">'.$op['id'].' ('.$op['hr_timestamp'].')'.'</option>';
+	}
+	echo '</select> to operation <select name="end_rev" id="EndRev" onchange="jumpToHistory()">';
+	foreach ($operations as $op)
+	{
+		$op['hr_timestamp'] = date('d/m/Y H:i:s', $op['timestamp']);
+		if ($end_op == $op['id']) 
+			echo '<option selected value="'.$op['rev'].'">'.$op['id'].' ('.$op['hr_timestamp'].')'.'</option>';
+		else
+			echo '<option value="'.$op['rev'].'">'.$op['id'].' ('.$op['hr_timestamp'].')'.'</option>';
+	}
+	echo '</select></h2><div id="HistoryOperations"><ul>';
 	foreach (makeMainHistory($start_op_rev, $end_op_rev) as $op)
 	{
 		echo "<li>Operation ${op['id']} (${op['hr_timestamp']}) by ${op['user_name']}<ul>";
@@ -6284,19 +6315,6 @@ function renderMainHistory()
 		echo "</ul></li>";
 	}
 	echo '</ul></div>';
-	echo "<table id=\"HistoryOperationsSelector\"><tr><td>From operation: <select name=\"start_rev\">";
-	foreach ($operations as $op)
-		if ($start_op == $op['id']) 
-			echo '<option selected value="'.$op['rev'].'">'.$op['id'].'</option>';
-		else
-			echo '<option value="'.$op['rev'].'">'.$op['id'].'</option>';
-	echo "</select></td><td>To operation: <select name=\"end_rev\">";
-	foreach ($operations as $op)
-		if ($end_op == $op['id']) 
-			echo '<option selected value="'.$op['rev'].'">'.$op['id'].'</option>';
-		else
-			echo '<option value="'.$op['rev'].'">'.$op['id'].'</option>';
-	echo "</select></td></tr></table>";
 	finishPortlet();
 }
 
