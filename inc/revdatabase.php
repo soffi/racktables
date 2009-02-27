@@ -418,76 +418,6 @@ class Database {
 	}
 
 
-	public function updateDatabaseMeta()
-	{
-		$result = self::$dbxlink->query('show tables');
-		$tables = array();
-		while($row = $result->fetch(PDO::FETCH_NUM))
-		{
-			if (substr($row[0], -3) == '__r')
-			{
-				$table = substr($row[0], 0, -3);
-				if (isset(self::$database_meta_nonrev[$table]))
-					unset(self::$database_meta_nonrev[$table]);
-				self::$database_meta[$table] = array('fields'=>array());
-				$result1 = self::$dbxlink->query("describe $table");
-				while($row1 = $result1->fetch(PDO::FETCH_NUM))
-				{
-					$field = $row1[0];
-					if ($field != 'id')
-					{
-						self::$database_meta[$table]['fields'][$field] = array('revisioned' => false);
-						if ($row1[2] == 'NO')
-							self::$database_meta[$table]['fields'][$field]['nullable'] = false;
-						else
-							self::$database_meta[$table]['fields'][$field]['nullable'] = true;
-					}
-				}
-				self::closeCursor($result1);
-				$result1 = self::$dbxlink->query("describe ${table}__r");
-				while($row1 = $result1->fetch(PDO::FETCH_NUM))
-				{
-					$field = $row1[0];
-					if ( ($field != 'id') &&
-						($field != 'rev') &&
-						($field != 'rev_terminal') )
-					{
-						self::$database_meta[$table]['fields'][$field] = array('revisioned' => true);
-						if ($row1[2] == 'NO')
-							self::$database_meta[$table]['fields'][$field]['nullable'] = false;
-						else
-							self::$database_meta[$table]['fields'][$field]['nullable'] = true;
-					}
-				}
-				self::closeCursor($result1);
-			}
-			else
-			{
-				$table = $row[0];
-				if (!isset(self::$database_meta[$table]))
-				{
-					self::$database_meta_nonrev[$table] = array('fields'=>array());
-					$result1 = self::$dbxlink->query("describe $table");
-					while($row1 = $result1->fetch(PDO::FETCH_NUM))
-					{
-						$field = $row1[0];
-						if ($field != 'id')
-						{
-							self::$database_meta_nonrev[$table]['fields'][$field] = array('revisioned' => false);
-							if ($row1[2] == 'NO')
-								self::$database_meta_nonrev[$table]['fields'][$field]['nullable'] = false;
-							else
-								self::$database_meta_nonrev[$table]['fields'][$field]['nullable'] = true;
-						}
-					}
-					self::closeCursor($result1);
-				}
-			}
-		}
-		self::closeCursor($result);	
-	}
-
-
 	public function init($link)
 	{
 		self::$dbxlink = $link;
@@ -1026,7 +956,7 @@ class Database {
 		}
 	}
 
-	public function getHistory($table, $id)
+	public function getHistory($table, $id, $start_rev=NULL, $end_rev=NULL)
 	{
 		if (isset(self::$database_meta[$table]))
 		{
@@ -1041,16 +971,36 @@ class Database {
 			foreach(self::$database_meta[$table]['fields'] as $fname => $fvalue)
 				if ($fvalue['revisioned'])
 					$fields[] = $fname;
+			$where = array();
+			$whereValues = array();
+			if (isset($id))
+			{
+				$where[] = "${table}__r.id = ?";
+				$whereValues[] = $id;
+			}
+			if (isset($start_rev))
+			{
+				$where[] = "rev > ?";
+				$whereValues[] = $start_rev;
+			}
+			if (isset($end_rev))
+			{
+				$where[] = "rev <= ?";
+				$whereValues[] = $end_rev;
+			}
+		
 			$q = self::$dbxlink->prepare(
 				"select ".
 				implode(', ', $fields).
 				" from ${table}__r ".
 				"join revision on ${table}__r.rev = revision.id ".
 				"join UserAccount on revision.user_id = UserAccount.user_id ".
-				(isset($id)?"where ${table}__r.id = ? ":'').
-				"order by rev");
-			if (isset($id))
-				$q->bindValue(1, $id);
+				(count($where)>0 ? 'where ' : '').
+				(implode(' and ', $where)).
+				" order by rev");
+			$bindPos = 1;
+			foreach($whereValues as $v)
+				$q->bindValue($bindPos++, $v);
 			$q->execute();
 			return $q;
 		}
@@ -1159,11 +1109,17 @@ class Database {
 		
 	}
 
-	public function get($field, $table, $id)
+	public function get($field, $table, $id, $rev=NULL)
 	{
+		$oldRev = self::$currentRevision;
+		if (isset($rev))
+		{
+			self::$currentRevision = $rev;
+		}
 		$result = self::query("select $field from $table where id = ?", array(1=>$id));
 		list($ret) = $result->fetch(PDO::FETCH_NUM);
 		self::closeCursor($result);
+		self::$currentRevision = $oldRev;
 		return $ret;
 	}
 
@@ -1199,6 +1155,47 @@ class Database {
 		if (self::$currentRevision >= $appeared and (self::$currentRevision < $disappeared or $disappeared == -1 ))
 			return array($appeared, $disappeared);
 		throw new OutOfRevisionRangeException($table, $id, $appeared, $disappeared);
+	}
+
+	public function getMainHistory($start_rev, $end_rev)
+	{
+		$ret = array();
+		$plain_hist = array();
+		foreach(array_keys(self::$database_meta) as $table)
+		{
+			$q = self::getHistory($table, NULL, $start_rev, $end_rev);
+			$h = array();
+			while($row = $q->fetch())
+			{
+				$h[] = $row;
+				if (!isset($plain_hist[$row['rev']]))
+					$plain_hist[$row['rev']] = array();
+				$row['table'] = $table;
+				$plain_hist[$row['rev']][] = $row;
+			}
+			self::closeCursor($q);
+			if (count($h)>0)
+			{
+				$ret[$table] = $h;
+			}
+		}
+		return array($ret, $plain_hist);
+	}
+
+	public function getRevisionById($rev)
+	{
+		$q = self::$dbxlink->prepare("select revision.id as id, ".
+			"unix_timestamp(revision.timestamp) as timestamp, ".
+			"revision.user_id as user_id, ".
+			"UserAccount.user_name as user_name from revision left join UserAccount ".
+			"on revision.user_id = UserAccount.user_id ".
+			"where revision.id = ?");
+		$q->bindValue(1, $rev);
+		$q->execute();
+		$row = $q->fetch();
+		$row['hr_timestamp'] = date('d/m/Y H:i:s', $row['timestamp']); 
+		self::closeCursor($q);
+		return $row;
 	}
 
 	public function closeCursor(&$result)

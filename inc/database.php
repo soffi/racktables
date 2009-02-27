@@ -3490,4 +3490,36 @@ function getChapterList ()
 	return $ret;
 }
 
+function makeMainHistory($start_rev, $end_rev)
+{
+	$ops = Operation::getOperationsSince($start_rev);
+	$operations = array();
+	foreach($ops as $op)
+	{
+		$op['hr_timestamp'] = date('d/m/Y H:i:s', $op['timestamp']);
+		$operations[$op['rev']] = $op;
+	}
+	list($byTable, $mainHistory) = Database::getMainHistory($start_rev, $end_rev);
+	$rev_found_so_far = array();
+	$prev_cache = array();
+	foreach($mainHistory as $revision=>$records)
+	{
+		foreach($records as $record)
+		{
+			$rev_found_so_far[] = $record;
+			if (isset($prev_cache[$record['table'].'_'.$record['id']]))
+			{
+				$record['diff'] = array_diff_assoc($prev_cache[$record['table'].'_'.$record['id']], $record);
+				$prev_cache[$record['table'].'_'.$record['id']] = $record;
+			}
+			if (isset($operations[$revision]))
+			{
+				$operations[$revision]['records'] = $rev_found_so_far;
+				$rev_found_so_far = array();
+			}
+		}
+	}
+	return $operations;
+}
+
 ?>

@@ -817,4 +817,134 @@ function getAllChildPages ($parent)
 	return $mykids;
 }
 
+function getPageForObject($table, $id, $rev)
+{
+	$ret = array();
+	switch ($table)
+	{
+		case 'Rack':
+			$ret['page'] = 'rack';
+			$ret['rack_id'] = $id;
+			break;
+		case 'RackSpace':
+			$rack = Database::get('rack_id', 'RackSpace', $id, $rev);
+			$ret['page'] = 'rack';
+			$ret['rack_id'] = $rack;
+			break;
+		case 'RackRow':
+			$ret['page'] = 'row';
+			$ret['row_id'] = $id;
+			break;
+		case 'RackObject':
+			$ret['page'] = 'object';
+			$ret['object_id'] = $id;
+			break;
+		case 'Port':
+			$object = Database::get('object_id', 'Port', $id, $rev);
+			$ret['page'] = 'object';
+			$ret['object_id'] = $object;
+			break;
+		case 'Link':
+			$porta = Database::get('porta', 'Link', $id, $rev);
+			$object = Database::get('object_id', 'Port', $porta, $rev);
+			$ret['page'] = 'object';
+			$ret['object_id'] = $object;
+			break;
+		case 'IPv4Address':
+			$ip = Database::get('ip', 'IPv4Address', $id, $rev);
+			$ret['page'] = 'ipaddress';
+			$ret['ip'] = $ip;
+			break;
+		case 'IPv4Allocation':
+			$ip = Database::get('ip', 'IPv4Allocation', $id, $rev);
+			$ret['page'] = 'ipaddress';
+			$ret['ip'] = $ip;
+			break;
+		case 'IPv4NAT':
+			$object = Database::get('object_id', 'IPv4Allocation', $id, $rev);
+			$ret['page'] = 'object';
+			$ret['object_id'] = $object;
+			break;
+		case 'IPv4Network':
+			$ret['page'] = 'ipv4net';
+			$ret['id'] = $id;
+			break;
+		case 'Attribute':
+			$ret['page'] = 'attrs';
+			break;
+		case 'AttributeMap':
+			$ret['page'] = 'attrs';
+			break;
+		case 'AttributeValue':
+			$object = Database::get('object_id', 'AttributeValue', $id, $rev);
+			$ret['page'] = 'object';
+			$ret['object_id'] = $object;
+			break;
+		case 'Dictionary':
+			$ret['page'] = 'dict';
+			break;
+		case 'Chapter':
+			$ret['page'] = 'chapter';
+			$ret['chapter_no'] = $id;
+			break;
+		case 'IPv4LB':
+			$object = Database::get('object_id', 'IPv4LB', $id, $rev);
+			$ret['page'] = 'object';
+			$ret['object_id'] = $object;
+			break;
+		case 'IPv4RS':
+			$ip = Database::get('rsip', 'IPv4RS', $id, $rev);
+			$ret['page'] = 'ipaddress';
+			$ret['ip'] = $ip;
+			break;
+		case 'IPv4RSPool':
+			$ret['page'] = 'ipv4rspool';
+			$ret['pool_id'] = $id;
+			break;
+		case 'IPv4VS':
+			$ret['page'] = 'ipv4vs';
+			$ret['vs_id'] = $id;
+			break;
+		case 'TagStorage':
+			$realm = Database::get('entity_realm', 'TagStorage', $id, $rev);
+			$id = Database::get('id', 'TagStorage', $id, $rev);
+			if ($realm == 'file')
+				return getPageForObject('File', $id, $rev);
+			elseif ($realm == 'ipv4net')
+				return getPageForObject('IPv4Network', $id, $rev);
+			elseif ($realm == 'ipv4vs')
+				return getPageForObject('IPv4VS', $id, $rev);
+			elseif ($realm == 'ipv4rspool')
+				return getPageForObject('IPv4RSPool', $id, $rev);
+			elseif ($realm == 'object')
+				return getPageForObject('RackObject', $id, $rev);
+			elseif ($realm == 'rack')
+				return getPageForObject('Rack', $id, $rev);
+			elseif ($realm == 'user')
+			{
+				$ret['page'] = 'user';
+				$ret['user_id'] = $id;
+			}
+			else
+				$ret['page'] = 'tagtree';
+			break;
+		case 'TagTree':
+			$ret['page'] = 'tagtree';
+			break;
+		case 'FileLink':
+			$id = Database::get('file_id', 'FileLink', $id, $rev);
+			$ret['page'] = 'file';
+			$ret['file_id'] = $id;
+			break;
+		case 'File':
+			$ret['page'] = 'file';
+			$ret['file_id'] = $id;
+			break;
+		default:
+			throw new Exception("Unknown table type $table");
+	}
+	return $ret;
+}
+
+
 ?>

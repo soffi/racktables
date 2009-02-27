@@ -612,3 +612,11 @@ div.tagselector {
 	text-align: center;
 	cursor: default;
 }
+
+#HistoryOperationsSelector {
+	width: 100%;
+}
+
+#HistoryOperations {
+	text-align: left;
+}

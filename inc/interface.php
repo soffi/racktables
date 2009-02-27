@@ -1152,7 +1152,7 @@ function renderPortsForObject ($object_id = 0)
 	foreach ($ports as $port)
 	{
 		printOpFormIntro ('editPort', array ('port_id' => $port['id']));
-		echo "<tr><td><a href='".makeHrefProcess(array('op'=>'delport', 'port_id'=>$port['id'], 'object_id'=>$object_id, 'port_name'=>$port['name']))."'>";
+		echo "<tr><td><a href='".makeHrefProcess(array('op'=>'delPort', 'port_id'=>$port['id'], 'object_id'=>$object_id, 'port_name'=>$port['name']))."'>";
 		printImageHREF ('delete', 'Unlink and Delete this port');
 		echo "</a></td>\n";
 		echo "<td><input type=text name=name value='${port['name']}' size=8></td>";
@@ -6055,14 +6055,249 @@ function renderTextEditor ($file_id)
 	echo "</td></tr>\n</table></form>\n";
 }
 
+function displayObjectPropertyForHistory($name, $value)
+{
+	if (isset($value))
+		return "<strong>$name:</strong>$value ";
+}
+
+function displayObjectPropertiesForHistory($props)
+{
+	$first = true;
+	$ret = '';
+	foreach($props as $name=>$value)
+	{
+		if (isset($value))
+		{
+			if (!$first)
+				$ret .= ', ';
+			$first = false;
+			$ret .= displayObjectPropertyForHistory($name, $value);
+		}
+	}
+	return $ret;
+}
+
+function displayObjectForHistory($object)
+{
+	if ($object['rev_terminal'] == 1)
+		return '<strong>Deleted</strong>';
+	switch ($object['table'])
+	{
+		case 'Rack':
+			return displayObjectPropertiesForHistory(array(
+				'Name'=>$object['name'],
+				'row_id'=>$object['row_id'],
+				'Height'=>$object['height'],
+				'Comment'=>$object['comment']
+			));
+			break;
+		case 'RackSpace':
+			return displayObjectPropertiesForHistory(array(
+				'State'=>$object['state'],
+				'object_id'=>$object['object_id']
+			));
+			break;
+		case 'RackRow':
+			return displayObjectPropertiesForHistory(array(
+				'Name'=>$object['name']
+			));
+			break;
+		case 'RackObject':
+			return displayObjectPropertiesForHistory(array(
+				'Name'=>$object['name'],
+				'Label'=>$object['label'],
+				'Barcode'=>$object['barcode'],
+				'objtype_id'=>$object['objtype_id'],
+				'Asset No'=>$object['asset_no'],
+				'Has problems'=>$object['has_problems'],
+				'Comment'=>$object['comment']
+			));
+			break;
+		case 'Port':
+			return displayObjectPropertiesForHistory(array(
+				'Name'=>$object['name'],
+				'port_type'=>$object['type'],
+				'l2address'=>$object['l2address'],
+				'Comment'=>$object['reservation_comment'],
+				'Label'=>$object['label']
+			));
+			break;
+		case 'Link':
+			return displayObjectPropertiesForHistory(array(
+				'port_id'=>$object['porta'],
+				'port_id'=>$object['portb']
+			));
+			break;
+		case 'IPv4Address':
+			return displayObjectPropertiesForHistory(array(
+				'IP'=>$object['ip'],
+				'Name'=>$object['name'],
+				'Reserved'=>$object['reserved']
+			));
+			break;
+		case 'IPv4Allocation':
+			return displayObjectPropertiesForHistory(array(
+				'IP'=>$object['ip'],
+				'Name'=>$object['name'],
+				'allocation_type'=>$object['type']
+			));
+			break;
+		case 'IPv4NAT':
+			return displayObjectPropertiesForHistory(array(
+				'Proto'=>$object['proto'],
+				'Local IP'=>$object['localip'],
+				'Local port'=>$object['localport'],
+				'Remote IP'=>$object['remoteip'],
+				'Remote port'=>$object['remoteport'],
+				'Description'=>$object['description']
+			));
+			break;
+		case 'IPv4Network':
+			return displayObjectPropertiesForHistory(array(
+				'IP'=>$object['ip'],
+				'Mask'=>$object['mask'],
+				'Name'=>$object['name']
+			));
+			break;
+		case 'Attribute':
+			return displayObjectPropertiesForHistory(array(
+				'Name'=>$object['name'],
+				'attribute_type'=>$object['type']
+			));
+			break;
+		case 'AttributeMap':
+			return displayObjectPropertiesForHistory(array(
+				'objtype_id'=>$object['objtype_id'],
+				'attr_id'=>$object['attr_id'],
+				'chapter_id'=>$object['chapter_id']
+			));
+			break;
+		case 'AttributeValue':
+			return displayObjectPropertiesForHistory(array(
+				'attr_id'=>$object['attr_id'],
+				'Value'=>$object['string_value'].$object['uint_value'].$object['float_value']
+			));
+			break;
+		case 'Dictionary':
+			return displayObjectPropertiesForHistory(array(
+				'chapter_id'=>$object['chapter_id'],
+				'Value'=>$object['dict_value']
+			));
+			break;
+		case 'Chapter':
+			return displayObjectPropertiesForHistory(array(
+				'Name'=>$object['name']
+			));
+			break;
+		case 'IPv4LB':
+			return displayObjectPropertiesForHistory(array(
+				'object_id'=>$object['object_id'],
+				'rspool_id'=>$object['rspool_id'],
+				'vs_id'=>$object['vs_id'],
+				'VSConfig'=>$object['vsconfig'],
+				'RSConfig'=>$object['rsconfig']
+			));
+			break;
+		case 'IPv4RS':
+			return displayObjectPropertiesForHistory(array(
+				'rspool_id'=>$object['rspool_id'],
+				'In service'=>$object['inservice'],
+				'RSIP'=>$object['rsip'],
+				'RSPort'=>$object['rsport'],
+				'RSConfig'=>$object['rsconfig']
+			));
+			break;
+		case 'IPv4RSPool':
+			return displayObjectPropertiesForHistory(array(
+				'Name'=>$object['name'],
+				'VSConfig'=>$object['vsconfig'],
+				'RSConfig'=>$object['rsconfig']
+			));
+			break;
+		case 'IPv4VS':
+			return displayObjectPropertiesForHistory(array(
+				'VIP'=>$object['vip'],
+				'VPort'=>$object['vport'],
+				'Proto'=>$object['proto'],
+				'Name'=>$object['name'],
+				'VSConfig'=>$object['vsconfig'],
+				'RSConfig'=>$object['rsconfig']
+			));
+			break;
+		case 'TagStorage':
+			return displayObjectPropertiesForHistory(array(
+				'tag_id'=>$object['tag_id']
+			));
+			break;
+		case 'TagTree':
+			return displayObjectPropertiesForHistory(array(
+				'tag_parent_id'=>$object['parent_id'],
+				'Realm'=>$object['valid_realm'],
+				'Tag'=>$object['tag']
+			));
+			break;
+		case 'FileLink':
+			return displayObjectPropertiesForHistory(array(
+			));
+			break;
+		case 'File':
+			return displayObjectPropertiesForHistory(array(
+				'Name'=>$object['name'],
+				'Type'=>$object['type'],
+				'Size'=>$object['size'],
+				'Comment'=>$object['comment']
+			));
+			break;
+		default:
+			throw new Exception("Unknown table type $table");
+	}
+}
+
 function renderMainHistory()
 {
+	global $revision;
 	$start_rev = 0;
+	$end_rev = $revision;
 	if (isset($_REQUEST['start_rev']))
-		$start_rev = 0;
+		$start_rev = $_REQUEST['start_rev'];
+	if (isset($_REQUEST['end_rev']))
+		$end_rev = $_REQUEST['end_rev'];
+	if ($end_rev < $start_rev)
+		$end_rev = $start_rev;
 	list($start_op, $start_op_rev) = Operation::getCorrespondingOperation($start_rev);
+	list($end_op, $end_op_rev) = Operation::getCorrespondingOperation($end_rev);
 
-	echo "Showing history starting from operation $start_op";
+	startPortlet("History since operation $start_op to operation $end_op");
+
+	$operations = Operation::getOperationsSince(0);
+	echo '<div id="HistoryOperations"><ul>';
+	foreach (makeMainHistory($start_op_rev, $end_op_rev) as $op)
+	{
+		echo "<li>Operation ${op['id']} (${op['hr_timestamp']}) by ${op['user_name']}<ul>";
+		foreach($op['records'] as $record)
+		{
+			echo '<li><a href="'.makeHref(array_merge(getPageForObject($record['table'], $record['id'], $op['rev']), array('r'=>$op['rev']))).'">'.$record['table'].'#'.$record['id'].'</a> ';
+			echo displayObjectForHistory($record);
+			echo '</li>';
+		}
+		echo "</ul></li>";
+	}
+	echo '</ul></div>';
+	echo "<table id=\"HistoryOperationsSelector\"><tr><td>From operation: <select name=\"start_rev\">";
+	foreach ($operations as $op)
+		if ($start_op == $op['id']) 
+			echo '<option selected value="'.$op['rev'].'">'.$op['id'].'</option>';
+		else
+			echo '<option value="'.$op['rev'].'">'.$op['id'].'</option>';
+	echo "</select></td><td>To operation: <select name=\"end_rev\">";
+	foreach ($operations as $op)
+		if ($end_op == $op['id']) 
+			echo '<option selected value="'.$op['rev'].'">'.$op['id'].'</option>';
+		else
+			echo '<option value="'.$op['rev'].'">'.$op['id'].'</option>';
+	echo "</select></td></tr></table>";
+	finishPortlet();
 }
 
 ?>

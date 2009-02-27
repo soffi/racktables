@@ -24,7 +24,7 @@ class Operation {
 
 	public function getOperationsSince($rev)
 	{
-		$q = Database::getDBLink()->prepare("select operation.id as id, operation.rev as rev from operation where rev > ?");
+		$q = Database::getDBLink()->prepare("select operation.id as id, operation.rev as rev, unix_timestamp(revision.timestamp) as timestamp, UserAccount.user_name as user_name from operation join revision on operation.rev = revision.id left join UserAccount on operation.user_id = UserAccount.user_id where operation.rev > ?");
 		$q->bindValue(1, $rev);
 		$q->execute();
 		$result = $q->fetchAll();
@@ -57,6 +57,19 @@ class Operation {
 			return null;
 	}
 
+	public function getOperation($op)
+	{
+		$result = Database::getDBLink()->query("select id, rev, user_id from operation where id = $op");
+		if ($row = $result->fetch())
+		{
+			$result->closeCursor();
+			return $row;
+		}
+		else
+			return null;
+	}
+
+
 	public function getSupOperation($rev)
 	{
 		$result = Database::getDBLink()->query("select operation.id as id, operation.rev as rev from operation join (select min(rev) as rev from operation where rev > $rev) as o on operation.rev = o.rev ");
@@ -75,7 +88,7 @@ class Operation {
 
 	public function getCorrespondingOperation($rev)
 	{
-		if ($rev == 'head')
+		if ($rev === 'head')
 			return self::getHeadOperation();;
 		$op = self::getOperationId($rev);
 		if (is_null($op))
@@ -131,6 +144,26 @@ class Operation {
 		}
 		
 		return $output; 
+	}
+
+	public function getRevisionsForOperation($op)
+	{
+		$operation = self::getOperation($op);
+		if (!isset($operation))
+			throw new Exception("Can't find operation $op");
+		$revision = $operation[1];
+		if ($op == 0)
+		{
+			$prev_revision = -1;
+		}
+		else
+		{
+			$prev_operation = self::getOperation($op - 1);
+			$prev_revision = $prev_operation[1];
+		}
+
+		$ret = Database::getMainHistory($prev_revision, $revision);
+		return $ret;
 	}
 
 	public function finalize()
