@@ -3155,7 +3155,7 @@ function getLostIPv4Addresses ()
 // File-related functions
 function getAllFiles ()
 {
-	$query = "SELECT id, name, type, size, ctime, mtime, atime, comment FROM File ORDER BY name";
+	$query = "SELECT id, name, type, size, atime, comment FROM File ORDER BY name";
 	$result = Database::query ($query);
 	$ret=array();
 	$count=0;
@@ -3165,8 +3165,8 @@ function getAllFiles ()
 		$ret[$count]['name'] = $row['name'];
 		$ret[$count]['type'] = $row['type'];
 		$ret[$count]['size'] = $row['size'];
-		$ret[$count]['ctime'] = $row['ctime'];
-		$ret[$count]['mtime'] = $row['mtime'];
+		$ret[$count]['ctime'] = 0;
+		$ret[$count]['mtime'] = 0;
 		$ret[$count]['atime'] = $row['atime'];
 		$ret[$count]['comment'] = $row['comment'];
 		$count++;
@@ -3290,15 +3290,15 @@ function getFileInfo ($file_id = 0)
 	if ($file_id == 0)
 		throw new Exception ('Invalid file_id');
 	Database::inLifetime('File', $file_id);
-	$query = Database::query('SELECT id, name, type, size, ctime, mtime, atime, comment FROM File WHERE id = ?', array(1=>$file_id));
+	$query = Database::query('SELECT id, name, type, size, atime, comment FROM File WHERE id = ?', array(1=>$file_id));
 	$row = $query->fetch (PDO::FETCH_ASSOC);
 	$ret = array();
 	$ret['id'] = $row['id'];
 	$ret['name'] = $row['name'];
 	$ret['type'] = $row['type'];
 	$ret['size'] = $row['size'];
-	$ret['ctime'] = $row['ctime'];
-	$ret['mtime'] = $row['mtime'];
+	$ret['ctime'] = 0;
+	$ret['mtime'] = 0;
 	$ret['atime'] = $row['atime'];
 	$ret['comment'] = $row['comment'];
 	Database::closeCursor($query);
