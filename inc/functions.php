@@ -1835,7 +1835,20 @@ function makeHref($params = array())
 	{
 		if (!$first)
 			$ret.='&';
-		$ret .= urlencode($key).'='.urlencode($value);
+		if (gettype($value) = 'array')
+		{
+			foreach($value as $v)
+			{
+				if (!$first)
+					$ret.='&';
+				$first = false;
+				$ret .= urlencode($key.'[]').'='.urlencode($v);
+			}
+		}
+		else
+		{
+			$ret .= urlencode($key).'='.urlencode($value);
+		}
 		$first = false;
 	}
 	return $ret;
