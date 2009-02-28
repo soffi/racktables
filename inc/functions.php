@@ -1835,7 +1835,7 @@ function makeHref($params = array())
 	{
 		if (!$first)
 			$ret.='&';
-		if (gettype($value) = 'array')
+		if (gettype($value) == 'array')
 		{
 			foreach($value as $v)
 			{
