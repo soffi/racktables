@@ -59,11 +59,6 @@ public static $database_meta = array (
 				'revisioned' => true,
 				'type' => "text",
 				'null' => true
-			),
-			'thumb_data' => array (
-				'revisioned' => false,
-				'type' => "blob",
-				'null' => true
 			)
 		),
 		'constraints' => array(

@@ -629,8 +629,10 @@ $tabhandler['reports']['local'] = 'renderLocalReports';
 $page['history']['title'] = 'History';
 $page['history']['parent'] = 'index';
 $tab['history']['default'] = 'View';
-$tabrev['history'] = array('default');
+$tab['history']['milestones'] = 'Milestones';
+$tabrev['history'] = array('default', 'milestones');
 $tabhandler['history']['default'] = 'renderMainHistory';
+$tabhandler['history']['milestones'] = 'renderMilestonesHistory';
 
 
 $page['files']['title'] = 'Files';

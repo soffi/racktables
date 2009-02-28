@@ -624,7 +624,6 @@ function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_
 	}
 	if ($rackchanged)
 	{
-		resetThumbCache ($rack_id);
 		return array ('code' => 200, 'message' => "${rack_name}: All changes were successfully saved.");
 	}
 	else
@@ -2476,33 +2475,24 @@ function getRSPoolList ($tagfilter = array(), $tfmode = 'any')
 
 function loadThumbCache ($rack_id = 0)
 {
+	global $revision;
 	$ret = NULL;
-	$query = "select thumb_data from Rack where id = ${rack_id} and thumb_data is not null limit 1";
+	$query = "select data from Registry where id = 'rackThumb_${rack_id}_${revision}'";
 	$result = Database::query ($query);
 	$row = $result->fetch (PDO::FETCH_ASSOC);
 	if ($row)
-		$ret = base64_decode ($row['thumb_data']);
+		$ret = base64_decode ($row['data']);
 	Database::closeCursor($result);
 	return $ret;
 }
 
 function saveThumbCache ($rack_id = 0, $cache = NULL)
 {
+	global $revision;
 	if ($rack_id == 0 or $cache == NULL)
 		throw new Exception ('Invalid arguments');
 	$data = base64_encode ($cache);
-	Database::update(array('thumb_data'=>$data), 'Rack', $rack_id);
-}
-
-function resetThumbCache ($rack_id = 0)
-{
-	global $dbxlink;
-	if ($rack_id == 0)
-	{
-		showError ('Invalid argument', __FUNCTION__);
-		return;
-	}
-	Database::update(array('thumb_data'=>NULL), 'Rack', $rack_id);
+	Database::update(array('data'=>$data), 'Registry', "rackThumb_${rack_id}_${revision}");
 }
 
 // Return the list of attached RS pools for the given object. As long as we have

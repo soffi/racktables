@@ -258,6 +258,7 @@ function renderIndex ()
 
 function renderRackspace ()
 {
+	global $revision;
 	$tagfilter = getTagFilter();
 	$tagfilter_str = getTagFilterStr ($tagfilter);
 	showMessageOrError();
@@ -283,7 +284,7 @@ function renderRackspace ()
 			echo "<img border=0 width=${rackwidth} height=";
 			echo getRackImageHeight ($rack['height']);
 			echo " title='${rack['height']} units'";
-			echo "src='render_image.php?img=minirack&rack_id=${rack['id']}'>";
+			echo "src='render_image.php?img=minirack&rack_id=${rack['id']}&r=${revision}'>";
 			echo "<br>${rack['name']}</a></td>";
 		}
 		echo "</tr></table></tr>\n";
@@ -332,6 +333,7 @@ function renderRackspaceRowEditor ()
 
 function renderRow ($row_id = 0)
 {
+	global $revision;
 	if ($row_id == 0)
 	{
 		showError ('Invalid row_id', __FUNCTION__);
@@ -371,7 +373,7 @@ function renderRow ($row_id = 0)
 		echo "<td align=center class=row_${order}><a href='".makeHref(array('page'=>'rack', 'rack_id'=>$rack['id']))."'>";
 		echo "<img border=0 width=${rackwidth} height=" . (getRackImageHeight ($rack['height']) * getConfigVar ('ROW_SCALE'));
 		echo " title='${rack['height']} units'";
-		echo "src='render_image.php?img=minirack&rack_id=${rack['id']}'>";
+		echo "src='render_image.php?img=minirack&rack_id=${rack['id']}&r=${revision}'>";
 		echo "<br>${rack['name']}</a></td>";
 		$order = $nextorder[$order];
 	}
@@ -6098,6 +6100,10 @@ function displayObjectPropertiesForHistory($props, $rev)
 				$name = 'Rack Row';
 				$value = '<a href="'.makeHref(array_merge(getPageForObject('RackRow', $value, $rev), array('r'=>$rev))).'">'.Database::get('name', 'RackRow', $value, $rev).'</a>';
 			}
+			elseif ($name == 'IP')
+			{
+				$value = ip_long2quad($value);
+			}
 			if (!$first)
 				$ret .= ', ';
 			$first = false;
@@ -6351,5 +6357,14 @@ ENDJAVASCRIPT;
 	echo '</ul></div>';
 	finishPortlet();
 }
+
+function renderMilestonesHistory()
+{
+	global $revision, $numeric_revision;
+	startPortlet("Milestones");
+	finishPortlet();
+}
+
+
 
 ?>

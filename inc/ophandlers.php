@@ -772,10 +772,6 @@ function updateObject ()
 	if (in_array (FALSE, $result))
 		return buildRedirectURL (__FUNCTION__, 'ERR');
 
-	// Invalidate thumb cache of all racks objects could occupy.
-	foreach (getResidentRacksData ($_REQUEST['object_id'], FALSE) as $rack_id)
-		resetThumbCache ($rack_id);
-
 	return buildRedirectURL (__FUNCTION__, 'OK');
 }
 
@@ -1552,7 +1548,6 @@ function deleteRack ()
 	}
 	if (count ($rackData['mountedObjects']) == 0)
 	{
-		resetThumbCache ($rack_id);
 		if (TRUE === commitDeleteRack ($rack_id))
 			return buildRedirectURL (__FUNCTION__, 'OK', array ($rackData['name']), 'rackspace', 'default');
 		else
@@ -1572,7 +1567,6 @@ function updateRack ()
 	assertStringArg ('rack_name', __FUNCTION__);
 	assertStringArg ('rack_comment', __FUNCTION__, TRUE);
 
-	resetThumbCache ($_REQUEST['rack_id']);
 	if (TRUE === commitUpdateRack ($_REQUEST['rack_id'], $_REQUEST['rack_name'], $_REQUEST['rack_height'], $_REQUEST['rack_row_id'], $_REQUEST['rack_comment']))
 		return buildRedirectURL (__FUNCTION__, 'OK', array ($_REQUEST['rack_name']));
 	else

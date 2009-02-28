@@ -42,7 +42,8 @@ CREATE TABLE `revision` (
 CREATE TABLE `milestone` (
   `id` int(10) unsigned NOT NULL,
   `rev` bigint(20) unsigned NOT NULL,
-  `user_id` int(10) unsigned NOT NULL
+  `user_id` int(10) unsigned NOT NULL,
+  `comment` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `operation` (
@@ -76,7 +77,6 @@ CREATE TABLE RackSpace__r (
 
 CREATE TABLE Rack (
 	id int unsigned not null,
-	thumb_data blob ,
 	key(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
