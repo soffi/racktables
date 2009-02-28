@@ -633,7 +633,8 @@ $tab['history']['milestones'] = 'Milestones';
 $tabrev['history'] = array('default', 'milestones');
 $tabhandler['history']['default'] = 'renderMainHistory';
 $tabhandler['history']['milestones'] = 'renderMilestonesHistory';
-
+$ophandler['history']['milestones']['add_new_milestone'] = 'addNewMilestone';
+$msgcode['addNewMilestone']['OK'] = 80;
 
 $page['files']['title'] = 'Files';
 $page['files']['parent'] = 'index';

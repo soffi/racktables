@@ -1732,4 +1732,11 @@ function updateFileText ()
 	return buildRedirectURL (__FUNCTION__, 'ERR', array ($error));
 }
 
+function addNewMilestone ()
+{
+	assertUIntArg ('rev', __FUNCTION__);
+	assertStringArg ('comment', __FUNCTION__, TRUE);
+	Milestone::setMilestone($_REQUEST['rev'], $_REQUEST['comment']);
+	return buildRedirectURL (__FUNCTION__, 'OK');
+}
 ?>

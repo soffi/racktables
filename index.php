@@ -70,18 +70,18 @@ else
         echo '<img src="pix/tango-prev-mile-dis.png" alt="Previous milestone" title="Previous milestone">';
 
 if ($prev_op['rev'] >= 0)
-        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$prev_op['rev']))).'"><img src="pix/tango-prev-rev.png" alt="Previous revision" title="Previous revision"></a>';
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$prev_op['rev']))).'"><img src="pix/tango-prev-rev.png" alt="Previous operation" title="Previous operation"></a>';
 else
-        echo '<img src="pix/tango-prev-rev-dis.png" alt="Previous revision" title="Previous revision">';
+        echo '<img src="pix/tango-prev-rev-dis.png" alt="Previous operation" title="Previous operation">';
 if ($numeric_revision == $head_revision)
         echo '<input type="text" id="revisionInput" value="'.$this_op.'" disabled="disabled" class="headed"> ';
 else
         echo '<input type="text" id="revisionInput" value="'.$this_op.'" disabled="disabled"> ';
 echo '<input type="text" id="mileInput" value="'.$this_milestone.'" disabled="disabled">';
 if (isset($next_op['rev']) and $next_op['rev'] <= $head_op_rev)
-        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$next_op['rev']))).'"><img src="pix/tango-next-rev.png" alt="Next revision" title="Next revision"></a>';
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$next_op['rev']))).'"><img src="pix/tango-next-rev.png" alt="Next operation" title="Next operation"></a>';
 else
-        echo '<img src="pix/tango-next-rev-dis.png" alt="Next revision" title="Next revision">';
+        echo '<img src="pix/tango-next-rev-dis.png" alt="Next operation" title="Next operation">';
 if ($next_milestone != null)
         echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$next_milestone['rev']))).'"><img src="pix/tango-next-mile.png" alt="Next milestone" title="Next milestone"></a>';
 else

@@ -1441,6 +1441,7 @@ function printLog ($log)
 				77 => array ('code' => 'success', 'format' => 'Row %s was deleted successfully'),
 				78 => array ('code' => 'success', 'format' => 'File %s saved Ok'),
 				79 => array ('code' => 'success', 'format' => 'Rack %s was deleted successfully'),
+				80 => array ('code' => 'success', 'format' => 'Milestone was set successfully'),
 
 // records 100~199 with fatal error messages
 				100 => array ('code' => 'error', 'format' => 'Generic error: %s'),
@@ -6360,8 +6361,35 @@ ENDJAVASCRIPT;
 
 function renderMilestonesHistory()
 {
-	global $revision, $numeric_revision;
+	showMessageOrError();
+	global $revision, $numeric_revision, $head_revision, $head_milestone_rev, $head_op_rev, $this_op;
+	if ($numeric_revision == $head_revision)
+	{
+		if ($head_milestone_rev < $head_op_rev)
+		{
+			startPortlet("Set a new milestone");
+			echo "<form method=post name='add_new_milestone' action='".makeHrefProcess()."'>\n";
+			echo "<input type=hidden name=op value=\"add_new_milestone\">\n";
+			echo "<input type=hidden name=rev value=\"$numeric_revision\">\n";
+			echo "<h2>Revision: $numeric_revision Operation: $this_op</h2>";
+			echo "<h3>Add a comment:</h3><textarea name=\"comment\" style=\"width: 300px; height: 100px;\"></textarea><br><br>";
+			echo "<input type=\"submit\" value=\"Set a new milestone\">";
+			echo "</form>";
+			finishPortlet();
+		}
+	}
+	$milestones = Milestone::getMilestonesSince(0);
 	startPortlet("Milestones");
+	echo '<div id="HistoryMilestones"><ul>';
+	$prev_revision = 1;
+	foreach($milestones as $ms)
+	{
+		$ms['hr_timestamp'] = date('d/m/Y H:i:s', $ms['timestamp']);
+		echo '<li>Milestone#'.$ms['id'].' ('.$ms['hr_timestamp'].') by '.$ms['user_name'].' <a href="'.
+		makeHref(array('page'=>'history', 'start_rev'=>$prev_revision, 'end_rev'=>$ms['rev'])).
+		'">Changes</a><div class="milestoneComment">'.str_replace("\n", '<br>', $ms['comment']).'</div></li>';
+	}
+	echo '</ul></div>';
 	finishPortlet();
 }
 

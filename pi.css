@@ -619,3 +619,13 @@ div.tagselector {
 #HistoryOperations {
 	text-align: left;
 }
+
+#HistoryMilestones {
+	text-align: left;
+}
+
+.milestoneComment {
+	border-left: 1px solid #3c78b5;
+	padding-left: 5px;
+	font-style: italic;
+}

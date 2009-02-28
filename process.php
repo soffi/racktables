@@ -29,6 +29,7 @@ try {
 	{
 		Operation::init();
 		Operation::setUser($accounts[$remote_username]['user_id']);
+		Milestone::setUser($accounts[$remote_username]['user_id']);
 		$location = $ophandler[$pageno][$tabno][$op]();
 		Operation::finalize();
 		if (empty ($location))
