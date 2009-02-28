@@ -88,12 +88,23 @@ else
         echo '<img src="pix/tango-next-mile-dis.png" alt="Next milestone" title="Next milestone">';
 
         echo '<span id="milestone">';
+	echo <<< ENDJAVASCRIPT
+<script type="text/javascript"><!--
+function showToolTip(id)
+{
+	$('#'+id)[0].style.visibility = 'visible';
+}
+//--></script>
+ENDJAVASCRIPT;
+
         if ($numeric_revision == $head_revision)
         {
                 if ($head_milestone_rev < $head_op_rev)
                 {
 			$num_operations = count(Operation::getOperationsSince($head_milestone_rev));
-                        echo "<input id=\"numOperations\" disabled=\"disabled\" title=\"$num_operations changes since MS $head_milestone\" value=\"$num_operations\"> <button onclick=\"${root}milestone.php?r=$head_revision\">Register milestone</button>";
+                        echo "<input type=\"button\" id=\"numOperations\" title=\"$num_operations changes since MS $head_milestone\" value=\"$num_operations\" onclick=\"document.location.href='".
+			makeHref(array('page'=>'history','start_rev'=>$head_milestone_rev+1)).
+			"'\">";
                 }
         }
 	else

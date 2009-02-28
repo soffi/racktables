@@ -608,9 +608,8 @@ div.tagselector {
 	border: 1px solid black;
 	color: black;
 	background-color: white;
-	width: 20px;
 	text-align: center;
-	cursor: default;
+	cursor: pointer;
 }
 
 #HistoryOperationsSelector {
