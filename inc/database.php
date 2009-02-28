@@ -722,7 +722,24 @@ function getHistoryForObject($object_type, $id=NULL)
 			Database::setRevision($rev);
 		}
 	}
-
+	elseif ($object_type == 'ipv4net')
+	{
+		$result = Database::getHistory('IPv4Network', $id);
+		$history = $result->fetchAll();
+		Database::closeCursor($result);
+	}
+	elseif ($object_type == 'ipaddress')
+	{
+		$result = Database::getHistory('IPv4Address', $id);
+		$history = $result->fetchAll();
+		Database::closeCursor($result);
+	}
+	elseif ($object_type == 'file')
+	{
+		$result = Database::getHistory('File', $id);
+		$history = $result->fetchAll();
+		Database::closeCursor($result);
+	}
 	else
 	{
 		throw new Exception ("Unknown object type '${object_type}'");
@@ -1213,6 +1230,14 @@ function getIPv4Address ($dottedquad = '')
 		return constructIPv4Address ($dottedquad);
 	markupIPv4AddrList ($scanres);
 	return $scanres[$i32];
+}
+
+function getIPv4AddressInfo($dottedquad = '')
+{
+	$result = Database::query("select id, INET_NTOA(ip) as ip, name, reserved from IPv4Address where ip = INET_ATON( ? )", array(1=>$dottedquad));
+	$row = $result->fetch();
+	Database::closeCursor($result);
+	return $row;
 }
 
 function bindIpToObject ($ip = '', $object_id = 0, $name = '', $type = '')

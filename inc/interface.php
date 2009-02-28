@@ -616,11 +616,6 @@ function renderEditObjectForm ($object_id)
 	echo "</form></th></tr></table>\n";
 	finishPortlet();
 
-	echo '<table border=0 width=100%><tr><td>';
-	startPortlet ('history');
-	renderHistory ($pageno, $object_id);
-	finishPortlet();
-	echo '</td></tr></table>';
 }
 
 // This is a clone of renderEditObjectForm().
@@ -654,10 +649,6 @@ function renderEditRackForm ($rack_id)
 	printImageHREF ('SAVE', 'Save changes', TRUE);
 	echo "</td></tr>\n";
 	echo '</form></table><br>';
-	finishPortlet();
-	
-	startPortlet ('History');
-	renderHistory ($pageno, $rack_id);
 	finishPortlet();
 }
 
@@ -1973,8 +1964,25 @@ function renderHistory ($object_type, $object_id)
 				'comment'=>'Comment'
 			);
 			break;
+		case 'ipv4net':
+			$fields = array(
+				'name'=>'Name'
+			);
+			break;
+		case 'ipaddress':
+			$fields = array(
+				'name'=>'Name',
+				'reserved'=>'Reserved'
+			);
+			break;
+		case 'file':
+			$fields = array(
+				'size'=>'Size',
+				'comment'=>'Comment'
+			);
+			break;
 		default:
-			throw new Eception ("Uknown object type '${object_type}'");
+			throw new Exception ("Uknown object type '${object_type}'");
 	}
 	$history = getHistoryForObject($object_type, $object_id);
 	echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
@@ -6303,7 +6311,6 @@ function renderMainHistory()
 	$start_rev = max(1, $end_rev - 20);
 	if (isset($_REQUEST['start_rev']) and !empty($_REQUEST['start_rev']))
 		$start_rev = $_REQUEST['start_rev'];
-	error_log($_REQUEST['start_rev']);
 	if ($end_rev < $start_rev)
 		$end_rev = $start_rev;
 	list($start_op, $start_op_rev) = Operation::getSubOperation($start_rev);
@@ -6393,6 +6400,31 @@ function renderMilestonesHistory()
 	finishPortlet();
 }
 
+function renderHistoryForAnything()
+{
+	global $pageno;
+	$id = NULL;
+	if ($pageno == 'rack')
+		$id = $_REQUEST['rack_id'];
+	elseif ($pageno == 'row')
+		$id = $_REQUEST['row_id'];
+	elseif ($pageno == 'object')
+		$id = $_REQUEST['object_id'];
+	elseif ($pageno == 'ipv4net')
+		$id = $_REQUEST['id'];
+	elseif ($pageno == 'ipaddress')
+	{
+		$ip = getIPv4AddressInfo($_REQUEST['ip']);
+		if (isset($ip))
+			$id = $ip['id'];
+	}
+	elseif ($pageno == 'file')
+		$id = $_REQUEST['file_id'];
+	
+	startPortlet ('History');
+	renderHistory ($pageno, $id);
+	finishPortlet();
 
+}
 
 ?>
