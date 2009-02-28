@@ -199,7 +199,7 @@ function getObjectList ($type_id = 0, $tagfilter = array(), $tfmode = 'any')
 	if ($type_id != 0)
 	{
 		if ($whereclause != '')
-			$whereclause = ' and ';
+			$whereclause .= ' and ';
 		$whereclause .= 'objtype_id = ? ';
 		$wherevalues[$wherenum] = $type_id;
 		$wherenum++;

@@ -357,7 +357,7 @@ class Database {
 
 	private static $debugLevel = 0;
 	private static $debugTable = 'Rack';
-	private static $debugLongQueries = 0.1;
+	private static $debugLongQueries = 0;
 
 
 
@@ -1100,7 +1100,7 @@ class Database {
 				if (self::$debugLongQueries>0 and ($t2-$t1)>self::$debugLongQueries)
 					error_log("Long query '$query' took ".($t2-$t1)." seconds");
 			} catch (Exception $e) {
-				throw new Exception ($e->getMessage()." Computed query: ".$query, $e->getCode());
+				throw new Exception ($e->getMessage()." Computed query: ".$query);
 			}
 			return $q;
 		}
