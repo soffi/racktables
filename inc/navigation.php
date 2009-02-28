@@ -907,7 +907,7 @@ function getPageForObject($table, $id, $rev)
 			break;
 		case 'TagStorage':
 			$realm = Database::get('entity_realm', 'TagStorage', $id, $rev);
-			$id = Database::get('id', 'TagStorage', $id, $rev);
+			$id = Database::get('entity_id', 'TagStorage', $id, $rev);
 			if ($realm == 'file')
 				return getPageForObject('File', $id, $rev);
 			elseif ($realm == 'ipv4net')
