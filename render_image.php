@@ -1,37 +1,47 @@
 <?php
+require_once 'inc/exception.php';
+ob_start();
+try {
 
-require 'inc/init.php';
+	require 'inc/init.php';
 
-assertStringArg ('img', __FILE__);
-switch ($_REQUEST['img'])
+	assertStringArg ('img', __FILE__);
+	switch ($_REQUEST['img'])
+	{
+		case 'minirack': // rack security context
+			assertUIntArg ('rack_id', __FILE__);
+			$pageno = 'rack';
+			$tabno = 'default';
+			fixContext();
+			if (!permitted())
+				renderAccessDeniedImage();
+			else
+				renderRackThumb ($_REQUEST['rack_id']);
+			break;
+		case 'progressbar': // no security context
+			assertUIntArg ('done', __FILE__, TRUE);
+			renderProgressBarImage ($_REQUEST['done']);
+			break;
+		case 'view': // file security context
+		case 'preview':
+			assertUIntArg ('file_id', __FILE__);
+			$pageno = 'file';
+			$tabno = 'default';
+			fixContext();
+			if (!permitted())
+				renderAccessDeniedImage();
+			else
+				renderFilePreview ($_REQUEST['file_id']);
+			break;
+		default:
+			renderError();
+	}
+	ob_end_flush();
+}
+catch (Exception $e)
 {
-	case 'minirack': // rack security context
-		assertUIntArg ('rack_id', __FILE__);
-		$pageno = 'rack';
-		$tabno = 'default';
-		fixContext();
-		if (!permitted())
-			renderAccessDeniedImage();
-		else
-			renderRackThumb ($_REQUEST['rack_id']);
-		break;
-	case 'progressbar': // no security context
-		assertUIntArg ('done', __FILE__, TRUE);
-		renderProgressBarImage ($_REQUEST['done']);
-		break;
-	case 'view': // file security context
-	case 'preview':
-		assertUIntArg ('file_id', __FILE__);
-		$pageno = 'file';
-		$tabno = 'default';
-		fixContext();
-		if (!permitted())
-			renderAccessDeniedImage();
-		else
-			renderFilePreview ($_REQUEST['file_id']);
-		break;
-	default:
-		renderError();
+	ob_end_clean();
+	printException($e);
 }
 
 //------------------------------------------------------------------------

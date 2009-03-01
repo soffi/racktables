@@ -2517,7 +2517,12 @@ function saveThumbCache ($rack_id = 0, $cache = NULL)
 	if ($rack_id == 0 or $cache == NULL)
 		throw new Exception ('Invalid arguments');
 	$data = base64_encode ($cache);
-	Database::update(array('data'=>$data), 'Registry', "rackThumb_${rack_id}_${revision}");
+	$result = Database::query ("select count(*) from Registry where id='rackThumb_${rack_id}_${revision}'");
+	$row = $result->fetch ();
+	if (isset($row[0]) and $row[0] > 0)
+		Database::update(array('data'=>$data), 'Registry', "rackThumb_${rack_id}_${revision}");
+	else
+		Database::insert(array('data'=>$data, 'id'=>"rackThumb_${rack_id}_${revision}"), 'Registry');
 }
 
 // Return the list of attached RS pools for the given object. As long as we have
