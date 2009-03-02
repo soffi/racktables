@@ -244,10 +244,10 @@ function addMultiPorts ()
 	$object_id = $_REQUEST['object_id'];
 	// Input lines are escaped, so we have to explode and to chop by 2-char
 	// \n and \r respectively.
-	$lines1 = explode ('\n', $_REQUEST['input']);
+	$lines1 = explode ("\n", $_REQUEST['input']);
 	foreach ($lines1 as $line)
 	{
-		$parts = explode ('\r', $line);
+		$parts = explode ("\r", $line);
 		reset ($parts);
 		if (empty ($parts[0]))
 			continue;
@@ -706,7 +706,9 @@ function updateObjectAllocation ()
 
 function updateObject ()
 {
-	assertUIntArg ('num_attrs', __FUNCTION__);
+	if (!isset($_REQUEST['num_attrs']))
+		$_REQUEST['num_attrs'] = 0;
+	assertUIntArg ('num_attrs', __FUNCTION__, TRUE);
 	assertUIntArg ('object_id', __FUNCTION__);
 	assertUIntArg ('object_type_id', __FUNCTION__);
 	assertStringArg ('object_name', __FUNCTION__, TRUE);

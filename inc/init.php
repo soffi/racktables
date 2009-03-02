@@ -192,7 +192,6 @@ else
         $numeric_revision = $head_revision;
         $editable = true;
 }
-
 require_once 'inc/navigation.php';
 
 
@@ -217,7 +216,7 @@ if (basename($_SERVER['PHP_SELF']) == 'index.php')
 
 
 
-Database::setRevision($revision);
+Database::setRevision($numeric_revision);
 
 list($head_milestone, $head_milestone_rev) = Milestone::getHeadMilestone();
 $prev_revision = $numeric_revision-1;

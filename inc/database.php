@@ -2500,9 +2500,9 @@ function getRSPoolList ($tagfilter = array(), $tfmode = 'any')
 
 function loadThumbCache ($rack_id = 0)
 {
-	global $revision;
+	global $numeric_revision;
 	$ret = NULL;
-	$query = "select data from Registry where id = 'rackThumb_${rack_id}_${revision}'";
+	$query = "select data from Registry where id = 'rackThumb_${rack_id}_${numeric_revision}'";
 	$result = Database::query ($query);
 	$row = $result->fetch (PDO::FETCH_ASSOC);
 	if ($row)
@@ -2513,16 +2513,16 @@ function loadThumbCache ($rack_id = 0)
 
 function saveThumbCache ($rack_id = 0, $cache = NULL)
 {
-	global $revision;
+	global $numeric_revision;
 	if ($rack_id == 0 or $cache == NULL)
 		throw new Exception ('Invalid arguments');
 	$data = base64_encode ($cache);
-	$result = Database::query ("select count(*) from Registry where id='rackThumb_${rack_id}_${revision}'");
+	$result = Database::query ("select count(*) from Registry where id='rackThumb_${rack_id}_${numeric_revision}'");
 	$row = $result->fetch ();
 	if (isset($row[0]) and $row[0] > 0)
-		Database::update(array('data'=>$data), 'Registry', "rackThumb_${rack_id}_${revision}");
+		Database::update(array('data'=>$data), 'Registry', "rackThumb_${rack_id}_${numeric_revision}");
 	else
-		Database::insert(array('data'=>$data, 'id'=>"rackThumb_${rack_id}_${revision}"), 'Registry');
+		Database::insert(array('data'=>$data, 'id'=>"rackThumb_${rack_id}_${numeric_revision}"), 'Registry');
 }
 
 // Return the list of attached RS pools for the given object. As long as we have
@@ -3534,8 +3534,11 @@ function makeMainHistory($start_rev, $end_rev)
 	list($byTable, $mainHistory) = Database::getMainHistory($start_rev, $end_rev);
 	$rev_found_so_far = array();
 	$prev_cache = array();
-	foreach($mainHistory as $revision=>$records)
+	for ($revision = $start_rev; $revision <= $end_rev; $revision++)
 	{
+		if (!array_key_exists($revision, $mainHistory))
+			continue;
+		$records = $mainHistory[$revision];
 		foreach($records as $record)
 		{
 			$rev_found_so_far[] = $record;
@@ -3544,12 +3547,13 @@ function makeMainHistory($start_rev, $end_rev)
 				$record['diff'] = array_diff_assoc($prev_cache[$record['table'].'_'.$record['id']], $record);
 				$prev_cache[$record['table'].'_'.$record['id']] = $record;
 			}
-			if (isset($operations[$revision]))
-			{
-				$operations[$revision]['records'] = $rev_found_so_far;
-				$rev_found_so_far = array();
-			}
 		}
+		if (isset($operations[$revision]))
+		{
+			$operations[$revision]['records'] = $rev_found_so_far;
+			$rev_found_so_far = array();
+		}
+
 	}
 	return $operations;
 }
