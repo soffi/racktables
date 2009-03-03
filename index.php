@@ -103,7 +103,7 @@ ENDJAVASCRIPT;
                 {
 			$num_operations = count(Operation::getOperationsSince($head_milestone_rev));
                         echo "<input type=\"button\" id=\"numOperations\" title=\"$num_operations changes since MS $head_milestone\" value=\"$num_operations\" onclick=\"document.location.href='".
-			makeHref(array('page'=>'history','start_rev'=>$head_milestone_rev+1)).
+			makeHref(array('page'=>'history', 'tab'=>'default', 'start_rev'=>$head_milestone_rev+1)).
 			"'\">";
                 }
         }

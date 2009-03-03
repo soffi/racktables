@@ -834,11 +834,11 @@ function addLotOfObjects()
 	else
 	{
 		// The name extractor below was stolen from ophandlers.php:addMultiPorts()
-		$names1 = explode ('\n', $_REQUEST['namelist']);
+		$names1 = explode ("\n", $_REQUEST['namelist']);
 		$names2 = array();
 		foreach ($names1 as $line)
 		{
-			$parts = explode ('\r', $line);
+			$parts = explode ("\r", $line);
 			reset ($parts);
 			if (empty ($parts[0]))
 				continue;
@@ -966,11 +966,11 @@ function addRealServers ()
 	assertUIntArg ('pool_id', __FUNCTION__);
 	assertStringArg ('format', __FUNCTION__);
 	assertStringArg ('rawtext', __FUNCTION__);
-	$rawtext = str_replace ('\r', '', $_REQUEST['rawtext']);
+	$rawtext = str_replace ("\r", '', $_REQUEST['rawtext']);
 	$ngood = $nbad = 0;
 	$rsconfig = '';
 	// Keep in mind, that the text will have HTML entities (namely '>') escaped.
-	foreach (explode ('\n', $rawtext) as $line)
+	foreach (explode ("\n", $rawtext) as $line)
 	{
 		if (empty ($line))
 			continue;
@@ -1386,7 +1386,7 @@ function saveRackCode ()
 {
 	assertStringArg ('rackcode');
 	// For the test to succeed, unescape LFs, strip CRs.
-	$newcode = str_replace ('\r', '', str_replace ('\n', "\n", $_REQUEST['rackcode']));
+	$newcode = str_replace ("\r", '', str_replace ("\n", "\n", $_REQUEST['rackcode']));
 	$parseTree = getRackCode ($newcode);
 	if ($parseTree['result'] != 'ACK')
 		return buildRedirectURL (__FUNCTION__, 'ERR1', array ($parseTree['load']));
@@ -1516,11 +1516,11 @@ function addRack ()
 		assertStringArg ('rack_names', __FUNCTION__, TRUE);
 		$log = array ('v' => 2);
 		// copy-and-paste from renderAddMultipleObjectsForm()
-		$names1 = explode ('\n', $_REQUEST['rack_names']);
+		$names1 = explode ("\n", $_REQUEST['rack_names']);
 		$names2 = array();
 		foreach ($names1 as $line)
 		{
-			$parts = explode ('\r', $line);
+			$parts = explode ("\r", $line);
 			reset ($parts);
 			if (empty ($parts[0]))
 				continue;

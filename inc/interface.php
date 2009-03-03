@@ -6109,7 +6109,7 @@ function displayObjectPropertiesForHistory($props, $rev)
 				$name = 'Rack Row';
 				$value = '<a href="'.makeHref(array_merge(getPageForObject('RackRow', $value, $rev), array('r'=>$rev))).'">'.Database::get('name', 'RackRow', $value, $rev).'</a>';
 			}
-			elseif ($name == 'IP' or $name == 'Remote IP' or $name == 'Local IP')
+			elseif ($name == 'IP' or $name == 'Remote IP' or $name == 'Local IP' or $name == 'RSIP' or $name == 'VIP')
 			{
 				$value = ip_long2quad($value);
 			}

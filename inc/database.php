@@ -452,7 +452,8 @@ function commitAddObject ($new_name, $new_label, $new_barcode, $new_type_id, $ne
 				'label' => $new_label,
 				'barcode' => empty ($new_barcode) ? NULL : $new_barcode,
 				'objtype_id' => $new_type_id,
-				'asset_no' => empty ($new_asset_no) ? NULL : $new_asset_no
+				'asset_no' => empty ($new_asset_no) ? NULL : $new_asset_no,
+				'has_problems' => 'no'
 			),
 			'RackObject'
 		);
@@ -2167,9 +2168,7 @@ function storeConfigVar ($varname = NULL, $varvalue = NULL)
 	if (empty ($varname) || $varvalue === NULL)
 		throw new Exception ('Invalid arguments');
 	$query = "update Config set varvalue='${varvalue}' where varname='${varname}' limit 1";
-	$result = Database::getDBLink()->exec($query);
-	$rc = $result->rowCount();
-	Database::closeCursor($result);
+	$rc = Database::getDBLink()->exec($query);
 	if ($rc == 0 or $rc == 1)
 		return TRUE;
 	throw new Exception ("Something went wrong for args '${varname}', '${varvalue}'");
@@ -2333,7 +2332,7 @@ function addRStoRSPool ($pool_id = 0, $rsip = '', $rsport = 0, $inservice = 'no'
 		),
 		'IPv4RS'
 	);
-	return '';
+	return TRUE;
 }
 
 function commitCreateVS ($vip = '', $vport = 0, $proto = '', $name = '', $vsconfig, $rsconfig, $taglist = array())
@@ -2360,8 +2359,7 @@ function addLBtoRSPool ($pool_id = 0, $object_id = 0, $vs_id = 0, $vsconfig = ''
 {
 	if ($pool_id <= 0 or $object_id <= 0 or $vs_id <= 0)
 	{
-		showError ('Invalid arguments', __FUNCTION__);
-		die;
+		throw new Exception ('Invalid arguments');
 	}
 	Database::insert
 	(
@@ -2375,7 +2373,7 @@ function addLBtoRSPool ($pool_id = 0, $object_id = 0, $vs_id = 0, $vsconfig = ''
 		),
 		'IPv4LB'
 	);
-	return '';
+	return TRUE;
 }
 
 function commitDeleteRS ($id = 0)
@@ -2553,7 +2551,7 @@ function commitCreateRSPool ($name = '', $vsconfig = '', $rsconfig = '', $taglis
 {
 	if (empty ($name))
 		return __FUNCTION__ . ': invalid arguments';
-	Database::insert
+	$insertid = Database::insert
 	(
 		array
 		(
@@ -2563,7 +2561,7 @@ function commitCreateRSPool ($name = '', $vsconfig = '', $rsconfig = '', $taglis
 		),
 		'IPv4RSPool'
 	);
-	return produceTagsForLastRecord ('ipv4rspool', $taglist);
+	return produceTagsForLastRecord ('ipv4rspool', $taglist, $insertid);
 }
 
 function commitDeleteRSPool ($pool_id = 0)
@@ -2911,7 +2909,7 @@ function createIPv4Prefix ($range = '', $name = '', $is_bcast = FALSE, $taglist 
 	}
 	$binmask = binMaskFromDec($maskL);
 	$ipL = $ipL & $binmask;
-	Database::insert
+	$insertid = Database::insert
 	(
 		array
 		(
@@ -2929,7 +2927,7 @@ function createIPv4Prefix ($range = '', $name = '', $is_bcast = FALSE, $taglist 
 		updateAddress ($network_addr, 'network', 'yes');
 		updateAddress ($broadcast_addr, 'broadcast', 'yes');
 	}
-	return produceTagsForLastRecord ('ipv4net', $taglist);
+	return produceTagsForLastRecord ('ipv4net', $taglist, $insertid);
 }
 
 // FIXME: This function doesn't wipe relevant records from IPv4Address table.
