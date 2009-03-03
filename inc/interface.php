@@ -6395,6 +6395,7 @@ function renderMilestonesHistory()
 		echo '<li>Milestone#'.$ms['id'].' ('.$ms['hr_timestamp'].') by '.$ms['user_name'].' <a href="'.
 		makeHref(array('page'=>'history', 'start_rev'=>$prev_revision, 'end_rev'=>$ms['rev'])).
 		'">Changes</a><div class="milestoneComment">'.str_replace("\n", '<br>', $ms['comment']).'</div></li>';
+		$prev_revision = $ms['rev'];
 	}
 	echo '</ul></div>';
 	finishPortlet();
