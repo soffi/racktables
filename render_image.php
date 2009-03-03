@@ -73,17 +73,7 @@ function renderRackThumb ($rack_id = 0)
 	// Don't call DB extra times, hence we are most probably not the
 	// only script wishing to acces the same data now.
 	header("Content-type: image/png");
-	$thumbcache = loadThumbCache ($rack_id);
-	if ($thumbcache !== NULL)
-		echo $thumbcache;
-	else
-	{
-		ob_start();
-		generateMiniRack ($rack_id);
-		$capture = ob_get_contents();
-		ob_end_flush();
-		saveThumbCache ($rack_id, $capture);
-	}
+	generateMiniRack ($rack_id);
 }
 
 // Output a binary string containing the PNG minirack.

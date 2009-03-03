@@ -296,7 +296,6 @@ function getRackData ($rack_id = 0, $silent = FALSE)
 	foreach ($clist as $cname)
 		$rack[$cname] = $row[$cname];
 	Database::closeCursor($result);
-	unset ($result);
 
 	// start with default rackspace
 	for ($i = $rack['height']; $i > 0; $i--)
@@ -334,9 +333,9 @@ function getObjectInfo ($object_id = 0)
 	Database::inLifetime('RackObject', $object_id);
 	$query =
 		"select RackObject.id as id, RackObject.name as name, label, barcode, dict_value as objtype_name, asset_no, Dictionary.id as objtype_id, has_problems, comment from " .
-		"RackObject inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
-		"where RackObject.id = '${object_id}' and Chapter.name = 'RackObjectType' limit 1";
-	$result = Database::query ($query);
+		"RackObject inner join Dictionary on objtype_id = Dictionary.id " .
+		"where RackObject.id = ? ";
+	$result = Database::query($query, array(1=>$object_id));
 	$row = $result->fetch (PDO::FETCH_ASSOC);
 	$ret['id'] = $row['id'];
 	$ret['name'] = $row['name'];
@@ -351,6 +350,47 @@ function getObjectInfo ($object_id = 0)
 	Database::closeCursor($result);
 	return $ret;
 }
+
+function getArrayObjectInfo ($objects = array())
+{
+	$query =
+		'select RackObject.id as id, RackObject.name as name, label, barcode, dict_value as objtype_name, asset_no, Dictionary.id as objtype_id, has_problems, comment from ' .
+		'RackObject inner join Dictionary on objtype_id = Dictionary.id ' .
+		'where RackObject.id in ( ';
+
+	$first = true;
+	$bindPos = 1;
+	$bindValues = array();
+	foreach($objects as $object_id)
+	{
+		Database::inLifetime('RackObject', $object_id);
+		if (!$first)
+			$query .= ', ';
+		$first = false;
+		$query .= ' ? ';
+		$bindValues[$bindPos++] = $object_id;
+	};
+	$query .= ')';
+	$result = Database::query($query, $bindValues);
+	while ($row = $result->fetch (PDO::FETCH_ASSOC))
+	{
+		$id = $row['id'];
+		$ret[$id]['id'] = $row['id'];
+		$ret[$id]['name'] = $row['name'];
+		$ret[$id]['label'] = $row['label'];
+		$ret[$id]['barcode'] = $row['barcode'];
+		$ret[$id]['objtype_name'] = $row['objtype_name'];
+		$ret[$id]['objtype_id'] = $row['objtype_id'];
+		$ret[$id]['has_problems'] = $row['has_problems'];
+		$ret[$id]['asset_no'] = $row['asset_no'];
+		$ret[$id]['dname'] = displayedName ($row);
+		$ret[$id]['comment'] = $row['comment'];
+	}
+	Database::closeCursor($result);
+	return $ret;
+}
+
+
 
 function getPortTypes ()
 {

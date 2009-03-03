@@ -369,12 +369,12 @@ function binInvMaskFromDec ($maskL)
 // the function is also used for thumb creation.
 function markupObjectProblems (&$rackData)
 {
+	$objects = getArrayObjectInfo($rackData['mountedObjects']);
 	for ($i = $rackData['height']; $i > 0; $i--)
 		for ($locidx = 0; $locidx < 3; $locidx++)
 			if ($rackData[$i][$locidx]['state'] == 'T')
 			{
-				$object = getObjectInfo ($rackData[$i][$locidx]['object_id']);
-				if ($object['has_problems'] == 'yes')
+				if ($objects[$rackData[$i][$locidx]['object_id']]['has_problems'] == 'yes')
 				{
 					// Object can be already highlighted.
 					if (isset ($rackData[$i][$locidx]['hl']))
