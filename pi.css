@@ -569,7 +569,7 @@ div.tagselector {
         margin: 0px;
         padding: 0px 0px 2px 0px;
         position:relative;
-        top:-5px;
+        top:-7px;
         width:50px;
         text-align: right;
 	cursor: default;
@@ -593,7 +593,7 @@ div.tagselector {
 #milestone {
         font-size:11px;
         position:relative;
-        top:-5px;
+        top:-6px;
 }
 
 #milestone button {

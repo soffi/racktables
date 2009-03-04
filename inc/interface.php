@@ -117,6 +117,33 @@ $image['next']['height'] = 32;
 $image['prev']['path'] = 'pix/tango-go-previous.png';
 $image['prev']['width'] = 32;
 $image['prev']['height'] = 32;
+
+$image['nextop']['path'] = 'pix/tango-go-next-medium.png';
+$image['nextop']['width'] = 22;
+$image['nextop']['height'] = 22;
+$image['previousop']['path'] = 'pix/tango-go-previous-medium.png';
+$image['previousop']['width'] = 22;
+$image['previousop']['height'] = 22;
+$image['nextms']['path'] = 'pix/tango-go-last-medium.png';
+$image['nextms']['width'] = 22;
+$image['nextms']['height'] = 22;
+$image['previousms']['path'] = 'pix/tango-go-first-medium.png';
+$image['previousms']['width'] = 22;
+$image['previousms']['height'] = 22;
+
+$image['nextop-disabled']['path'] = 'pix/tango-go-next-disabled-medium.png';
+$image['nextop-disabled']['width'] = 22;
+$image['nextop-disabled']['height'] = 22;
+$image['previousop-disabled']['path'] = 'pix/tango-go-previous-disabled-medium.png';
+$image['previousop-disabled']['width'] = 22;
+$image['previousop-disabled']['height'] = 22;
+$image['nextms-disabled']['path'] = 'pix/tango-go-last-disabled-medium.png';
+$image['nextms-disabled']['width'] = 22;
+$image['nextms-disabled']['height'] = 22;
+$image['previousms-disabled']['path'] = 'pix/tango-go-first-disabled-medium.png';
+$image['previousms-disabled']['width'] = 22;
+$image['previousms-disabled']['height'] = 22;
+
 $image['clear']['path'] = 'pix/tango-edit-clear.png';
 $image['clear']['width'] = 16;
 $image['clear']['height'] = 16;

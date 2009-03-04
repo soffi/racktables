@@ -65,37 +65,45 @@ foreach (array ('F', 'A', 'U', 'T', 'Th', 'Tw', 'Thw') as $statecode)
 $params = $_GET;
 
 if ($prev_milestone != null)
-        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$prev_milestone['rev']))).'"><img src="pix/tango-prev-mile.png" alt="Previous milestone" title="Previous milestone"></a>';
+{
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$prev_milestone['rev']))).'">';
+	printImageHREF('previousms', 'Previous milestone');
+	echo '</a>';
+}
 else
-        echo '<img src="pix/tango-prev-mile-dis.png" alt="Previous milestone" title="Previous milestone">';
+	printImageHREF('previousms-disabled', 'Previous milestone');
 
 if ($prev_op['rev'] >= 0)
-        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$prev_op['rev']))).'"><img src="pix/tango-prev-rev.png" alt="Previous operation" title="Previous operation"></a>';
+{
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$prev_op['rev']))).'">';
+	printImageHREF('previousop', 'Previous operation');
+	echo '</a>';
+}
 else
-        echo '<img src="pix/tango-prev-rev-dis.png" alt="Previous operation" title="Previous operation">';
+	printImageHREF('previousop-disabled', 'Previous operation');
 if ($numeric_revision == $head_revision)
         echo '<input type="text" id="revisionInput" value="'.$this_op.'" disabled="disabled" class="headed"> ';
 else
         echo '<input type="text" id="revisionInput" value="'.$this_op.'" disabled="disabled"> ';
 echo '<input type="text" id="mileInput" value="'.$this_milestone.'" disabled="disabled">';
 if (isset($next_op['rev']) and $next_op['rev'] <= $head_op_rev)
-        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$next_op['rev']))).'"><img src="pix/tango-next-rev.png" alt="Next operation" title="Next operation"></a>';
+{
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$next_op['rev']))).'">';
+	printImageHREF('nextop', 'Next operation');
+	echo '</a>';
+}
 else
-        echo '<img src="pix/tango-next-rev-dis.png" alt="Next operation" title="Next operation">';
+	printImageHREF('nextop-disabled', 'Next operation');
 if ($next_milestone != null)
-        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$next_milestone['rev']))).'"><img src="pix/tango-next-mile.png" alt="Next milestone" title="Next milestone"></a>';
+{
+        echo '<a href="'.makeHref(array_merge($_GET, array('r'=>$next_milestone['rev']))).'">';
+	printImageHREF('nextms', 'Next milestone');
+	echo '</a>';
+}
 else
-        echo '<img src="pix/tango-next-mile-dis.png" alt="Next milestone" title="Next milestone">';
+	printImageHREF('nextms-disabled', 'Next milestone');
 
         echo '<span id="milestone">';
-	echo <<< ENDJAVASCRIPT
-<script type="text/javascript"><!--
-function showToolTip(id)
-{
-	$('#'+id)[0].style.visibility = 'visible';
-}
-//--></script>
-ENDJAVASCRIPT;
 
         if ($numeric_revision == $head_revision)
         {
