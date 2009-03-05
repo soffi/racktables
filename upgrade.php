@@ -416,6 +416,7 @@ require_once 'inc/interface.php';
 
 require_once 'inc/config.php';
 require_once 'inc/database.php';
+require_once 'inc/revdatabase.php';
 if (file_exists ('inc/secret.php'))
 	require_once 'inc/secret.php';
 else
@@ -432,7 +433,11 @@ catch (PDOException $e)
 	die ("Database connection failed:\n\n" . $e->getMessage());
 }
 
+$dbxlink->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 $dbxlink->exec ("set names 'utf8'");
+
+Database::init($dbxlink);
+
 
 // Now we need to be sure that the current user is the administrator.
 // The rest doesn't matter within this context.
