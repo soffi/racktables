@@ -1822,10 +1822,13 @@ function ip_long2quad ($quad)
       return long2ip($quad);
 }
 
-function makeHref($params = array())
+function makeHref($params = array(), $page=NULL)
 {
 	global $head_revision, $numeric_revision, $root;
-	$ret = $root.'?';
+	if (isset($page))
+		$ret = $root.$page.'?';
+	else
+		$ret = $root.'?';
 	$first = true;
 	if (!isset($params['r']) and ($numeric_revision != $head_revision))
 	{

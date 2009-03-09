@@ -5518,7 +5518,7 @@ function renderFileSpace ()
 
 function renderFile ($file_id = 0)
 {
-	global $nextorder, $aac, $root;
+	global $nextorder, $aac, $root, $numeric_revision, $head_revision;
 	if ($file_id <= 0)
 	{
 		showError ('Invalid file_id', __FUNCTION__);
@@ -5551,12 +5551,14 @@ function renderFile ($file_id = 0)
 	printImageHREF ('download', 'Download file');
 	echo "</a></td></tr>\n";
 
-	echo "<tr><th width='50%' class=tdright>Upload replacement:</th>";
-	printOpFormIntro ('replaceFile', array ('MAX_FILE_SIZE' => convertToBytes(get_cfg_var('upload_max_filesize'))), TRUE);
-	echo "<td class=tdleft><input type='file' size='10' name='file' tabindex=100>&nbsp;\n";
-	printImageHREF ('save', 'Save changes', TRUE, 101);
-	echo "</form></td></tr>\n";
-
+	if ($numeric_revision == $head_revision)
+	{
+		echo "<tr><th width='50%' class=tdright>Upload replacement:</th>";
+		printOpFormIntro ('replaceFile', array ('MAX_FILE_SIZE' => convertToBytes(get_cfg_var('upload_max_filesize'))), TRUE);
+		echo "<td class=tdleft><input type='file' size='10' name='file' tabindex=100>&nbsp;\n";
+		printImageHREF ('save', 'Save changes', TRUE, 101);
+		echo "</form></td></tr>\n";
+	}
 	printTagTRs (makeHref(array('page'=>'files', 'tab'=>'default'))."&");
 	if (!empty ($file['comment']))
 	{
@@ -6054,8 +6056,9 @@ function getFilePreviewCode ($file)
 				$resampled = TRUE;
 			}
 			if ($resampled)
-				$ret .= "<a href='${root}render_image.php?img=view&file_id=${file['id']}'>";
-			$ret .= "<img width=${width} height=${height} src='${root}render_image.php?img=preview&file_id=${file['id']}'>";
+				$ret .= "<a href='".makeHref(array('img'=>'view', 'file_id'=>$file['id']), 'render_image.php')."'>";
+			$ret .= "<img width=${width} height=${height} src='".makeHref(array('img'=>'preview', 'file_id'=>$file['id']), 'render_image.php')."'>";
+
 			if ($resampled)
 				$ret .= '</a>';
 			break;

@@ -3512,7 +3512,8 @@ function commitReplaceFile ($file_id = 0, $size, $contents)
 	}
 	$now = date('YmdHis');
 	$fileContent = file_get_contents($contents);
-	Database::update(array('size'=>$size, 'contents'=>$fileContent), 'File', $file_id);
+	if ($fileContent)
+		Database::update(array('size'=>$size, 'contents'=>$fileContent), 'File', $file_id);
 	return '';
 }
 
