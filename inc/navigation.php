@@ -868,12 +868,12 @@ function getPageForObject($table, $id, $rev)
 		case 'IPv4Address':
 			$ip = Database::get('ip', 'IPv4Address', $id, $rev);
 			$ret['page'] = 'ipaddress';
-			$ret['ip'] = $ip;
+			$ret['ip'] = ip_long2quad($ip);
 			break;
 		case 'IPv4Allocation':
 			$ip = Database::get('ip', 'IPv4Allocation', $id, $rev);
 			$ret['page'] = 'ipaddress';
-			$ret['ip'] = $ip;
+			$ret['ip'] = ip_long2quad($ip);
 			break;
 		case 'IPv4NAT':
 			$object = Database::get('object_id', 'IPv4Allocation', $id, $rev);
