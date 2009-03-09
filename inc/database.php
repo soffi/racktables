@@ -61,7 +61,7 @@ function getRackRowInfo ($rackrow_id)
 		"select RackRow.id as id, RackRow.name as name, count(Rack.id) as count, " .
 		"if(isnull(sum(Rack.height)),0,sum(Rack.height)) as sum " .
 		"from RackRow left join Rack on Rack.row_id = RackRow.id " .
-		"where RackRow.id = ?" .
+		"where RackRow.id = ? " .
 		"group by RackRow.id";
 	$result = Database::query ($query, array(1=>$rackrow_id));
 	$row = $result->fetch (PDO::FETCH_ASSOC);
