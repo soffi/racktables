@@ -1641,8 +1641,7 @@ function addFileToEntity ()
 	if (get_cfg_var('file_uploads') != 1)
 		return buildRedirectURL (__FUNCTION__, 'ERR', array ("file uploads not allowed, change 'file_uploads' parameter in php.ini"));
 
-	$fp = fopen($_FILES['file']['tmp_name'], 'rb');
-	$error = commitAddFile ($_FILES['file']['name'], $_FILES['file']['type'], $_FILES['file']['size'], $fp, $_REQUEST['comment']);
+	$error = commitAddFile ($_FILES['file']['name'], $_FILES['file']['type'], $_FILES['file']['size'], $_FILES['file']['tmp_name'], $_REQUEST['comment']);
 	if ($error != '')
 		return buildRedirectURL (__FUNCTION__, 'ERR', array ($error));
 
