@@ -91,7 +91,7 @@ function commitAddRow($rackrow_name)
 
 function commitUpdateRow($rackrow_id, $rackrow_name)
 {
-	Database::update(array('name'=>$rackrow_name, 'RackRow', $rackrow_id));
+	Database::update(array('name'=>$rackrow_name), 'RackRow', $rackrow_id);
 	return TRUE;
 }
 
