@@ -389,7 +389,7 @@ class Database {
 	{
 		if (!isset(self::$database_meta[$table]))
 			return $table;
-		$sql = "( select ${table}.id, ${table}__r.rev ";
+		$sql = "( select ${table}__s.id, ${table}__r.rev ";
 		foreach (self::$database_meta[$table]['fields'] as $field => $prop)
 		{
 			$sql .= " , $field ";
@@ -400,8 +400,8 @@ class Database {
 		if (self::$currentRevision !== 'head')
 			$sql .= " where rev <= ".self::$currentRevision;
 		$sql .= " group by id ) as tmp__r on ${table}__r.id = tmp__r.id and ${table}__r.rev = tmp__r.rev ";
-		$sql .= " join ${table} ";
-		$sql .= " on ${table}.id = ${table}__r.id where ${table}__r.rev_terminal = 0 )";
+		$sql .= " join ${table}__s ";
+		$sql .= " on ${table}__s.id = ${table}__r.id where ${table}__r.rev_terminal = 0 )";
 		return $sql;
 	}
 
@@ -552,7 +552,7 @@ class Database {
 		if (isset(self::$database_meta[$table]))
 		{
 			self::startTransaction(true);
-			$q = self::$dbxlink->prepare("select count(*) from $table where id = ? for update");
+			$q = self::$dbxlink->prepare("select count(*) from ${table}__s where id = ? for update");
 			$q->bindValue(1, $id);
 			$q->execute();
 			$numRows = $q->fetchColumn();
@@ -606,7 +606,7 @@ class Database {
 			foreach($uniques as $uniq)
 			{
 				$values = array();
-				$sql = "select count(*) from ( ${table}__r join (select max(rev) as rev, id from ${table}__r group by id) as __t on ${table}__r.id = __t.id and ${table}__r.rev = __t.rev ) join $table on __t.id = $table.id where rev_terminal = 0";
+				$sql = "select count(*) from ( ${table}__r join (select max(rev) as rev, id from ${table}__r group by id) as __t on ${table}__r.id = __t.id and ${table}__r.rev = __t.rev ) join ${table}__s on __t.id = ${table}__s.id where rev_terminal = 0";
 				foreach ($uniq as $field)
 				{
 					if (gettype($mergedParams[$field]) == 'array')
@@ -693,7 +693,7 @@ class Database {
 			}
 			self::startTransaction(true);
 			self::checkUniqueConstraints($table, $revisionedParamsMap, $staticParamsMap);
-			$result = self::$dbxlink->query("select max(id) from $table for update");
+			$result = self::$dbxlink->query("select max(id) from ${table}__s for update");
 			$row = $result->fetch(PDO::FETCH_NUM);
 			self::closeCursor($result);
 			$next_id = $row[0] + 1;
@@ -713,7 +713,7 @@ class Database {
 			$q->execute();
 			self::closeCursor($q);
 
-			$q = self::$dbxlink->prepare("insert into $table set id = ?".(count($staticParams)>0?',':'')." ".implode(', ', $staticParams));
+			$q = self::$dbxlink->prepare("insert into ${table}__s set id = ?".(count($staticParams)>0?',':'')." ".implode(', ', $staticParams));
 			$q->bindValue(1, $next_id);
 			$paramno = 2;
 			foreach($staticValues as $value)
@@ -852,7 +852,7 @@ class Database {
 			}
 
 			self::startTransaction(true);
-			$q = self::$dbxlink->prepare("select count(*) from $table where id = ? for update");
+			$q = self::$dbxlink->prepare("select count(*) from ${table}__s where id = ? for update");
 			$q->bindValue(1, $id);
 			$q->execute();
 			$numRows = $q->fetchColumn();
@@ -880,7 +880,7 @@ class Database {
 					if (count($staticParamsOld) > 0)
 					{
 						//and fetching existing static props (just to have them for the check constraints stuff)
-						$q = self::$dbxlink->prepare("select id, ".implode(', ', array_keys($staticParamsOld))." from ${table} where id = ? for update");
+						$q = self::$dbxlink->prepare("select id, ".implode(', ', array_keys($staticParamsOld))." from ${table}__s where id = ? for update");
 						$q->bindValue(1, $id);
 						$q->execute();
 						$row = $q->fetch(PDO::FETCH_ASSOC);
@@ -922,7 +922,7 @@ class Database {
 					}
 					if (count($staticParams) > 0)
 					{
-						$q = self::$dbxlink->prepare("update $table set ".self::assembleUpdateString($staticParams)." where id = ?");
+						$q = self::$dbxlink->prepare("update ${table}__s set ".self::assembleUpdateString($staticParams)." where id = ?");
 						$paramno = 1;
 						foreach($staticParams as $value)
 							if (gettype($value) == 'array')
@@ -972,7 +972,7 @@ class Database {
 				if ($fvalue['revisioned'])
 					$fields[] = "${table}__r.$fname as $fname";
 				else
-					$fields[] = "${table}.$fname as $fname";
+					$fields[] = "${table}__s.$fname as $fname";
 			$where = array();
 			$whereValues = array();
 			if (isset($id))
@@ -996,7 +996,7 @@ class Database {
 				" from ${table}__r ".
 				"join revision on ${table}__r.rev = revision.id ".
 				"join UserAccount on revision.user_id = UserAccount.user_id ".
-				"join ${table} on ${table}__r.id = ${table}.id ".
+				"join ${table}__s on ${table}__r.id = ${table}__s.id ".
 				(count($where)>0 ? 'where ' : '').
 				(implode(' and ', $where)).
 				" order by rev");
@@ -1025,8 +1025,8 @@ class Database {
 			$q = self::$dbxlink->prepare(
 				"select ".
 				implode(', ', $fields).
-				" from ${table} ".
-				(isset($id)?"where ${table}.id = ? ":'')
+				" from ${table}__s ".
+				(isset($id)?"where ${table}__s.id = ? ":'')
 			);
 			if (isset($id))
 				$q->bindValue(1, $id);

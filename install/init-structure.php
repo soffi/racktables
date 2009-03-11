@@ -64,7 +64,7 @@ require_once '../inc/orm.php';
 $database_meta = DatabaseMeta::$database_meta;
 foreach($database_meta as $tname => $tvalue)
 {
-	$queryMain = "CREATE TABLE $tname (
+	$queryMain = "CREATE TABLE ${tname}__s (
 	id int unsigned not null,
 ";
 	$queryRev = "CREATE TABLE ${tname}__r (
@@ -72,13 +72,22 @@ foreach($database_meta as $tname => $tvalue)
 	rev bigint unsigned not null,
 	rev_terminal tinyint not null,
 ";
+	$queryViewR = "CREATE VIEW ${tname}__vr as select id, max(rev) as rev from ${tname}__r group by id;\n";
+	$queryViewRevFields = '';
+	$queryViewStatFields = '';
 	foreach ($tvalue['fields'] as $fname=>$fvalue)
 	{
 		$f = "$fname ".$fvalue['type']." ".($fvalue['null']?'':'not null');
 		if ($fvalue['revisioned'])
+		{
 			$queryRev .= "\t$f,\n";
+			$queryViewRevFields .= ",\n\t\t${tname}__r.$fname AS $fname";
+		}
 		else
+		{
 			$queryMain .= "\t$f,\n";
+			$queryViewStatFields .= ",\n\t\t${tname}__s.$fname AS $fname";
+		}
 	}
 	$queryMain .= "\tkey(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -86,8 +95,11 @@ foreach($database_meta as $tname => $tvalue)
 	$queryRev .= "\tkey(id), key(rev), key(rev_terminal), unique id_rev(id, rev)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ";
-
+	$queryView = "CREATE VIEW ${tname} as \n\tSELECT \n\t\t${tname}__s.id AS id $queryViewRevFields $queryViewStatFields \n\tFROM \n\t\t${tname}__r \n\t\tJOIN ${tname}__vr ON ${tname}__r.id = ${tname}__vr.id and ${tname}__r.rev = ${tname}__vr.rev \n\t\tJOIN ${tname}__s ON ${tname}__s.id = ${tname}__r.id \n\tWHERE ${tname}__r.rev_terminal = 0;\n";
 	echo $queryMain."\n";
 	echo $queryRev."\n";
+	echo $queryViewR."\n";
+	echo $queryView."\n";
+
 }	
 ?>

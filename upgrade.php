@@ -241,7 +241,7 @@ CREATE TABLE `FileLink` (
 			{
 
 
-				$queryMain = "CREATE TABLE $tname (
+				$queryMain = "CREATE TABLE ${tname}__s (
 					id int unsigned not null,
 					";
 				$queryRev = "CREATE TABLE ${tname}__r (
@@ -249,14 +249,22 @@ CREATE TABLE `FileLink` (
 					rev bigint unsigned not null,
 					rev_terminal tinyint not null,
 					";
-
+				$queryViewR = "CREATE VIEW ${tname}__vr as select id, max(rev) as rev from ${tname}__r group by id";
+				$queryViewRevFields = '';
+				$queryViewStatFields = '';
 				foreach ($tvalue['fields'] as $fname=>$fvalue)
 				{
 					$f = "$fname ".$fvalue['type']." ".($fvalue['null']?'':'not null');
 					if ($fvalue['revisioned'])
+					{
 						$queryRev .= "  $f,\n";
+						$queryViewRevFields .= ", ${tname}__r.$fname AS $fname";
+					}
 					else
+					{
 						$queryMain .= " $f,\n";
+						$queryViewStatFields .= ", ${tname}__s.$fname AS $fname";
+					}
 				}
 				$queryMain .= " key(id)
 					) ENGINE=InnoDB DEFAULT CHARSET=utf8
@@ -264,11 +272,12 @@ CREATE TABLE `FileLink` (
 				$queryRev .= "  key(id), key(rev), key(rev_terminal), unique id_rev(id, rev)
 					) ENGINE=InnoDB DEFAULT CHARSET=utf8
 					";
+				$queryView = "CREATE VIEW ${tname} as SELECT ${tname}__s.id AS id $queryViewRevFields $queryViewStatFields FROM ${tname}__r JOIN ${tname}__vr ON ${tname}__r.id = ${tname}__vr.id and ${tname}__r.rev = ${tname}__vr.rev JOIN ${tname}__s ON ${tname}__s.id = ${tname}__r.id WHERE ${tname}__r.rev_terminal = 0";
 				$query[] = "drop table $tname";
 				$query[] = $queryMain;
 				$query[] = $queryRev;
-
-
+				$query[] = $queryViewR;
+				$query[] = $queryView;
 				$revFields = array();
 				$revValues = array();
 				$statFields = array();
@@ -321,7 +330,7 @@ CREATE TABLE `FileLink` (
 								$revValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
 						}
 
-						$sqls = "insert into $tname (id".(count($statFields)>0?',':'')." ".implode(', ', $statFields).") values ($id".(count($statValues)>0?',':'')." ".implode(', ', $statValues).")";
+						$sqls = "insert into ${tname}__s (id".(count($statFields)>0?',':'')." ".implode(', ', $statFields).") values ($id".(count($statValues)>0?',':'')." ".implode(', ', $statValues).")";
 
 						$sqlr = "insert into ${tname}__r (id, rev, rev_terminal".(count($revFields)>0?',':'')." ".implode(', ', $revFields).") values ($id, $rev, false".(count($revValues)>0?',':'')." ".implode(', ', $revValues).")";
 
@@ -354,7 +363,7 @@ CREATE TABLE `FileLink` (
 								$revValues[$posValue++] = "'".mysql_real_escape_string($row[$f])."'"; 
 						}
 
-						$sqls = "insert into $tname (".implode(', ', $statFields).") values (".implode(', ', $statValues).")";
+						$sqls = "insert into ${tname}__s (".implode(', ', $statFields).") values (".implode(', ', $statValues).")";
 
 						$sqlr = "insert into ${tname}__r (rev, rev_terminal".(count($revFields)>0?',':'')." ".implode(', ', $revFields).") values ($rev, false".(count($revValues)>0?',':'')." ".implode(', ', $revValues).")";
 
