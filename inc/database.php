@@ -966,41 +966,54 @@ function getAllIPv4Allocations ()
 	return $ret;
 }
 
-function getEmptyPortsOfType ($type_id)
+function getObjectsEmptyPortsOfType ($type_id)
 {
 	$query =
-		"select distinct Port.id as Port_id, ".
-		"Port.object_id as Port_object_id, ".
-		"RackObject.name as Object_name, ".
-		"Port.name as Port_name, ".
-		"Port.type as Port_type_id, ".
-		"dict_value as Port_type_name ".
+		"select distinct ".
+		"RackObject.id as id, ".
+		"RackObject.name as name, ".
+		"RackObject.objtype_id as objtype_id, ".
+		"Dictionary.dict_value as objtype_name ".
 		"from ( ".
-		"	( ".
-		"		Port inner join Dictionary on Port.type = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id ".
-		"	) ".
+		"	Port ".
 		" 	join RackObject on Port.object_id = RackObject.id ".
+		" 	join Dictionary on RackObject.objtype_id = Dictionary.id ".
 		") ".
 		"left join Link on Port.id=Link.porta or Port.id=Link.portb ".
 		"inner join PortCompat on Port.type = PortCompat.type2 ".
-		"where Chapter.name = 'PortType' and PortCompat.type1 = '$type_id' and Link.porta is NULL ".
-		"and ( Port.reservation_comment is null or Port.reservation_comment = '' ) order by Object_name, Port_name";
+		"where PortCompat.type1 = '$type_id' and Link.porta is NULL ".
+		"and ( Port.reservation_comment is null or Port.reservation_comment = '' ) order by name";
 	$result = Database::query ($query);
 	$ret = array();
-	$count=0;
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		$ret[$count]['Port_id']=$row['Port_id'];
-		$ret[$count]['Port_object_id']=$row['Port_object_id'];
-		$ret[$count]['Object_name']=$row['Object_name'];
-		$ret[$count]['Port_name']=$row['Port_name'];
-		$ret[$count]['Port_type_id']=$row['Port_type_id'];
-		$ret[$count]['Port_type_name']=$row['Port_type_name'];
-		$count++;
-	}
+		$ret[]=$row;
 	Database::closeCursor($result);
 	return $ret;
 }
+
+function getEmptyPortsOfTypeForObject ($object_id, $type_id)
+{
+	$query =
+		"select distinct ".
+		"Port.id as id, ".
+		"Port.name as name ".
+		"from ( ".
+		"	Port ".
+		") ".
+		"left join Link on Port.id=Link.porta or Port.id=Link.portb ".
+		"inner join PortCompat on Port.type = PortCompat.type2 ".
+		"where PortCompat.type1 = '$type_id' and Link.porta is NULL ".
+		"and Port.object_id = '$object_id' ".
+		"and ( Port.reservation_comment is null or Port.reservation_comment = '' ) order by name";
+	$result = Database::query ($query);
+	$ret = array();
+	while ($row = $result->fetch (PDO::FETCH_ASSOC))
+		$ret[]=$row;
+	Database::closeCursor($result);
+	return $ret;
+}
+
+
 
 function linkPorts ($porta, $portb)
 {
@@ -1615,6 +1628,15 @@ function getPortID ($object_id, $port_name)
 	$ret = $rows[0][0];
 	Database::closeCursor($result);
 	return $ret;
+}
+
+function getPortByID ($id)
+{
+	$query = "select Port.id as id, Port.name as name, RackObject.id as object_id, RackObject.name as object_name from Port join RackObject on Port.object_id = RackObject.id where Port.id=${id}";
+	$result = Database::query ($query);
+	$row = $result->fetch();
+	Database::closeCursor($result);
+	return $row;
 }
 
 function commitCreateUserAccount ($username, $realname, $password)

@@ -1,32 +1,31 @@
 <?php
+require_once 'inc/exception.php';
+ob_start();
+try {
+	require 'inc/init.php';
+	fixContext();
 
-require 'inc/init.php';
-$_REQUEST['page'] = 'perms';
-$_REQUEST['tab'] = 'edit';
-fixContext();
+	if (empty($op) or !isset($ajaxhandler[$pageno][$tabno][$op]))
+	{
+		throw new Exception ("Invalid request in ajax broker: page '${pageno}', tab '${tabno}', op '${op}'");
+	}
 
-// We have a chance to handle an error before starting HTTP header.
-if (!permitted())
-{
-	$errlog = array
-	(
-		'v' => 2,
-		'm' => array (0 => array ('c' => 157)) // operation not permitted
-	);
-	echo "NAK\nPermission denied";
-	exit();
+	// We have a chance to handle an error before starting HTTP header.
+	if (!permitted())
+	{
+		echo "NAK\nPermission denied";
+		exit();
+	}
+	else
+	{
+		echo $ajaxhandler[$pageno][$tabno][$op]();
+	}
+	ob_end_flush();
 }
-
-switch ($_REQUEST['ac'])
+catch (Exception $e)
 {
-	case 'verifyCode':
-		$code = str_replace ('\r', '', str_replace ('\n', "\n", $_REQUEST['code']));
-		$result = getRackCode($code);
-		if ($result['result'] == 'ACK')
-			echo 'ACK';
-		else
-			echo "NAK\n".$result['load'];
-	break;
+        ob_end_clean();
+        printException($e);
 }
 
 

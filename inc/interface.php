@@ -1222,7 +1222,8 @@ function renderPortsForObject ($object_id = 0)
 		{
 			echo "<td>&nbsp;</td><td>&nbsp;</td>";
 			echo "<td>";
-			echo "<a href='javascript:;' onclick='window.open(\"".makeHrefForHelper('portlist', array('port'=>$port['id'], 'type'=>$port['type_id'], 'object_id'=>$object_id, 'port_name'=>$port['name']))."\",\"findlink\",\"height=700, width=400, location=no, menubar=no, resizable=yes, scrollbars=no, status=no, titlebar=no, toolbar=no\");'>";
+			//echo "<a href='javascript:;' onclick='window.open(\"".makeHrefForHelper('portlist', array('port'=>$port['id'], 'type'=>$port['type_id'], 'object_id'=>$object_id, 'port_name'=>$port['name']))."\",\"findlink\",\"height=700, width=400, location=no, menubar=no, resizable=yes, scrollbars=no, status=no, titlebar=no, toolbar=no\");'>";
+			echo "<a href='#' rt_portid='${port['id']}' rt_porttype='${port['type_id']}' rt_objectid='$object_id' class='portHelper' rel='RelPortHelper'>";
 			printImageHREF ('plug', 'Link this port');
 			echo "</a> <input type=text name=reservation_comment>";
 			echo "</td>\n";
@@ -1234,6 +1235,111 @@ function renderPortsForObject ($object_id = 0)
 	if (getConfigVar ('ADDNEW_AT_TOP') != 'yes')
 		printNewItemTR();
 	echo "</table><br>\n";
+	$selsize = getConfigVar ('MAXSELSIZE');
+	$processHref = makeHrefProcess(array('op'=>'linkPort'));
+	echo <<< ENDJAVASCRIPT
+<div id="RelPortHelper" style="display:none">
+	<h2>Choose a port</h2>
+	<table class="portHelperTable">
+		<tr><th>Object</th><th>Port</th></tr>
+		<tr>
+			<td><select class="portHelperObjectSelect" style="display: none" size='$selsize'>
+			</select></td>
+			<td><select class="portHelperPortSelect" style="display: none" size='$selsize'>
+			</select></td>
+		</tr>
+	</table>
+	<input type="submit" value="Proceed" disabled="disabled" class="portHelperSubmit">
+</div>
+<script type="text/javascript"><!--
+var portHelperPortid;
+var portHelperPorttype;
+var portHelperObjectid;
+function portHelperOpened(caller)
+{
+	caller = $(caller);
+	portHelperPortid = caller.attr('rt_portid');
+	portHelperPorttype = caller.attr('rt_porttype');
+	portHelperObjectid = caller.attr('rt_objectid');
+	$.ajax({
+		type: "GET",
+		url: "ajax.php",
+		data: "page=object&tab=ports&op=getObjectsEmptyPorts&object_id="+portHelperObjectid+"&type="+portHelperPorttype,
+		success: function (data)
+		{
+			arr = data.split("\\n");
+			if (arr[0] == "ACK")
+			{
+//				$('#modal_content select.portHelperObjectSelect')[0].options[0] = document.createElement('option');
+				for(var i = 1; i<arr.length; i++)
+				{
+					var row = arr[i].split('\\t');
+					if (row[1] == null) continue;
+					var o = document.createElement('option');
+					o.text = row[0];
+					o.value = row[1];
+					o.class = 'portHelperObjectOption';
+					$('#modal_content select.portHelperObjectSelect')[0].options[i-1] = o;
+					$('#modal_content select.portHelperObjectSelect')[0].style.display = 'inline';
+				}
+				$('#modal_content select.portHelperObjectSelect').change(portHelperObjectSet);
+			}
+		}
+	});
+}
+
+function portHelperObjectSet()
+{
+	$('#modal_content select.portHelperPortSelect')[0].style.display = 'none';
+	$('#modal_content select.portHelperPortSelect')[0].options.length = 0;
+	$("#modal_content input.portHelperSubmit")[0].disabled = 'disabled';
+	$('#modal_content select.portHelperPortSelect').unbind('change', portHelperPortSet);
+	if (this.value == null)
+		return;
+	$.ajax({
+		type: "GET",
+		url: "ajax.php",
+		data: "page=object&tab=ports&op=getEmptyPorts&object_id="+this.value+"&type="+portHelperPorttype,
+		success: function (data)
+		{
+			arr = data.split("\\n");
+			if (arr[0] == "ACK")
+			{
+				for(var i = 1; i<arr.length; i++)
+				{
+					var row = arr[i].split('\\t');
+					if (row[1] == null) continue;
+					var o = document.createElement('option');
+					o.text = row[0];
+					o.value = row[1];
+					o.class = 'portHelperObjectOption';
+					$('#modal_content select.portHelperPortSelect')[0].options[i-1] = o;
+					$('#modal_content select.portHelperPortSelect')[0].style.display = 'inline';
+				}
+				$('#modal_content select.portHelperPortSelect').change(portHelperPortSet);
+			}
+		}
+	});
+}
+
+function portHelperPortSet()
+{
+	$("#modal_content input.portHelperSubmit")[0].disabled = '';
+	$("#modal_content input.portHelperSubmit").click(portHelperSubmit);
+}
+
+function portHelperSubmit()
+{
+
+	window.location = "$processHref&object_id="+portHelperObjectid+"&port_id="+portHelperPortid+"&remote_port_id="+$('#modal_content select.portHelperPortSelect')[0].value;
+}
+
+$(document).ready(function() {
+	$('a.portHelper').modal({show:"portHelperOpened(this)"});
+});
+//--></script>
+ENDJAVASCRIPT;
+
 	finishPortlet();
 
 	startPortlet ('Add/update multiple ports');
@@ -1938,18 +2044,6 @@ function renderObjectGroup ()
 
 	renderTagFilterPortlet ($tagfilter, 'object', 'group_id', $group_id);
 	echo "</td></tr></table>\n";
-}
-
-function renderEmptyPortsSelect ($port_id, $type_id)
-{
-	$ports = getEmptyPortsOfType($type_id);
-	usort($ports, 'sortEmptyPorts');
-	foreach ($ports as $port)
-	{
-		if ($port_id == $port['Port_id'])
-			continue;
-		echo "<option value='${port['Port_id']}' onclick='getElementById(\"remote_port_name\").value=\"${port['Port_name']}\"; getElementById(\"remote_object_name\").value=\"${port['Object_name']}\";'>${port['Object_name']} ${port['Port_name']}</option>\n";
-	}
 }
 
 function renderAllIPv4Allocations ()
@@ -5342,7 +5436,7 @@ function verify()
 	$.ajax({
 		type: "POST",
 		url: "ajax.php",
-		data: "ac=verifyCode&code="+RCTA.getCode(),
+		data: "page=perms&tab=edit&op=verifyCode&code="+RCTA.getCode(),
 		success: function (data)
 		{
 			arr = data.split("\\n");

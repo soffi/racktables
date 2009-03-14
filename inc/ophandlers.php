@@ -208,15 +208,14 @@ function linkPortForObject ()
 {
 	assertUIntArg ('port_id', __FUNCTION__);
 	assertUIntArg ('remote_port_id', __FUNCTION__);
-	assertStringArg ('port_name', __FUNCTION__, TRUE);
-	assertStringArg ('remote_port_name', __FUNCTION__, TRUE);
-	assertStringArg ('remote_object_name', __FUNCTION__, TRUE);
 
+	$port = getPortByID($_REQUEST['port_id']);
+	$remote_port = getPortByID($_REQUEST['remote_port_id']);
 	$error = linkPorts ($_REQUEST['port_id'], $_REQUEST['remote_port_id']);
 	if ($error != '')
 		return buildRedirectURL (__FUNCTION__, 'ERR', array ($error));
 	else
-		return buildRedirectURL (__FUNCTION__, 'OK', array ($_REQUEST['port_name'], $_REQUEST['remote_port_name'], $_REQUEST['remote_object_name']));
+		return buildRedirectURL (__FUNCTION__, 'OK', array ($port['name'], $remote_port['name'], $remote_port['object_name']));
 }
 
 function unlinkPortForObject ()
