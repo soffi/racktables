@@ -636,7 +636,7 @@ function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_
 				}
 				else
 				{
-					Database::update(array('state'=>$newstate), 'RackSpace', $row[0]);
+					Database::update(array('object_id'=>null, 'state'=>$newstate), 'RackSpace', $row[0]);
 				}
 			}
 			else
@@ -657,6 +657,7 @@ function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_
 						'rack_id'=>$rack_id,
 						'unit_no'=>$unit_no,
 						'atom'=>$atom,
+						'object_id'=>null,
 						'state'=>$newstate), 'RackSpace');
 				}
 			}

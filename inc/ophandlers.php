@@ -666,6 +666,7 @@ function updateObjectAllocation ()
 			showError ('getResidentRacksData() failed', __FUNCTION__);
 			return;
 		}
+		$workingRacksData = array();
 		foreach ($_REQUEST['rackmulti'] as $cand_id)
 		{
 			if (!isset ($workingRacksData[$cand_id]))
@@ -679,8 +680,8 @@ function updateObjectAllocation ()
 				$workingRacksData[$cand_id] = $rackData;
 			}
 		}
-		foreach ($workingRacksData as &$rackData)
-			applyObjectMountMask ($rackData, $object_id);
+		foreach ($workingRacksData as &$rd)
+			applyObjectMountMask ($rd, $object_id);
 
 		$worldchanged = FALSE;
 		$log = array();
@@ -694,10 +695,13 @@ function updateObjectAllocation ()
 	}
 	else
 	{
-		unset($_REQUEST['page']);
-		unset($_REQUEST['tab']);
-		unset($_REQUEST['op']);
-		return buildWideRedirectURL(array(), NULL, NULL, $_REQUEST);
+		unset($_GET['page']);
+		unset($_GET['tab']);
+		unset($_GET['op']);
+		unset($_POST['page']);
+		unset($_POST['tab']);
+		unset($_POST['op']);
+		return buildWideRedirectURL(array(), NULL, NULL, array_merge($_GET, $_POST));
 	}
 
 }

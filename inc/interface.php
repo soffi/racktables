@@ -1753,7 +1753,7 @@ function renderRackSpaceForObject ($object_id = 0)
 	}
 
 	// ...and then add those chosen by user (if any).
-	if ($is_update)
+	if (isset($_REQUEST['rackmulti']))
 		foreach ($_REQUEST['rackmulti'] as $cand_id)
 		{
 			if (!isset ($workingRacksData[$cand_id]))
@@ -1768,9 +1768,14 @@ function renderRackSpaceForObject ($object_id = 0)
 			}
 		}
 
+	printOpFormIntro ('updateObjectAllocation');
+
 	// Do it only once...
-	foreach ($workingRacksData as &$rackData)
+	foreach ($workingRacksData as $rackId => &$rackData)
+	{
 		applyObjectMountMask ($rackData, $object_id);
+		echo "<input type=\"hidden\" name=\"rackmulti[]\" value=\"$rackId\">";
+	}
 	// Now we workaround an old caveat: http://bugs.php.net/bug.php?id=37410
 	unset ($rackData);
 
@@ -1779,7 +1784,6 @@ function renderRackSpaceForObject ($object_id = 0)
 
 	showMessageOrError();
 
-	printOpFormIntro ('updateObjectAllocation');
 
 	// Main layout starts.
 	echo "<table border=0 class=objectview cellspacing=0 cellpadding=0><tr>";
@@ -1848,6 +1852,7 @@ function renderRackSpaceForObject ($object_id = 0)
 	echo "</tr></table>";
 	finishPortlet();
 	echo "</td>\n";
+
 
 	echo "</form>\n";
 	echo "</tr></table>\n";
