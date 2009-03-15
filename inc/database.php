@@ -3255,8 +3255,10 @@ function getAllFiles ()
 		$ret[$count]['name'] = $row['name'];
 		$ret[$count]['type'] = $row['type'];
 		$ret[$count]['size'] = $row['size'];
-		$ret[$count]['ctime'] = 0;
-		$ret[$count]['mtime'] = 0;
+		$head = Database::getRevisionById(Database::getHeadRevisionForObject('File', $row['id']));
+		$ret[$count]['mtime'] = strftime('%F %T', $head['timestamp']);
+		$tail = Database::getRevisionById(Database::getTailRevisionForObject('File', $row['id']));
+		$ret[$count]['ctime'] = strftime('%F %T', $tail['timestamp']);
 		$ret[$count]['atime'] = $row['atime'];
 		$ret[$count]['comment'] = $row['comment'];
 		$count++;
@@ -3318,8 +3320,11 @@ function getFileList ($entity_type = NULL, $tagfilter = array(), $tfmode = 'any'
 			'comment'
 			) as $cname)
 			$ret[$row['id']][$cname] = $row[$cname];
-		$ret[$row['id']]['ctime'] = 0;
-		$ret[$row['id']]['mtime'] = 0;
+		$head = Database::getRevisionById(Database::getHeadRevisionForObject('File', $row['id']));
+		$tail = Database::getRevisionById(Database::getTailRevisionForObject('File', $row['id']));
+
+		$ret[$row['id']]['mtime'] = strftime('%F %T', $head['timestamp']);
+		$ret[$row['id']]['ctime'] = strftime('%F %T', $tail['timestamp']);
 	}
 	
 	Database::closeCursor($result);
@@ -3337,17 +3342,22 @@ function getFilesOfEntity ($entity_type = NULL, $entity_id = 0)
 	$query  = Database::query($sql, array(1=>$entity_type, 2=>$entity_id));
 	$ret = array();
 	while ($row = $query->fetch (PDO::FETCH_ASSOC))
+	{
+		$head = Database::getRevisionById(Database::getHeadRevisionForObject('File', $row['file_id']));
+		$tail = Database::getRevisionById(Database::getTailRevisionForObject('File', $row['file_id']));
+
 		$ret[$row['file_id']] = array (
 			'id' => $row['file_id'],
 			'link_id' => $row['link_id'],
 			'name' => $row['name'],
 			'type' => $row['type'],
 			'size' => $row['size'],
-			'ctime' => 0,
-			'mtime' => 0,
+			'ctime' => strftime('%F %T', $tail['timestamp']),
+			'mtime' => strftime('%F %T', $head['timestamp']),
 			'atime' => $row['atime'],
 			'comment' => $row['comment'],
 		);
+	}
 	return $ret;
 }
 
@@ -3363,8 +3373,10 @@ function getFile ($file_id = 0)
 	$ret['name'] = $row['name'];
 	$ret['type'] = $row['type'];
 	$ret['size'] = $row['size'];
-	$ret['ctime'] = 0;
-	$ret['mtime'] = 0;
+	$head = Database::getRevisionById(Database::getHeadRevisionForObject('File', $row['id']));
+	$tail = Database::getRevisionById(Database::getTailRevisionForObject('File', $row['id']));
+	$ret['ctime'] = strftime('%F %T', $tail['timestamp']);
+	$ret['mtime'] = strftime('%F %T', $head['timestamp']);
 	$ret['atime'] = $row['atime'];
 	$ret['contents'] = $row['contents'];
 	$ret['comment'] = $row['comment'];
@@ -3387,8 +3399,10 @@ function getFileInfo ($file_id = 0)
 	$ret['name'] = $row['name'];
 	$ret['type'] = $row['type'];
 	$ret['size'] = $row['size'];
-	$ret['ctime'] = 0;
-	$ret['mtime'] = 0;
+	$head = Database::getRevisionById(Database::getHeadRevisionForObject('File', $row['id']));
+	$tail = Database::getRevisionById(Database::getTailRevisionForObject('File', $row['id']));
+	$ret['ctime'] = strftime('%F %T', $tail['timestamp']);
+	$ret['mtime'] = strftime('%F %T', $head['timestamp']);
 	$ret['atime'] = $row['atime'];
 	$ret['comment'] = $row['comment'];
 	Database::closeCursor($query);
