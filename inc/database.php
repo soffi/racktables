@@ -353,6 +353,9 @@ function getObjectInfo ($object_id = 0)
 
 function getArrayObjectInfo ($objects = array())
 {
+	$ret = array();
+	if (count($objects) == 0)
+		return $ret;
 	$query =
 		'select RackObject.id as id, RackObject.name as name, label, barcode, dict_value as objtype_name, asset_no, Dictionary.id as objtype_id, has_problems, comment from ' .
 		'RackObject inner join Dictionary on objtype_id = Dictionary.id ' .
