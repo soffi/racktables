@@ -3055,3 +3055,5 @@ INSERT INTO `revision` (`id`, `timestamp`, `user_id`) VALUES (872,'2009-03-03 15
 INSERT INTO `revision` (`id`, `timestamp`, `user_id`) VALUES (873,'2009-03-03 15:24:42',1);
 INSERT INTO `revision` (`id`, `timestamp`, `user_id`) VALUES (874,'2009-03-03 15:25:46',1);
 INSERT INTO `revision` (`id`, `timestamp`, `user_id`) VALUES (875,'2009-03-03 15:26:28',1);
+
+CALL init_legacy_tables();

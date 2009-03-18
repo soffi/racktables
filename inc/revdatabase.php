@@ -586,13 +586,11 @@ class Database {
 			}
 			self::autoCommit();
 		}
-		else
-		{
-			$q = self::$dbxlink->prepare("delete from $table where id = ?");
-			$q->bindValue(1, $id);
-			$q->execute();
-			self::closeCursor($q);
-		}
+		//delete from non-versionized and legacy table
+		$q = self::$dbxlink->prepare("delete from $table where id = ?");
+		$q->bindValue(1, $id);
+		$q->execute();
+		self::closeCursor($q);
 
 	}
 
@@ -731,37 +729,34 @@ class Database {
 			self::$lastInsertId = $next_id;
 			return $next_id;
 		}
-		else
+		//here we update either legacy $table or non-versionized $table
+		$params = array();
+		$values = array();
+		foreach ($fields as $column => $value)
 		{
-			$params = array();
-			$values = array();
-			foreach ($fields as $column => $value)
+			if (gettype($value) == 'array')
 			{
-				if (gettype($value) == 'array')
-				{
-					$params[] = "$column = ${value['left']} ? ${value['right']}";
-					$values[] = $value['value'];
-				}
-				else
-				{
-					$params[] = "$column = ?";
-					$values[] = $value;
-				}
+				$params[] = "$column = ${value['left']} ? ${value['right']}";
+				$values[] = $value['value'];
 			}
-			$query = "insert into $table set ".implode(', ', $params);
-			$q = self::$dbxlink->prepare($query);
-			$paramno = 1;
-			foreach($values as $value)
-				$q->bindValue($paramno++, $value);
-			$q->execute();
-			self::closeCursor($q);
-			$q = self::$dbxlink->query("select last_insert_id()");
-			list($lastId) = $q->fetch(PDO::FETCH_NUM);
-			self::closeCursor($q);
-			self::$lastInsertId = $lastId;
-			return $lastId;
+			else
+			{
+				$params[] = "$column = ?";
+				$values[] = $value;
+			}
 		}
-
+		$query = "insert into $table set ".implode(', ', $params);
+		$q = self::$dbxlink->prepare($query);
+		$paramno = 1;
+		foreach($values as $value)
+			$q->bindValue($paramno++, $value);
+		$q->execute();
+		self::closeCursor($q);
+		$q = self::$dbxlink->query("select last_insert_id()");
+		list($lastId) = $q->fetch(PDO::FETCH_NUM);
+		self::closeCursor($q);
+		self::$lastInsertId = $lastId;
+		return $lastId;
 	}
 
 	private function assembleUpdateString($params)
@@ -941,19 +936,17 @@ class Database {
 			}
 			self::autoCommit();
 		}
-		else
-		{
-			$q = self::$dbxlink->prepare("update $table set ".self::assembleUpdateString($fields)." where id = ?");
-			$paramno = 1;
-			foreach($fields as $value)
-				if (gettype($value) == 'array')
-					$q->bindValue($paramno++, $value['value']);
-				else
-					$q->bindValue($paramno++, $value);
-			$q->bindValue($paramno++, $id);
-			$q->execute();
-			self::closeCursor($q);
-		}
+		//Here we update either non-versioned $table or legacy $table, doesn't matter
+		$q = self::$dbxlink->prepare("update $table set ".self::assembleUpdateString($fields)." where id = ?");
+		$paramno = 1;
+		foreach($fields as $value)
+			if (gettype($value) == 'array')
+				$q->bindValue($paramno++, $value['value']);
+			else
+				$q->bindValue($paramno++, $value);
+		$q->bindValue($paramno++, $id);
+		$q->execute();
+		self::closeCursor($q);
 	}
 
 	public function getHistory($table, $id, $start_rev=NULL, $end_rev=NULL)

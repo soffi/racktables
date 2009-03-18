@@ -1763,3 +1763,6 @@ INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (931,0,0,'[[Juniper%GPASS%TX Matrix | http://www.juniper.net/products_and_services/t_series_core_platforms/index.html]]');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (932,0,0,'[[Linux%GSKIP%RHF10 | http://docs.fedoraproject.org/release-notes/f10/]]');
 INSERT INTO `Dictionary__r` (`id`, `rev`, `rev_terminal`, `dict_value`) VALUES (933,0,0,'[[Linux%GSKIP%openSUSE 11.1 | http://en.opensuse.org/OpenSUSE_11.1]]');
+
+
+CALL init_legacy_tables();

@@ -62,6 +62,7 @@ CREATE TABLE `Registry` (
 
 require_once '../inc/orm.php';
 $database_meta = DatabaseMeta::$database_meta;
+$queryProc =  "CREATE PROCEDURE init_legacy_tables ()\nBEGIN\n";
 foreach($database_meta as $tname => $tvalue)
 {
 	$queryMain = "CREATE TABLE ${tname}__s (
@@ -72,7 +73,6 @@ foreach($database_meta as $tname => $tvalue)
 	rev bigint unsigned not null,
 	rev_terminal tinyint not null,
 ";
-	$queryViewR = "CREATE VIEW ${tname}__vr as select id, max(rev) as rev from ${tname}__r group by id;\n";
 	$queryViewRevFields = '';
 	$queryViewStatFields = '';
 	foreach ($tvalue['fields'] as $fname=>$fvalue)
@@ -95,11 +95,17 @@ foreach($database_meta as $tname => $tvalue)
 	$queryRev .= "\tkey(id), key(rev), key(rev_terminal), unique id_rev(id, rev)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ";
-	$queryView = "CREATE VIEW ${tname} as \n\tSELECT \n\t\t${tname}__s.id AS id $queryViewRevFields $queryViewStatFields \n\tFROM \n\t\t${tname}__r \n\t\tJOIN ${tname}__vr ON ${tname}__r.id = ${tname}__vr.id and ${tname}__r.rev = ${tname}__vr.rev \n\t\tJOIN ${tname}__s ON ${tname}__s.id = ${tname}__r.id \n\tWHERE ${tname}__r.rev_terminal = 0;\n";
+	$queryDropLegacy = "DROP TABLE IF EXISTS ${tname};\n";
+	$queryCreateLegacy = "CREATE TABLE ${tname} as \n\tSELECT \n\t\t${tname}__s.id AS id $queryViewRevFields $queryViewStatFields \n\tFROM \n\t\t${tname}__r \n\t\tJOIN (SELECT id, max(rev) AS rev FROM ${tname}__r GROUP BY id) AS ${tname}__vr ON ${tname}__r.id = ${tname}__vr.id and ${tname}__r.rev = ${tname}__vr.rev \n\t\tJOIN ${tname}__s ON ${tname}__s.id = ${tname}__r.id \n\tWHERE ${tname}__r.rev_terminal = 0;\n";
 	echo $queryMain."\n";
 	echo $queryRev."\n";
-	echo $queryViewR."\n";
-	echo $queryView."\n";
+	$queryProc .= $queryDropLegacy . $queryCreateLegacy;
 
-}	
+}
+$queryProc .= "END\n";
+echo "\n\ndelimiter //\n";
+echo "$queryProc//\n";
+echo "\n\ndelimiter ;\n\n";
+echo "CALL init_legacy_tables();";
+	
 ?>
