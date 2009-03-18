@@ -70,12 +70,6 @@ if (!set_magic_quotes_runtime (0))
 	exit (1);
 }
 
-// We don't need to escape globals anymore
-// Escape any globals before we ever try to use them.
-/* foreach ($_REQUEST as $key => $value)
-	if (gettype ($value) == 'string')
-		$_REQUEST[$key] = escapeString ($value); */
-
 if (isset ($_SERVER['PHP_AUTH_USER']))
 	$_SERVER['PHP_AUTH_USER'] = escapeString ($_SERVER['PHP_AUTH_USER']);
 if (isset ($_SERVER['REMOTE_USER']))

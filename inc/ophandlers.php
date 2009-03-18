@@ -941,6 +941,7 @@ function resetUIConfig()
 	setConfigVar ('PREVIEW_TEXT_ROWS', '25');
 	setConfigVar ('PREVIEW_TEXT_COLS', '80');
 	setConfigVar ('PREVIEW_IMAGE_MAXPXS', '320');
+	setConfigVar ('VENDOR_SIEVE', '');
 	return buildRedirectURL (__FUNCTION__, 'OK');
 }
 
@@ -1461,7 +1462,7 @@ function submitSLBConfig ()
 {
 	assertUIntArg ('object_id', __FUNCTION__);
 	$newconfig = buildLVSConfig ($_REQUEST['object_id']);
-	$msglog = gwSendFile ($_REQUEST['object_id'], 'slbconfig', html_entity_decode ($newconfig, ENT_QUOTES, 'UTF-8'));
+	$msglog = gwSendFileToObject ($_REQUEST['object_id'], 'slbconfig', html_entity_decode ($newconfig, ENT_QUOTES, 'UTF-8'));
 	return buildWideRedirectURL ($msglog);
 }
 
@@ -1696,6 +1697,7 @@ function updateFile ()
 	assertStringArg ('file_name', __FUNCTION__);
 	assertStringArg ('file_type', __FUNCTION__);
 	assertStringArg ('file_comment', __FUNCTION__, TRUE);
+	// prepared statement params below
 	$error = commitUpdateFile ($_REQUEST['file_id'], $_REQUEST['file_name'], $_REQUEST['file_type'], $_REQUEST['file_comment']);
 	if ($error != '')
 		return buildRedirectURL (__FUNCTION__, 'ERR', array ($error));
