@@ -212,7 +212,7 @@ function dynamic_title_file ()
 			assertUIntArg ('file_id', __FUNCTION__);
 			try {
 				$file = getFileInfo ($_REQUEST['file_id']);
-				$ret['name'] = $file['name'];
+				$ret['name'] = htmlspecialchars ($file['name']);
 			} catch (OutOfRevisionRangeException $e) {
 				$ret['name'] = 'Unknown file '.$_REQUEST['file_id'];
 			}

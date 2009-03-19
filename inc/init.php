@@ -70,6 +70,10 @@ if (!set_magic_quotes_runtime (0))
 	exit (1);
 }
 
+foreach ($_REQUEST as $key => $value)
+	if (gettype ($value) == 'string')
+		$_REQUEST[$key] = dos2unix ($value);
+
 if (isset ($_SERVER['PHP_AUTH_USER']))
 	$_SERVER['PHP_AUTH_USER'] = escapeString ($_SERVER['PHP_AUTH_USER']);
 if (isset ($_SERVER['REMOTE_USER']))

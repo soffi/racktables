@@ -3547,17 +3547,19 @@ function commitLinkFile ($file_id, $entity_type, $entity_id)
 	return '';
 }
 
-function commitReplaceFile ($file_id = 0, $size, $contents)
+function commitReplaceFile ($file_id = 0, $contents)
 {
 	if ($file_id == 0)
 	{
 		showError ('Not all required args are present.', __FUNCTION__);
 		return FALSE;
 	}
-	$now = date('YmdHis');
 	$fileContent = file_get_contents($contents);
 	if ($fileContent)
+	{
+		$size = strlen($fileContent);
 		Database::update(array('size'=>$size, 'contents'=>$fileContent), 'File', $file_id);
+	}
 	return '';
 }
 
@@ -3569,16 +3571,6 @@ function commitUpdateFile ($file_id = 0, $new_name = '', $new_type = '', $new_co
 		return FALSE;
 	}
 	Database::update(array('name'=>$new_name, 'type'=>$new_type, 'comment'=>$new_comment), 'File', $file_id);
-	return '';
-}
-
-// This is a temporary copy of commitReplaceFile() to work around escaping issues.
-function commitUpdateFileText ($file_id = 0, $newtext = '')
-{
-	if ($file_id <= 0)
-		return 'Invalid key in ' . __FUNCTION__;
-
-	Database::update(array('contents'=>$newtext, 'size'=>strlen($newtext)), 'File', $file_id);
 	return '';
 }
 
