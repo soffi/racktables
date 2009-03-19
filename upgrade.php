@@ -132,7 +132,7 @@ CREATE TABLE `File` (
   `contents` longblob NOT NULL,
   `comment` text,
   PRIMARY KEY  (`id`)
-) ENGINE=InnoDB";
+) ENGINE=InnoDB DEFAULT CHARSET=utf8";
 			$query[] = "
 CREATE TABLE `FileLink` (
   `id` int(10) unsigned NOT NULL auto_increment,
@@ -143,7 +143,7 @@ CREATE TABLE `FileLink` (
   UNIQUE KEY `FileLink-unique` (`file_id`,`entity_type`,`entity_id`),
   KEY `FileLink-file_id` (`file_id`),
   CONSTRAINT `FileLink-File_fkey` FOREIGN KEY (`file_id`) REFERENCES `File` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB";
+) ENGINE=InnoDB DEFAULT CHARSET=utf8";
 			$query[] = "ALTER TABLE TagStorage MODIFY COLUMN target_realm enum('file','ipv4net','ipv4rspool','ipv4vs','object','rack','user') NOT NULL default 'object'";
 
 			// add network security as an object type
@@ -189,7 +189,7 @@ CREATE TABLE `FileLink` (
 			unset ($result);
 			$query[] = "alter table UserAccount drop column user_enabled";
 
-			$query[] = "CREATE TABLE RackRow ( id int(10) unsigned NOT NULL auto_increment, name char(255) NOT NULL, PRIMARY KEY  (`id`) ) ENGINE=MyISAM";
+			$query[] = "CREATE TABLE RackRow ( id int(10) unsigned NOT NULL auto_increment, name char(255) NOT NULL, PRIMARY KEY  (`id`) ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
 
 			$result = $dbxlink->query ("select dict_key, dict_value from Dictionary where chapter_no = 3");
 			while($row = $result->fetch(PDO::FETCH_NUM))

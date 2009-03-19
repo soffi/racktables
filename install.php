@@ -283,11 +283,26 @@ function init_database_static ()
 	echo '<table border=1>';
 	echo "<tr><th>file</th><th>queries</th><th>errors</th></tr>";
 	$errlist = array();
-	foreach (array ('structure', 'dictbase', 'dictvendors') as $part)
+	foreach (array ('procedures', 'structure', 'dictbase', 'dictvendors') as $part)
 	{
 		$filename = "install/init-${part}.sql";
 		echo "<tr><td>${filename}</td>";
-		$f = fopen ("install/init-${part}.sql", 'r');
+
+		// don't parse the procedures since they use semicolons in their definition
+		if ($part == 'procedures')
+		{
+			$procedures = file_get_contents($filename);
+			$nerrs = 0;
+			if ($dbxlink->exec ($procedures) === FALSE)
+			{
+				$nerrs++;
+				$errlist[] = 'contents of init-procedures.sql';
+			}
+			echo "<td>1</td><td>${nerrs}</td></tr>\n";
+			continue;
+		}
+
+		$f = fopen ($filename, 'r');
 		if ($f === FALSE)
 		{
 			echo "Failed to open install/init-${part}.sql for reading";
@@ -317,6 +332,9 @@ function init_database_static ()
 		echo "<td>${nq}</td><td>${nerrs}</td></tr>\n";
 	}
 	echo '</table>';
+
+	$dbxlink->exec ('CALL init_legacy_tables');
+
 	if (count ($errlist))
 	{
 		echo '<pre>The following queries failed:\n';

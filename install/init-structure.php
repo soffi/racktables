@@ -9,20 +9,20 @@ CREATE TABLE `Config` (
   `is_hidden` enum('yes','no') NOT NULL default 'yes',
   `description` text,
   PRIMARY KEY  (`varname`)
-) ENGINE=MyISAM;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `PortCompat` (
   `type1` int(10) unsigned NOT NULL,
   `type2` int(10) unsigned NOT NULL,
   KEY `type1` (`type1`),
   KEY `type2` (`type2`)
-) ENGINE=MyISAM;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `Script` (
   `script_name` char(64) NOT NULL,
   `script_text` longtext,
   PRIMARY KEY  (`script_name`)
-) TYPE=MyISAM;
+) TYPE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `UserAccount` (
   `user_id` int(10) unsigned NOT NULL auto_increment,
@@ -31,7 +31,7 @@ CREATE TABLE `UserAccount` (
   `user_realname` char(64) default NULL,
   PRIMARY KEY  (`user_id`),
   UNIQUE KEY `user_name` (`user_name`)
-) ENGINE=MyISAM AUTO_INCREMENT=10000;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=10000;
 
 CREATE TABLE `revision` (
   `id` bigint(20) unsigned NOT NULL,
