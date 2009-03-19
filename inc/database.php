@@ -669,6 +669,7 @@ function processGridForm (&$rackData, $unchecked_state, $checked_state, $object_
 	}
 	if ($rackchanged)
 	{
+		resetThumbCache ($rack_id);
 		return array ('code' => 200, 'message' => "${rack_name}: All changes were successfully saved.");
 	}
 	else
@@ -2564,9 +2565,8 @@ function getRSPoolList ($tagfilter = array(), $tfmode = 'any')
 
 function loadThumbCache ($rack_id = 0)
 {
-	global $numeric_revision;
 	$ret = NULL;
-	$query = "select data from Registry where id = 'rackThumb_${rack_id}_${numeric_revision}'";
+	$query = "select data from Registry where id = 'rackThumb_${rack_id}'";
 	$result = Database::query ($query);
 	$row = $result->fetch (PDO::FETCH_ASSOC);
 	if ($row)
@@ -2577,16 +2577,20 @@ function loadThumbCache ($rack_id = 0)
 
 function saveThumbCache ($rack_id = 0, $cache = NULL)
 {
-	global $numeric_revision;
 	if ($rack_id == 0 or $cache == NULL)
 		throw new Exception ('Invalid arguments');
 	$data = base64_encode ($cache);
-	$result = Database::query ("select count(*) from Registry where id='rackThumb_${rack_id}_${numeric_revision}'");
+	$result = Database::query ("select count(*) from Registry where id='rackThumb_${rack_id}'");
 	$row = $result->fetch ();
 	if (isset($row[0]) and $row[0] > 0)
-		Database::update(array('data'=>$data), 'Registry', "rackThumb_${rack_id}_${numeric_revision}");
+		Database::update(array('data'=>$data), 'Registry', "rackThumb_${rack_id}");
 	else
-		Database::insert(array('data'=>$data, 'id'=>"rackThumb_${rack_id}_${numeric_revision}"), 'Registry');
+		Database::insert(array('data'=>$data, 'id'=>"rackThumb_${rack_id}"), 'Registry');
+}
+
+function resetThumbCache ($rack_id = 0)
+{
+	Database::delete('Registry', "rackThumb_${rack_id}");
 }
 
 // Return the list of attached RS pools for the given object. As long as we have
