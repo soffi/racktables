@@ -5,30 +5,23 @@
 *
 */
 
+class AssertException extends Exception
+{
+
+}
+
 // This function assures that specified argument was passed
 // and is a number greater than zero.
 function assertUIntArg ($argname, $caller = 'N/A', $allow_zero = FALSE)
 {
 	if (!isset ($_REQUEST[$argname]))
-	{
-		showError ("Parameter '${argname}' is missing (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is missing");
 	if (!is_numeric ($_REQUEST[$argname]))
-	{
-		showError ("Parameter '${argname}' is not a number (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is not a number");
 	if ($_REQUEST[$argname] < 0)
-	{
-		showError ("Parameter '${argname}' is less than zero (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is less than zero");
 	if (!$allow_zero and $_REQUEST[$argname] == 0)
-	{
-		showError ("Parameter '${argname}' is equal to zero (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is equal to zero");
 }
 
 // This function assures that specified argument was passed
@@ -36,49 +29,28 @@ function assertUIntArg ($argname, $caller = 'N/A', $allow_zero = FALSE)
 function assertStringArg ($argname, $caller = 'N/A', $ok_if_empty = FALSE)
 {
 	if (!isset ($_REQUEST[$argname]))
-	{
-		showError ("Parameter '${argname}' is missing (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is missing");
 	if (!is_string ($_REQUEST[$argname]))
-	{
-		showError ("Parameter '${argname}' is not a string (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is not a string");
 	if (!$ok_if_empty and empty ($_REQUEST[$argname]))
-	{
-		showError ("Parameter '${argname}' is an empty string (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is an empty string");
 }
 
 function assertBoolArg ($argname, $caller = 'N/A', $ok_if_empty = FALSE)
 {
 	if (!isset ($_REQUEST[$argname]))
-	{
-		showError ("Parameter '${argname}' is missing (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is missing");
 	if (!is_string ($_REQUEST[$argname]) or $_REQUEST[$argname] != 'on')
-	{
-		showError ("Parameter '${argname}' is not a string (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is not a string");
 	if (!$ok_if_empty and empty ($_REQUEST[$argname]))
-	{
-		showError ("Parameter '${argname}' is an empty string (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("Parameter '${argname}' is an empty string");
 }
 
 function assertIPv4Arg ($argname, $caller = 'N/A', $ok_if_empty = FALSE)
 {
 	assertStringArg ($argname, $caller, $ok_if_empty);
 	if (!empty ($_REQUEST[$argname]) and long2ip (ip2long ($_REQUEST[$argname])) !== $_REQUEST[$argname])
-	{
-		showError ("IPv4 address validation failed for value '" . $_REQUEST[$argname] . "' (calling function is [${caller}]).", __FUNCTION__);
-		die();
-	}
+		throw new AssertException ("IPv4 address validation failed for value '" . $_REQUEST[$argname] . "'");
 }
 
 function addPortForwarding ()

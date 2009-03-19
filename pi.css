@@ -640,7 +640,10 @@ div.tagselector {
 }
 
 
-
+.exceptionParametersDump th {
+	text-align: right;
+	background-color: #ddd;
+}
 
 
 
