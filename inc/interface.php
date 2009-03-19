@@ -1209,6 +1209,7 @@ function renderPortsForObject ($object_id = 0)
 	echo "</table><br>\n";
 	$selsize = getConfigVar ('MAXSELSIZE');
 	$processHref = makeHrefProcess(array('op'=>'linkPort'));
+	$ajaxUrl = makeHrefForAjax(array('op'=>'getObjectsEmptyPorts'));
 	echo <<< ENDJAVASCRIPT
 <div id="RelPortHelper" style="display:none">
 	<h2>Choose a port</h2>
@@ -1236,7 +1237,7 @@ function portHelperOpened(caller)
 	$.ajax({
 		type: "GET",
 		url: "ajax.php",
-		data: "page=object&tab=ports&op=getObjectsEmptyPorts&object_id="+portHelperObjectid+"&type="+portHelperPorttype,
+		data: "$ajaxUrl&object_id="+portHelperObjectid+"&type="+portHelperPorttype,
 		success: function (data)
 		{
 			arr = data.split("\\n");
@@ -2022,16 +2023,6 @@ function renderObjectGroup ()
 
 	renderTagFilterPortlet ($tagfilter, 'object', 'group_id', $group_id);
 	echo "</td></tr></table>\n";
-}
-
-function renderAllIPv4Allocations ()
-{
-	$addresses = getAllIPv4Allocations();
-	usort($addresses, 'sortObjectAddressesAndNames');
-	foreach ($addresses as $address)
-	{
-		echo "<option value='${address['ip']}' onclick='getElementById(\"ip\").value=\"${address['ip']}\";'>${address['object_name']} ${address['name']} ${address['ip']}</option>\n";
-	}
 }
 
 // History viewer for history-enabled simple dictionaries.
@@ -2854,6 +2845,63 @@ function renderIPv4AddressAllocations ($dottedquad)
 	echo "</table><br><br>";
 }
 
+function renderInet4ListPicker($args)
+{
+	$selsize = getConfigVar ('MAXSELSIZE');
+	$ajaxUrl = makeHrefForAjax(array_merge($args, array('op'=>'getObjectsInet4List')));
+	echo <<< ENDJAVASCRIPT
+
+<div id="RelInet4Helper" style="display:none">
+        <h2>Choose an address</h2>
+        <table class="Inet4HelperTable">
+                <tr>
+                        <td><select class="inet4HelperObjectSelect" style="display: none" size='$selsize'>
+                        </select></td>
+                </tr>
+        </table>
+</div>
+
+
+<script type="text/javascript"><!--
+function inet4HelperOpened()
+{
+        $.ajax({
+                type: "GET",
+                url: "ajax.php",
+                data: "$ajaxUrl",
+                success: function (data)
+                {
+                        arr = data.split("\\n");
+                        if (arr[0] == "ACK")
+                        {
+                                for(var i = 1; i<arr.length; i++)
+                                {
+                                        var row = arr[i].split('\\t');
+                                        if (row[1] == null) continue;
+                                        var o = document.createElement('option');
+                                        o.text = row[0];
+                                        o.value = row[1];
+                                        o.class = 'inet4HelperObjectOption';
+                                        $('#modal_content select.inet4HelperObjectSelect')[0].options[i-1] = o;
+                                }
+                                $('#modal_content select.inet4HelperObjectSelect')[0].style.display = 'inline';
+                                $('#modal_content select.inet4HelperObjectSelect').change(function() {
+					$('#remoteip')[0].value = this.value;
+					$('#modal_content div.modal_close').click();
+				});
+                        }
+                }
+        });
+}
+
+$(document).ready(function() {
+        $('a.inet4Helper').modal({show:"inet4HelperOpened(this)"});
+});
+//--></script>
+ENDJAVASCRIPT;
+
+}
+
 function renderNATv4ForObject ($object_id = 0)
 {
 	global $root;
@@ -2876,8 +2924,7 @@ function renderNATv4ForObject ($object_id = 0)
 
 		echo "</select>:<input type='text' name='localport' size='4' tabindex=2></td>";
 		echo "<td><input type='text' name='remoteip' id='remoteip' size='10' tabindex=3>";
-		echo "<a href='javascript:;' onclick='window.open(\"" . makeHrefForHelper ('inet4list');
-		echo "\", \"findobjectip\", \"height=700, width=400, location=no, menubar=no, resizable=yes, scrollbars=no, status=no, titlebar=no, toolbar=no\");'>";
+		echo "<a href='#' class='inet4Helper' rel='RelInet4Helper'>";
 		printImageHREF ('find', 'Find object');
 		echo "</a>";
 		echo ":<input type='text' name='remoteport' size='4' tabindex=4></td><td></td>";
@@ -2893,6 +2940,7 @@ function renderNATv4ForObject ($object_id = 0)
 	showMessageOrError();
 	echo "<center><h2>locally performed NAT</h2></center>";
 
+	renderInet4ListPicker(array('object_id'=>$object_id));
 	echo "<table class='widetable' cellpadding=5 cellspacing=0 border=0 align='center'>\n";
 	echo "<tr><th></th><th>Match endpoint</th><th>Translate to</th><th>Target object</th><th>Comment</th><th>&nbsp;</th></tr>\n";
 
@@ -4355,8 +4403,7 @@ function renderRSPoolServerForm ($pool_id = 0)
 	else
 		printImageHREF ('notinservice', 'NOT in service');
 	echo "</td><td><input type=text name=remoteip id=remoteip tabindex=1> ";
-	echo "<a href='javascript:;' onclick='window.open(\"" . makeHrefForHelper ('inet4list');
-	echo "\", \"findobjectip\", \"height=700, width=400, location=no, menubar=no, resizable=yes, scrollbars=no, status=no, titlebar=no, toolbar=no\");'>";
+	echo "<a href='#' class='inet4Helper' rel='RelInet4Helper'>";
 	printImageHREF ('find', 'pick address');
 	echo "</a></td>";
 	$default_port = getConfigVar ('DEFAULT_SLB_RS_PORT');
@@ -4368,7 +4415,7 @@ function renderRSPoolServerForm ($pool_id = 0)
 	echo "<tr><td colspan=4><textarea name=rsconfig rows=10 cols=80 tabindex=4></textarea></td></tr>";
 	echo "</form></table>\n";
 	finishPortlet();
-
+	renderInet4ListPicker(array('pool_id'=>$pool_id));
 	startPortlet ('Add many');
 	printOpFormIntro ('addMany');
 	echo "<table border=0 align=center>\n<tr><td>";
@@ -5410,6 +5457,7 @@ function renderRackCodeViewer ()
 function renderRackCodeEditor ()
 {
 	$text = loadScript ('RackCode');
+	$ajaxUrl = makeHrefForAjax(array('op'=>'verifyCode')); 
 	showMessageOrError();
 	printOpFormIntro ('saveRackCode');
 	echo <<<ENDJAVASCRIPT
@@ -5420,7 +5468,7 @@ function verify()
 	$.ajax({
 		type: "POST",
 		url: "ajax.php",
-		data: "page=perms&tab=edit&op=verifyCode&code="+RCTA.getCode(),
+		data: "$ajaxUrl&code="+RCTA.getCode(),
 		success: function (data)
 		{
 			arr = data.split("\\n");

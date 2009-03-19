@@ -97,8 +97,8 @@ function commitUpdateRow($rackrow_id, $rackrow_name)
 
 function commitDeleteRow($rackrow_id)
 {
-	$query = "select count(*) from Rack where row_id=${rackrow_id}";
-	$result = Database::query($query);
+	$query = "select count(*) from Rack where row_id = ?";
+	$result = Database::query($query, array(1=>$rackrow_id));
 	if (($result!=NULL) && ($row = $result->fetch(PDO::FETCH_NUM)) )
 		if ($row[0] == 0)
 			Database::delete('RackRow', $rackrow_id);
@@ -954,7 +954,7 @@ function getAllIPv4Allocations ()
 		"RackObject.name as object_name, ".
 		"IPv4Allocation.name as name, ".
 		"INET_NTOA(ip) as ip ".
-		"from IPv4Allocation join RackObject on id=object_id ";
+		"from IPv4Allocation join RackObject on RackObject.id=IPv4Allocation.object_id ";
 	$result = Database::query ($query);
 	$ret = array();
 	$count=0;

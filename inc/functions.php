@@ -1875,15 +1875,13 @@ function makeHrefProcess($params = array())
 	return $ret;
 }
 
-function makeHrefForHelper ($helper_name, $params = array())
+function makeHrefForAjax ($params = array())
 {
-	global $head_revision, $numeric_revision, $root;
-	$ret = $root.'popup.php'.'?helper='.$helper_name;
-	if ($numeric_revision != $head_revision)
-	{
-		error_log("Can't make a process link when not in head revision");
-		die();
-	}
+	global $pageno, $tabno, $root;
+	if (!isset($params['page']))
+		$params['page'] = $pageno;
+	if (!isset($params['tab']))
+		$params['tab'] = $tabno;
 	foreach($params as $key=>$value)
 		$ret .= '&'.urlencode($key).'='.urlencode($value);
 	return $ret;
