@@ -1194,7 +1194,6 @@ function renderPortsForObject ($object_id = 0)
 		{
 			echo "<td>&nbsp;</td><td>&nbsp;</td>";
 			echo "<td>";
-			//echo "<a href='javascript:;' onclick='window.open(\"".makeHrefForHelper('portlist', array('port'=>$port['id'], 'type'=>$port['type_id'], 'object_id'=>$object_id, 'port_name'=>$port['name']))."\",\"findlink\",\"height=700, width=400, location=no, menubar=no, resizable=yes, scrollbars=no, status=no, titlebar=no, toolbar=no\");'>";
 			echo "<a href='#' rt_portid='${port['id']}' rt_porttype='${port['type_id']}' rt_objectid='$object_id' class='portHelper' rel='RelPortHelper'>";
 			printImageHREF ('plug', 'Link this port');
 			echo "</a> <input type=text name=reservation_comment>";

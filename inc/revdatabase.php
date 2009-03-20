@@ -727,36 +727,54 @@ class Database {
 
 			self::autoCommit();
 			self::$lastInsertId = $next_id;
+
+			//here we update either legacy $table
+
+			$q = self::$dbxlink->prepare("insert into ${table} set id = ?".(count($staticParams)>0?',':'')." ".implode(', ', $staticParams).(count($revisionedParams)>0?',':'')." ".implode(', ', $revisionedParams));
+			$q->bindValue(1, $next_id);
+			$paramno = 2;
+			foreach($staticValues as $value)
+				$q->bindValue($paramno++, $value);
+			foreach($revisionedValues as $value)
+				$q->bindValue($paramno++, $value);
+			$q->execute();
+			self::closeCursor($q);
+
+
+
 			return $next_id;
 		}
-		//here we update either legacy $table or non-versionized $table
-		$params = array();
-		$values = array();
-		foreach ($fields as $column => $value)
+		//here we update non-versionized $table
+		else
 		{
-			if (gettype($value) == 'array')
+			$params = array();
+			$values = array();
+			foreach ($fields as $column => $value)
 			{
-				$params[] = "$column = ${value['left']} ? ${value['right']}";
-				$values[] = $value['value'];
+				if (gettype($value) == 'array')
+				{
+					$params[] = "$column = ${value['left']} ? ${value['right']}";
+					$values[] = $value['value'];
+				}
+				else
+				{
+					$params[] = "$column = ?";
+					$values[] = $value;
+				}
 			}
-			else
-			{
-				$params[] = "$column = ?";
-				$values[] = $value;
-			}
+			$query = "insert into $table set ".implode(', ', $params);
+			$q = self::$dbxlink->prepare($query);
+			$paramno = 1;
+			foreach($values as $value)
+				$q->bindValue($paramno++, $value);
+			$q->execute();
+			self::closeCursor($q);
+			$q = self::$dbxlink->query("select last_insert_id()");
+			list($lastId) = $q->fetch(PDO::FETCH_NUM);
+			self::closeCursor($q);
+			self::$lastInsertId = $lastId;
+			return $lastId;
 		}
-		$query = "insert into $table set ".implode(', ', $params);
-		$q = self::$dbxlink->prepare($query);
-		$paramno = 1;
-		foreach($values as $value)
-			$q->bindValue($paramno++, $value);
-		$q->execute();
-		self::closeCursor($q);
-		$q = self::$dbxlink->query("select last_insert_id()");
-		list($lastId) = $q->fetch(PDO::FETCH_NUM);
-		self::closeCursor($q);
-		self::$lastInsertId = $lastId;
-		return $lastId;
 	}
 
 	private function assembleUpdateString($params)
