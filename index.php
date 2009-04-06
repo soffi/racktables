@@ -31,6 +31,7 @@ foreach (array ('F', 'A', 'U', 'T', 'Th', 'Tw', 'Thw') as $statecode)
 }
 ?>
 	</style>
+	<script language='javascript' type='text/javascript' src='js/racktables.js'></script>
 	<script language='javascript' type='text/javascript' src='js/jquery-1.3.1.min.js'></script>
 	<script language='javascript' type='text/javascript' src='js/jquery/jquery.smartmodal_minimized.js'></script>
 	<script language='javascript' type='text/javascript' src='js/live_validation.js'></script>

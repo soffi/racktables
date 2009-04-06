@@ -178,7 +178,7 @@ function dynamic_title_objgroup ()
 		case 'object':
 			assertUIntArg ('object_id', __FUNCTION__);
 			try {
-				$objectInfo = getObjectInfo ($_REQUEST['object_id']);
+				$objectInfo = getObjectInfo ($_REQUEST['object_id'], FALSE);
 				$ret['name'] = $objectInfo['objtype_name'];
 				$ret['params']['group_id'] = $objectInfo['objtype_id'];
 			} catch (OutOfRevisionRangeException $e) {

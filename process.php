@@ -15,8 +15,26 @@ try {
 		throw new Exception ("Invalid request in operation broker: page '${pageno}', tab '${tabno}', op '${op}'");
 	}
 
-	// We have a chance to handle an error before starting HTTP header.
-	if (!isset ($delayauth[$pageno][$tabno][$op]) and !permitted())
+// FIXME: find a better way to handle this error
+if ($_REQUEST['op'] == 'addFile' && !isset($_FILES['file']['error'])) {
+	showError ("File upload error, it's size probably exceeds upload_max_filesize directive in php.ini");
+	die;
+}
+fixContext();
+
+if (empty ($op) or !isset ($ophandler[$pageno][$tabno][$op]))
+{
+	showError ("Invalid request in operation broker: page '${pageno}', tab '${tabno}', op '${op}'", __FILE__);
+	die();
+}
+
+// We have a chance to handle an error before starting HTTP header.
+if (!isset ($delayauth[$pageno][$tabno][$op]) and !permitted())
+	$location = buildWideRedirectURL (oneLiner (157)); // operation not permitted
+else
+{
+	$location = $ophandler[$pageno][$tabno][$op]();
+	if (empty ($location))
 	{
 		$errlog = array
 		(

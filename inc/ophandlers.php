@@ -886,16 +886,12 @@ function resetUIConfig()
 	setConfigVar ('default_port_type','24');
 	setConfigVar ('MASSCOUNT','15');
 	setConfigVar ('MAXSELSIZE','30');
-	setConfigVar ('NAMEFUL_OBJTYPES','4,7,8');
 	setConfigVar ('ROW_SCALE','2');
 	setConfigVar ('PORTS_PER_ROW','12');
 	setConfigVar ('IPV4_ADDRS_PER_PAGE','256');
 	setConfigVar ('DEFAULT_RACK_HEIGHT','42');
-	setConfigVar ('REQUIRE_ASSET_TAG_FOR','4,7,8');
 	setConfigVar ('DEFAULT_SLB_VS_PORT','');
 	setConfigVar ('DEFAULT_SLB_RS_PORT','');
-	setConfigVar ('IPV4_PERFORMERS','1,4,7,8,12,14,445,447');
-	setConfigVar ('NATV4_PERFORMERS','4,7,8');
 	setConfigVar ('DETECT_URLS','no');
 	setConfigVar ('RACK_PRESELECT_THRESHOLD','1');
 	setConfigVar ('DEFAULT_IPV4_RS_INSERVICE','no');
@@ -906,7 +902,6 @@ function resetUIConfig()
 	setConfigVar ('DEFAULT_OBJECT_TYPE','4');
 	setConfigVar ('IPV4_AUTO_RELEASE','1');
 	setConfigVar ('SHOW_LAST_TAB', 'no');
-	setConfigVar ('COOKIE_TTL', '1209600');
 	setConfigVar ('EXT_IPV4_VIEW', 'yes');
 	setConfigVar ('TREE_THRESHOLD', '25');
 	setConfigVar ('IPV4_JAYWALK', 'no');
@@ -917,6 +912,11 @@ function resetUIConfig()
 	setConfigVar ('PREVIEW_TEXT_COLS', '80');
 	setConfigVar ('PREVIEW_IMAGE_MAXPXS', '320');
 	setConfigVar ('VENDOR_SIEVE', '');
+	setConfigVar ('IPV4LB_LISTSRC', '{$typeid_4}');
+	setConfigVar ('IPV4OBJ_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8} or {$typeid_12} or {$typeid_445} or {$typeid_447}');
+	setConfigVar ('IPV4NAT_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}');
+	setConfigVar ('ASSETWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}');
+	setConfigVar ('NAMEWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}');
 	return buildRedirectURL (__FUNCTION__, 'OK');
 }
 
@@ -1235,7 +1235,7 @@ function generateAutoPorts ()
 {
 	global $pageno;
 	assertUIntArg ('object_id', __FUNCTION__);
-	$info = getObjectInfo ($_REQUEST['object_id']);
+	$info = getObjectInfo ($_REQUEST['object_id'], FALSE);
 	// Navigate away in case of success, stay at the place otherwise.
 	if (executeAutoPorts ($_REQUEST['object_id'], $info['objtype_id']))
 		return buildRedirectURL (__FUNCTION__, 'OK', array(), $pageno, 'ports');
@@ -1278,10 +1278,13 @@ function saveEntityTags ()
 function destroyTag ()
 {
 	assertUIntArg ('tag_id', __FUNCTION__);
+	global $taglist;
+	if (!isset ($taglist[$_REQUEST['tag_id']]))
+		return buildRedirectURL (__FUNCTION__, 'ERR1', array ($_REQUEST['tag_id']));
 	if (($ret = commitDestroyTag ($_REQUEST['tag_id'])) == '')
-		return buildRedirectURL (__FUNCTION__, 'OK');
+		return buildRedirectURL (__FUNCTION__, 'OK', array ($taglist[$_REQUEST['tag_id']]['tag']));
 	else
-		return buildRedirectURL (__FUNCTION__, 'ERR');
+		return buildRedirectURL (__FUNCTION__, 'ERR2');
 }
 
 function createTag ()
@@ -1392,7 +1395,7 @@ function setPortVLAN ()
 	// for each of the rest.
 	$nports = $_REQUEST['portcount'];
 	$prefix = 'set ';
-	$log = array ('v' => 2, 'm' => array());
+	$log = emptyLog();
 	$setcmd = '';
 	for ($i = 0; $i < $nports; $i++)
 		if
@@ -1493,7 +1496,7 @@ function addRack ()
 	{
 		assertUIntArg ('rack_height2', __FUNCTION__);
 		assertStringArg ('rack_names', __FUNCTION__, TRUE);
-		$log = array ('v' => 2);
+		$log = emptyLog();
 		// copy-and-paste from renderAddMultipleObjectsForm()
 		$names1 = explode ("\n", $_REQUEST['rack_names']);
 		$names2 = array();
@@ -1654,17 +1657,22 @@ function linkFileToEntity ()
 
 function replaceFile ()
 {
+	global $sic;
 	assertUIntArg ('file_id', __FUNCTION__);
 
 	// Make sure the file can be uploaded
 	if (get_cfg_var('file_uploads') != 1)
-		return buildRedirectURL (__FUNCTION__, 'ERR', array ("file uploads not allowed, change 'file_uploads' parameter in php.ini"));
+		return buildRedirectURL (__FUNCTION__, 'ERR1');
+	$shortInfo = getFileInfo ($sic['file_id']);
 
+	$fp = fopen($_FILES['file']['tmp_name'], 'rb');
+	if ($fp === FALSE)
+		return buildRedirectURL (__FUNCTION__, 'ERR2');
 	$error = commitReplaceFile ($_REQUEST['file_id'], $_FILES['file']['tmp_name']);
 	if ($error != '')
-		return buildRedirectURL (__FUNCTION__, 'ERR', array ($error));
+		return buildRedirectURL (__FUNCTION__, 'ERR3', array ($error));
 
-	return buildRedirectURL (__FUNCTION__, 'OK', array ($_REQUEST['name']));
+	return buildRedirectURL (__FUNCTION__, 'OK', array (htmlspecialchars ($shortInfo['name'])));
 }
 
 function updateFile ()

@@ -19,7 +19,7 @@ function trigger_livevlans ()
 {
 	assertUIntArg ('object_id', __FUNCTION__);
 	$object_id = $_REQUEST['object_id'];
-	$object = getObjectInfo ($object_id);
+	$object = getObjectInfo ($object_id, FALSE);
 	if ($object['objtype_id'] != 8)
 		return FALSE;
 	$values = getAttrValues ($object_id);
@@ -53,30 +53,31 @@ function trigger_snmpportfinder ()
 	return TRUE;
 }
 
-// Output "click me" in an empty rackspace.
+// Show "click me" teaser in an empty rackspace.
 function trigger_emptyRackspace ()
 {
-	return (count (readChapter ('RackRow')) == 0);
+	return (count (getRackRows()) == 0);
 }
 
-function trigger_lvsconfig ()
+function trigger_isloadbalancer ()
 {
 	assertUIntArg ('object_id', __FUNCTION__);
-	return count (getRSPoolsForObject ($_REQUEST['object_id'])) > 0;
+	return considerConfiguredConstraint ('object', $_REQUEST['object_id'], 'IPV4LB_LISTSRC');
 }
 
 function trigger_ipv4 ()
 {
 	assertUIntArg ('object_id', __FUNCTION__);
-	$info = getObjectInfo ($_REQUEST['object_id']);
-	return in_array ($info['objtype_id'], explode (',', getConfigVar ('IPV4_PERFORMERS')));
+	if (count (getObjectIPv4Allocations ($_REQUEST['object_id'])))
+		return TRUE;
+	// Only hide the tab, if there are no addresses allocated.
+	return considerConfiguredConstraint ('object', $_REQUEST['object_id'], 'IPV4OBJ_LISTSRC');
 }
 
 function trigger_natv4 ()
 {
 	assertUIntArg ('object_id', __FUNCTION__);
-	$info = getObjectInfo ($_REQUEST['object_id']);
-	return in_array ($info['objtype_id'], explode (',', getConfigVar ('NATV4_PERFORMERS')));
+	return considerConfiguredConstraint ('object', $_REQUEST['object_id'], 'IPV4NAT_LISTSRC');
 }
 
 function trigger_poolrscount ()
@@ -91,7 +92,7 @@ function trigger_autoports ()
 	assertUIntArg ('object_id', __FUNCTION__);
 	if (!objectIsPortless ($_REQUEST['object_id']))
 		return FALSE;
-	$info = getObjectInfo ($_REQUEST['object_id']);
+	$info = getObjectInfo ($_REQUEST['object_id'], FALSE);
 	return count (getAutoPorts ($info['objtype_id'])) != 0;
 }
 

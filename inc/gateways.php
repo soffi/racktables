@@ -73,7 +73,7 @@ function getSwitchVLANs ($object_id = 0)
 		showError ('Invalid object_id', __FUNCTION__);
 		return;
 	}
-	$objectInfo = getObjectInfo ($object_id);
+	$objectInfo = getObjectInfo ($object_id, FALSE);
 	$endpoints = findAllEndpoints ($object_id, $objectInfo['name']);
 	if (count ($endpoints) == 0)
 	{
@@ -159,7 +159,7 @@ function setSwitchVLANs ($object_id = 0, $setcmd)
 	global $remote_username;
 	if ($object_id <= 0)
 		return oneLiner (160); // invalid arguments
-	$objectInfo = getObjectInfo ($object_id);
+	$objectInfo = getObjectInfo ($object_id, FALSE);
 	$endpoints = findAllEndpoints ($object_id, $objectInfo['name']);
 	if (count ($endpoints) == 0)
 		return oneLiner (161); // endpoint not found
@@ -208,20 +208,50 @@ function setSwitchVLANs ($object_id = 0, $setcmd)
 
 // Drop a file off RackTables platform. The gateway will catch the file and pass it to the given
 // installer script.
-// Return a 
-function gwSendFile ($endpoint, $handlername, $filetext = '')
+function gwSendFile ($endpoint, $handlername, $filetext = array())
+{
+	global $remote_username;
+	$tmpnames = array();
+	$endpoint = str_replace (' ', '\ ', $endpoint); // the gateway dispatcher uses read (1) to assign arguments
+	$command = "submit ${remote_username} ${endpoint} ${handlername}";
+	foreach ($filetext as $text)
+	{
+		$name = tempnam ('', 'RackTables-sendfile-');
+		$tmpnames[] = $name;
+		$tmpfile = fopen ($name, 'wb');
+		fwrite ($tmpfile, $text);
+		fclose ($tmpfile);
+		$command .= " ${name}";
+	}
+	$outputlines = queryGateway
+	(
+		'sendfile',
+		array ($command)
+	);
+	foreach ($tmpnames as $name)
+		unlink ($name);
+	if ($outputlines == NULL)
+		return oneLiner (163); // unknown gateway failure
+	if (count ($outputlines) != 1)
+		return oneLiner (165); // protocol violation
+	if (strpos ($outputlines[0], 'OK!') !== 0)
+		return oneLiner (164, array ($outputlines[0])); // gateway failure
+	// Being here means having 'OK!' in the response.
+	return oneLiner (66, array ($handlername)); // ignore provided "Ok" text
+}
+
+// Query something through a gateway and get some text in return. Return that text.
+function gwRecvFile ($endpoint, $handlername, &$output)
 {
 	global $remote_username;
 	$tmpfilename = tempnam ('', 'RackTables-sendfile-');
-	$tmpfile = fopen ($tmpfilename, 'wb');
-	fwrite ($tmpfile, $filetext);
-	fclose ($tmpfile);
 	$endpoint = str_replace (' ', '\ ', $endpoint); // the gateway dispatcher uses read (1) to assign arguments
 	$outputlines = queryGateway
 	(
 		'sendfile',
 		array ("submit ${remote_username} ${endpoint} ${handlername} ${tmpfilename}")
 	);
+	$output = file_get_contents ($tmpfilename);
 	unlink ($tmpfilename);
 	if ($outputlines == NULL)
 		return oneLiner (163); // unknown gateway failure
@@ -238,14 +268,29 @@ function gwSendFileToObject ($object_id = 0, $handlername, $filetext = '')
 	global $remote_username;
 	if ($object_id <= 0 or empty ($handlername))
 		return oneLiner (160); // invalid arguments
-	$objectInfo = getObjectInfo ($object_id);
+	$objectInfo = getObjectInfo ($object_id, FALSE);
 	$endpoints = findAllEndpoints ($object_id, $objectInfo['name']);
 	if (count ($endpoints) == 0)
 		return oneLiner (161); // endpoint not found
 	if (count ($endpoints) > 1)
 		return oneLiner (162); // can't pick an address
 	$endpoint = str_replace (' ', '+', $endpoints[0]);
-	return gwSendFile ($endpoint, $handlername, $filetext);
+	return gwSendFile ($endpoint, $handlername, array ($filetext));
+}
+
+function gwRecvFileFromObject ($object_id = 0, $handlername, &$output)
+{
+	global $remote_username;
+	if ($object_id <= 0 or empty ($handlername))
+		return oneLiner (160); // invalid arguments
+	$objectInfo = getObjectInfo ($object_id, FALSE);
+	$endpoints = findAllEndpoints ($object_id, $objectInfo['name']);
+	if (count ($endpoints) == 0)
+		return oneLiner (161); // endpoint not found
+	if (count ($endpoints) > 1)
+		return oneLiner (162); // can't pick an address
+	$endpoint = str_replace (' ', '+', $endpoints[0]);
+	return gwRecvFile ($endpoint, $handlername, $output);
 }
 
 ?>

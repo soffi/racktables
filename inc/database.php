@@ -157,34 +157,31 @@ function getTagFilterCondition($tagfilter = array(), $wherepos = 1)
 	return array($whereclause, $wherevalues, $wherepos);
 }
 
-// Return a simple object list w/o related information.
-function getNarrowObjectList ($type_id = 0)
+// Return a simple object list w/o related information, so that the returned value
+// can be directly used by printSelect(). An optional argument is the name of config
+// option with constraint in RackCode.
+function getNarrowObjectList ($varname = '')
 {
 	$ret = array();
-	if (!$type_id)
-	{
-		showError ('Invalid argument', __FUNCTION__);
-		return $ret;
-	}
-	// object type id is known and constant, but it's Ok to have this standard overhead
 	$query =
 		"select RackObject.id as id, RackObject.name as name, dict_value as objtype_name, " .
 		"objtype_id from " .
-		"RackObject inner join Dictionary on objtype_id=Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
-		"where Chapter.name = 'RackObjectType' " .
-		"and objtype_id = ? " .
-		"order by name";
-	$result = Database::query ($query, array(1=>$type_id));
+		"RackObject inner join Dictionary on objtype_id=dict_key join Chapter on Chapter.id = Dictionary.chapter_id " .
+		"where RackObject.deleted = 'no' and Chapter.name = 'RackObjectType' " .
+		"order by objtype_id, name";
+	$result = useSelectBlade ($query, __FUNCTION__);
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
+		$ret[$row['id']] = displayedName ($row);
+	if (strlen ($varname))
 	{
-		foreach (array (
-			'id',
-			'name',
-			'objtype_name',
-			'objtype_id'
-			) as $cname)
-			$ret[$row['id']][$cname] = $row[$cname];
-		$ret[$row['id']]['dname'] = displayedName ($ret[$row['id']]);
+		$filtertext = getConfigVar ('IPV4LB_LISTSRC');
+		if (strlen ($filtertext))
+		{
+			$filter = spotPayload ($filtertext, 'SYNT_EXPR');
+			if ($filter['result'] != 'ACK')
+				return array();
+			$ret = filterEntityList ($ret, 'object', $filter['load']);
+		}
 	}
 	return $ret;
 }
@@ -326,7 +323,7 @@ function getRackData ($rack_id = 0, $silent = FALSE)
 }
 
 // This is a popular helper.
-function getObjectInfo ($object_id = 0)
+function getObjectInfo ($object_id = 0, $set_dname = TRUE)
 {
 	if ($object_id == 0)
 		throw new Exception ('Invalid object_id');
@@ -457,7 +454,7 @@ function getObjectPortsAndLinks ($object_id = 0)
 			if (empty ($ret[$tmpkey]['remote_object_name']) and !empty ($ret[$tmpkey]['remote_object_id']))
 			{
 				$oi = getObjectInfo ($ret[$tmpkey]['remote_object_id']);
-				$ret[$tmpkey]['remote_object_name'] = displayedName ($oi);
+				$ret[$tmpkey]['remote_object_name'] = $oi['dname'];
 			}
 		}
 	}
@@ -1150,6 +1147,7 @@ function scanIPv4Space ($pairlist)
 			$ret[$ip_bin] = constructIPv4Address ($row['ip']);
 		if (!isset ($dnamecache[$row['object_id']]))
 		{
+			$quasiobject['id'] = $row['object_id'];
 			$quasiobject['name'] = $row['object_name'];
 			$quasiobject['objtype_id'] = $row['objtype_id'];
 			$quasiobject['objtype_name'] = $row['objtype_name'];
@@ -2748,6 +2746,8 @@ function loadEntityTags ($entity_realm = '', $entity_id = 0)
 	if ($entity_realm == '' or $entity_id <= 0)
 		throw new Exception ('Invalid or missing arguments');
 	$ret = array();
+	if (!in_array ($entity_realm, array ('file', 'ipv4net', 'ipv4vs', 'ipv4rspool', 'object', 'rack', 'user')))
+		return $ret;
 	$query = "select tt.id, tag from " .
 		"TagStorage as ts inner join TagTree as tt on ts.tag_id = tt.id " .
 		"where entity_realm = '${entity_realm}' and entity_id = ${entity_id} " .
@@ -2757,41 +2757,6 @@ function loadEntityTags ($entity_realm = '', $entity_id = 0)
 		$ret[$row['id']] = $row;
 	Database::closeCursor($result);
 	return getExplicitTagsOnly ($ret);
-}
-
-function loadFileTags ($id)
-{
-	return loadEntityTags ('file', $id);
-}
-
-function loadRackObjectTags ($id)
-{
-	return loadEntityTags ('object', $id);
-}
-
-function loadIPv4PrefixTags ($id)
-{
-	return loadEntityTags ('ipv4net', $id);
-}
-
-function loadRackTags ($id)
-{
-	return loadEntityTags ('rack', $id);
-}
-
-function loadIPv4VSTags ($id)
-{
-	return loadEntityTags ('ipv4vs', $id);
-}
-
-function loadIPv4RSPoolTags ($id)
-{
-	return loadEntityTags ('ipv4rspool', $id);
-}
-
-function loadUserTags ($user_id)
-{
-	return loadEntityTags ('user', $user_id);
 }
 
 // Return a tag chain with all DB tags on it.
@@ -3452,7 +3417,7 @@ function getFileLinks ($file_id = 0)
 				$page = 'object';
 				$id_name = 'object_id';
 				$parent = getObjectInfo($row['entity_id']);
-				$name = $parent['name'];
+				$name = $parent['dname'];
 				break;
 			case 'rack':
 				$page = 'rack';
@@ -3633,4 +3598,14 @@ function makeMainHistory($start_rev, $end_rev)
 	return $operations;
 }
 
+// Return file id by file name. There may be more, than one record in the database,
+// so return only the first one, until it is fixed by appropriate UNIQUE key.
+function findFileByName ($filename)
+{
+	$result = useSelectBlade ("select id from File where name = '${filename}' limit 1"); 
+	if ($row = $result->fetch (PDO::FETCH_ASSOC))
+		return $row['id'];
+	else
+		return NULL;
+}
 ?>

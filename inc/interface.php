@@ -232,6 +232,14 @@ $CodePressMap = array
 	'js' => 'javascript',
 );
 
+$attrtypes = array
+(
+	'uint' => '[U] unsigned integer',
+	'float' => '[F] floating point',
+	'string' => '[S] string',
+	'dict' => '[D] dictionary record'
+);
+
 // Main menu.
 function renderIndex ()
 {
@@ -334,8 +342,8 @@ function renderRackspaceRowEditor ()
 		echo "</td><td></td></tr></form>";
 	}
 	global $pageno, $tabno;
-	startPortlet ('Rows');
 	showMessageOrError();
+	startPortlet ('Rows');
 	echo "<table border=0 cellspacing=0 cellpadding=5 align=center class=widetable>\n";
 	echo "<tr><th>Name</th></tr>\n";
 	if (getConfigVar ('ADDNEW_AT_TOP') == 'yes')
@@ -689,7 +697,7 @@ function printSelect ($optionList, $select_name, $selected_id = NULL, $tabindex 
 {
 	echo "<select name=${select_name}" . ($tabindex ? " tabindex=${tabindex}" : '') . '>';
 	foreach ($optionList as $dict_key => $dict_value)
-		echo "<option value=${dict_key}" . ($dict_key == $selected_id ? ' selected' : '') . ">${dict_value}</option>";
+		echo "<option value='${dict_key}'" . ($dict_key == $selected_id ? ' selected' : '') . ">${dict_value}</option>";
 	echo "</select>";
 }
 
@@ -708,7 +716,7 @@ function printNiftySelect ($groupList, $select_name, $selected_id = NULL, $tabin
 	{
 		echo "<optgroup label='${groupname}'>";
 		foreach ($groupdata as $dict_key => $dict_value)
-			echo "<option value=${dict_key}" . ($dict_key == $selected_id ? ' selected' : '') . ">${dict_value}</option>";
+			echo "<option value='${dict_key}'" . ($dict_key == $selected_id ? ' selected' : '') . ">${dict_value}</option>";
 		echo "</optgroup>\n";
 	}
 	echo "</select>";
@@ -769,8 +777,10 @@ function renderGridForm ($rack_id = 0, $filter, $header, $submit, $state1, $stat
 	startPortlet ($header);
 	echo "<center>\n";
 	echo "<table class=rack border=0 cellspacing=0 cellpadding=1>\n";
-	echo "<tr><th width='10%'>&nbsp;</th><th width='20%'>Front</th>";
-	echo "<th width='50%'>Interior</th><th width='20%'>Back</th></tr>\n";
+	echo "<tr><th width='10%'>&nbsp;</th>";
+	echo "<th width='20%'><a href='javascript:;' onclick=\"toggleColumnOfAtoms('${rack_id}', '0', ${rackData['height']})\">Front</a></th>";
+	echo "<th width='50%'><a href='javascript:;' onclick=\"toggleColumnOfAtoms('${rack_id}', '1', ${rackData['height']})\">Interior</a></th>";
+	echo "<th width='20%'><a href='javascript:;' onclick=\"toggleColumnOfAtoms('${rack_id}', '2', ${rackData['height']})\">Back</a></th></tr>\n";
 	printOpFormIntro ('updateRack');
 	markupAtomGrid ($rackData, $state2);
 	renderAtomGrid ($rackData);
@@ -832,13 +842,13 @@ function renderRackObject ($object_id = 0)
 	echo "<table border=0 cellspacing=0 cellpadding=3 width='100%'>\n";
 	if (!empty ($info['name']))
 		echo "<tr><th width='50%' class=tdright>Common name:</th><td class=tdleft>${info['name']}</td></tr>\n";
-	elseif (in_array ($info['objtype_id'], explode (',', getConfigVar ('NAMEFUL_OBJTYPES'))))
+	elseif (considerConfiguredConstraint ('object', $object_id, 'NAMEWARN_LISTSRC'))
 		echo "<tr><td colspan=2 class=msg_error>Common name is missing.</td></tr>\n";
 	echo "<tr><th width='50%' class=tdright>Object type:</th>";
 	echo "<td class=tdleft><a href='".makeHref(array('page'=>'objgroup', 'group_id'=>$info['objtype_id'], 'hl_object_id'=>$object_id))."'>${info['objtype_name']}</a></td></tr>\n";
 	if (!empty ($info['asset_no']))
 		echo "<tr><th width='50%' class=tdright>Asset tag:</th><td class=tdleft>${info['asset_no']}</td></tr>\n";
-	elseif (in_array ($info['objtype_id'], explode (',', getConfigVar ('REQUIRE_ASSET_TAG_FOR'))))
+	elseif (considerConfiguredConstraint ('object', $object_id, 'ASSETWARN_LISTSRC'))
 		echo "<tr><td colspan=2 class=msg_error>Asset tag is missing.</td></tr>\n";
 	if (!empty ($info['label']))
 		echo "<tr><th width='50%' class=tdright>Visible label:</th><td class=tdleft>${info['label']}</td></tr>\n";
@@ -1067,10 +1077,8 @@ function renderRackObject ($object_id = 0)
 	echo "<td class=pcright>";
 	// rackspace portlet
 	startPortlet ('rackspace allocation');
-	// FIXME: now we call getRackData() twice
-	$racks = getResidentRacksData ($object_id);
-	foreach ($racks as $rackData)
-		renderRack ($rackData['id'], $object_id);
+	foreach (getResidentRacksData ($object_id, FALSE) as $rack_id)
+		renderRack ($rack_id, $object_id);
 	echo '<br>';
 	finishPortlet();
 	echo "</td></tr>";
@@ -1515,7 +1523,7 @@ function printLog ($log)
 				55 => array ('code' => 'success', 'format' => 'Chapter was added.'),
 				56 => array ('code' => 'success', 'format' => 'Update succeeded.'),
 				57 => array ('code' => 'success', 'format' => 'Reset complete'),
-				58 => array ('code' => 'success', 'format' => "Successfully deleted tag ."),
+				58 => array ('code' => 'success', 'format' => "Deleted tag '%s'."),
 				59 => array ('code' => 'success', 'format' => "Created tag '%s'."),
 				60 => array ('code' => 'success', 'format' => "Updated tag '%s'."),
 				61 => array ('code' => 'success', 'format' => 'Password changed successfully.'),
@@ -1621,6 +1629,9 @@ function printLog ($log)
 				178 => array ('code' => 'error', 'format' => 'file not found'),
 				179 => array ('code' => 'error', 'format' => 'Declining outdated text. Re-edit the file for consistency.'),
 				180 => array ('code' => 'error', 'format' => 'Error saving file, all changes lost!'),
+				181 => array ('code' => 'error', 'format' => "file uploads not allowed, change 'file_uploads' parameter in php.ini"),
+				182 => array ('code' => 'error', 'format' => 'SQL query failed: %s'),
+				183 => array ('code' => 'error', 'format' => "Tag id '%s' does not exist."),
 
 // records 200~299 with warnings
 				200 => array ('code' => 'warning', 'format' => 'generic warning: %s'),
@@ -1630,6 +1641,7 @@ function printLog ($log)
 				204 => array ('code' => 'warning', 'format' => 'Check uplink/downlink configuration for proper operation.'),
 				205 => array ('code' => 'warning', 'format' => '%u change request(s) have been ignored'),
 				206 => array ('code' => 'warning', 'format' => 'Rack is not empty'),
+				207 => array ('code' => 'warning', 'format' => 'Ignored empty request'),
 			);
 			// Handle the arguments. Is there any better way to do it?
 			foreach ($log['m'] as $record)
@@ -1813,11 +1825,15 @@ function renderRackSpaceForObject ($object_id = 0)
 		echo "<td valign=top>";
 		echo "<center>\n<h2>${rackData['name']}</h2>\n";
 		echo "<table class=rack border=0 cellspacing=0 cellpadding=1>\n";
-		echo "<tr><th width='10%'>&nbsp;</th><th width='20%'>Front</th>";
-		echo "<th width='50%'>Interior</th><th width='20%'>Back</th></tr>\n";
+		echo "<tr><th width='10%'>&nbsp;</th>";
+		echo "<th width='20%'><a href='javascript:;' onclick=\"toggleColumnOfAtoms('${rack_id}', '0', ${rackData['height']})\">Front</a></th>";
+		echo "<th width='50%'><a href='javascript:;' onclick=\"toggleColumnOfAtoms('${rack_id}', '1', ${rackData['height']})\">Interior</a></th>";
+		echo "<th width='20%'><a href='javascript:;' onclick=\"toggleColumnOfAtoms('${rack_id}', '2', ${rackData['height']})\">Back</a></th></tr>\n";
 		renderAtomGrid ($rackData);
-		echo "<tr><th width='10%'>&nbsp;</th><th width='20%'>Front</th>";
-		echo "<th width='50%'>Interior</th><th width='20%'>Back</th></tr>\n";
+		echo "<tr><th width='10%'>&nbsp;</th>";
+		echo "<th width='20%'><a href='javascript:;' onclick=\"toggleColumnOfAtoms('${rack_id}', '0', ${rackData['height']})\">Front</a></th>";
+		echo "<th width='50%'><a href='javascript:;' onclick=\"toggleColumnOfAtoms('${rack_id}', '1', ${rackData['height']})\">Interior</a></th>";
+		echo "<th width='20%'><a href='javascript:;' onclick=\"toggleColumnOfAtoms('${rack_id}', '2', ${rackData['height']})\">Back</a></th></tr>\n";
 		echo "</table></center>\n";
 		echo '</td>';
 	}
@@ -1986,6 +2002,8 @@ function renderObjectGroup ()
 	echo '</td><td class=pcleft>';
 
 	$objects = getObjectList ($group_id, $tagfilter, getTFMode());
+	if (isset ($_REQUEST['pfilter']))
+		$objects = filterEntityList ($objects, 'object', interpretPredicate ($_REQUEST['pfilter']));
 	startPortlet ('Objects (' . count ($objects) . ')');
 	if ($objects === NULL)
 	{
@@ -1993,7 +2011,7 @@ function renderObjectGroup ()
 		return;
 	}
 	echo '<br><br><table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
-	echo '<tr><th>Common name</th><th>Visible label</th><th>Asset tag</th><th>Barcode</th><th>Row/Rack</th><th></th></tr>';
+	echo '<tr><th>Common name</th><th>Visible label</th><th>Asset tag</th><th>Barcode</th><th>Row/Rack</th></tr>';
 	$order = 'odd';
 	foreach ($objects as $obj)
 	{
@@ -2001,7 +2019,7 @@ function renderObjectGroup ()
 			$secondclass = 'tdleft port_highlight';
 		else
 			$secondclass = 'tdleft';
-		$tags = loadRackObjectTags ($obj['id']);
+		$tags = loadEntityTags ('object', $obj['id']);
 		echo "<tr class=row_${order} valign=top><td class='${secondclass}'><a href='".makeHref(array('page'=>'object', 'object_id'=>$obj['id']))."'><strong>${obj['dname']}</strong></a>";
 		if (count ($tags))
 			echo '<br><small>' . serializeTags ($tags, makeHref(array('page'=>$pageno, 'tab'=>'default', 'group_id'=>$group_id))."&") . '</small>';
@@ -2508,10 +2526,14 @@ function renderIPv4Network ($id)
 			for ($i = 0; $i < $arrows; $i++)
 				echo '&uarr;';
 			$arrows--;
-			echo "</th><td class=tdleft><a href='".makeHref(array('page'=>$pageno, 'tab'=>$tabno, 'id'=>$ainfo['id']))."'>${ainfo['ip']}/${ainfo['mask']}</a></td></tr>";
+			echo "</th><td class=tdleft>";
+			renderIPv4NetCell ($ainfo);
+			echo "</td></tr>";
 		}
 		echo "<tr><th width='50%' class=tdright>&rarr;</th>";
-		echo "<td class=tdleft>${range['ip']}/${range['mask']}</td></tr>";
+		echo "<td class=tdleft>";
+		renderIPv4NetCell ($range);
+		echo "</td></tr>";
 		// FIXME: get and display nested networks
 		// $theitem = pickLeaf ($ipv4tree, $id);
 	}
@@ -2797,13 +2819,9 @@ function renderIPv4AddressAllocations ($dottedquad)
 		printOpFormIntro ('addIPv4Allocation');
 		echo "<tr><td>";
 		printImageHREF ('add', 'allocate', TRUE);
-		echo "</td><td><select name='object_id' tabindex=100>";
-
-		foreach (explode (',', getConfigVar ('IPV4_PERFORMERS')) as $type) 
-			foreach (getNarrowObjectList ($type) as $object)
-				echo "<option value='${object['id']}'>${object['dname']}</option>";
-
-		echo "</select></td><td><input type=text tabindex=101 name=bond_name size=10></td><td>";
+		echo "</td><td>";
+		printSelect (getNarrowObjectList ('IPV4OBJ_LISTSRC'), 'object_id', NULL, 100);
+		echo "</td><td><input type=text tabindex=101 name=bond_name size=10></td><td>";
 		printSelect ($aat, 'bond_type', NULL, 102);
 		echo "</td><td>";
 		printImageHREF ('add', 'allocate', TRUE, 103);
@@ -2906,7 +2924,6 @@ function renderNATv4ForObject ($object_id = 0)
 	global $root;
 	function printNewItemTR ($alloclist)
 	{
-		global $root;
 		printOpFormIntro ('addNATv4Rule');
 		echo "<tr align='center'><td>";
 		printImageHREF ('add', 'Add new NAT rule', TRUE);
@@ -3292,7 +3309,7 @@ function renderSearchResults ()
 					echo '<tr><th>Common name</th><th>Visible label</th><th>Asset tag</th><th>Barcode</th></tr>';
 					foreach ($what as $obj)
 					{
-						$tags = loadRackObjectTags ($obj['id']);
+						$tags = loadEntityTags ('object', $obj['id']);
 						echo "<tr class=row_${order} valign=top><td class=tdleft><a href=\"${root}?page=object&object_id=${obj['id']}\">${obj['dname']}</a>";
 						if (count ($tags))
 							echo '<br><small>' . serializeTags ($tags) . '</small>';
@@ -3407,18 +3424,19 @@ function renderAtomGrid ($data)
 	$rack_id = $data['id'];
 	for ($unit_no = $data['height']; $unit_no > 0; $unit_no--)
 	{
-		echo "<tr><th>${unit_no}</th>";
+		echo "<tr><th><a href='javascript:;' onclick=\"toggleRowOfAtoms('${rack_id}','${unit_no}')\">${unit_no}</a></th>";
 		for ($locidx = 0; $locidx < 3; $locidx++)
 		{
+			$name = "atom_${rack_id}_${unit_no}_${locidx}";
 			$state = $data[$unit_no][$locidx]['state'];
 			echo "<td class=state_${state}";
 			if (isset ($data[$unit_no][$locidx]['hl']))
 				echo $data[$unit_no][$locidx]['hl'];
 			echo ">";
 			if (!($data[$unit_no][$locidx]['enabled'] === TRUE))
-				echo '<input type=checkbox disabled>';
+				echo "<input type=checkbox id=${name} disabled>";
 			else
-				echo "<input type=checkbox" . $data[$unit_no][$locidx]['checked'] . " name=atom_${rack_id}_${unit_no}_${locidx}>";
+				echo "<input type=checkbox" . $data[$unit_no][$locidx]['checked'] . " name=${name} id=${name}>";
 			echo '</td>';
 		}
 		echo "</tr>\n";
@@ -3734,7 +3752,7 @@ function renderChaptersEditor ()
 
 function renderAttributes ()
 {
-	global $nextorder;
+	global $nextorder, $attrtypes;
 	$attrMap = getAttrMap();
 	startPortlet ('Optional attributes');
 	echo "<table class=cooltable border=0 cellpadding=5 cellspacing=0 align=center>\n";
@@ -3744,7 +3762,7 @@ function renderAttributes ()
 	{
 		echo "<tr class=row_${order}>";
 		echo "<td class=tdleft>${attr['name']}</td>";
-		echo "<td class=tdleft>${attr['type']}</td>";
+		echo "<td class=tdleft>" . $attrtypes[$attr['type']] . "</td>";
 		echo '<td class=tdleft>';
 		if (count ($attr['application']) == 0)
 			echo '&nbsp;';
@@ -3769,13 +3787,10 @@ function renderEditAttributesForm ()
 		printOpFormIntro ('add');
 		echo '<tr><td>';
 		printImageHREF ('add', 'Create attribute', TRUE);
-		echo "</td><td><input type=text tabindex=100 name=attr_name></td>";
-		echo '<td><select name=attr_type tabindex=101>';
-		echo '<option value=uint>uint</option>';
-		echo '<option value=float>float</option>';
-		echo '<option value=string>string</option>';
-		echo '<option value=dict>dict</option>';
-		echo '</select></td><td>';
+		echo "</td><td><input type=text tabindex=100 name=attr_name></td><td>";
+		global $attrtypes;
+		printSelect ($attrtypes, 'attr_type', NULL, 101);
+		echo '</td><td>';
 		printImageHREF ('add', 'Create attribute', TRUE, 102);
 		echo '</td></tr></form>';
 	}
@@ -4245,7 +4260,7 @@ this tab will not be seen any more. Good luck.<br>\n";
 function renderUIResetForm()
 {
 	printOpFormIntro ('go');
-	echo "This button will reset user interface configuration to its defaults (except organization name and auth source): ";
+	echo "This button will reset user interface configuration to its defaults (except organization name): ";
 	echo "<input type=submit value='proceed'>";
 	echo "</form>";
 }
@@ -4477,11 +4492,8 @@ function renderRSPoolLBForm ($pool_id = 0)
 	startPortlet ('Add new');
 	echo "<table cellspacing=0 cellpadding=5 align=center class=widetable>\n";
 	printOpFormIntro ('addLB');
-	echo "<tr valign=top><th>LB / VS</th><td class=tdleft><select name='object_id' tabindex=1>";
-	foreach (explode (',', getConfigVar ('NATV4_PERFORMERS')) as $type)
-		foreach (getNarrowObjectList ($type) as $object)
-			echo "<option value='${object['id']}'>${object['dname']}</option>";
-	echo "</select> ";
+	echo "<tr valign=top><th>LB / VS</th><td class=tdleft>";
+	printSelect (getNarrowObjectList ('IPV4LB_LISTSRC'), 'object_id', NULL, 1);
 	printSelect ($vs_list, 'vs_id', NULL, 2);
 	echo "</td><td>";
 	printImageHREF ('add', 'Configure LB', TRUE, 5);
@@ -4531,11 +4543,8 @@ function renderVServiceLBForm ($vs_id = 0)
 	startPortlet ('Add new');
 	echo "<table cellspacing=0 cellpadding=5 align=center class=widetable>\n";
 	printOpFormIntro ('addLB');
-	echo "<tr valign=top><th>LB / RS pool</th><td class=tdleft><select name='object_id' tabindex=1>";
-	foreach (explode (',', getConfigVar ('NATV4_PERFORMERS')) as $type)
-		foreach (getNarrowObjectList ($type) as $object)
-			echo "<option value='${object['id']}'>${object['dname']}</option>";
-	echo "</select> ";
+	echo "<tr valign=top><th>LB / RS pool</th><td class=tdleft>";
+	printSelect (getNarrowObjectList ('IPV4LB_LISTSRC'), 'object_id', NULL, 1);
 	printSelect ($rsplist, 'pool_id', NULL, 2);
 	echo "</td><td>";
 	printImageHREF ('add', 'Configure LB', TRUE, 5);
@@ -4736,7 +4745,7 @@ function renderRSPoolList ()
 	$order = 'odd';
 	foreach ($pool_list as $pool_id => $pool_info)
 	{
-		$pooltags = loadIPv4RSPoolTags ($pool_id);
+		$pooltags = loadEntityTags ('ipv4rspool', $pool_id);
 		echo "<tr valign=top class=row_${order}><td class=tdleft>";
 		echo "<a href='".makeHref(array('page'=>'ipv4rspool', 'pool_id'=>$pool_id))."'>" . (empty ($pool_info['name']) ? 'ANONYMOUS' : $pool_info['name']) . '</a>';
 		echo ($pool_info['refcnt'] ? ", ${pool_info['refcnt']}" : '');
@@ -5275,7 +5284,7 @@ function renderTagFilterPortlet ($tagfilter, $realm, $bypass_name = '', $bypass_
 {
 	global $pageno, $tabno, $taglist, $tagtree;
 	$objectivetags = getObjectiveTagTree ($tagtree, $realm);
-	startPortlet ('Tag filter');
+	startPortlet ('T-filter');
 	if (!count ($objectivetags))
 	{
 		echo "None defined for current realm.<br>";
@@ -5300,6 +5309,34 @@ function renderTagFilterPortlet ($tagfilter, $realm, $bypass_name = '', $bypass_
 	printImageHREF ('apply', 'Apply filter', TRUE);
 	echo "</form></td><td>";
 
+	// "reset"
+	echo "<form method=get>\n";
+	echo "<input type=hidden name=page value=${pageno}>\n";
+	echo "<input type=hidden name=tab value=${tabno}>\n";
+	if ($bypass_name != '')
+		echo "<input type=hidden name=${bypass_name} value='${bypass_value}'>\n";
+	printImageHREF ('clear', 'reset', TRUE);
+	echo '</form></td></tr></table>';
+	finishPortlet();
+	global $rackCode;
+	// underscore cannot start predicate name
+	$options = array ('_' => '-- NOT SET --');
+	foreach (array_keys (buildPredicateTable ($rackCode)) as $predicatename)
+		$options[$predicatename] = "[${predicatename}]";
+	if (!count ($options))
+		return;
+	startPortlet ('P-filter');
+	echo "<form method=get>\n";
+	echo "<input type=hidden name=page value=${pageno}>\n";
+	echo "<input type=hidden name=tab value=${tabno}>\n";
+	if ($bypass_name != '')
+		echo "<input type=hidden name=${bypass_name} value='${bypass_value}'>\n";
+	echo '<table border=0 align=center>';
+	echo '<tr><td colspan=2>';
+	printSelect ($options, 'pfilter', isset ($_REQUEST['pfilter']) ? $_REQUEST['pfilter'] : NULL);
+	echo '</td></tr><tr><td>';
+	printImageHREF ('apply', 'Apply filter', TRUE);
+	echo "</form></td><td>";
 	// "reset"
 	echo "<form method=get>\n";
 	echo "<input type=hidden name=page value=${pageno}>\n";
@@ -5541,7 +5578,7 @@ function renderUser ($user_id)
 		echo "<tr><th width='50%' class=tdright><span class=tagheader>Given implicit tags</span>:</th><td class=tdleft>";
 		echo serializeTags ($target_shadow, $baseurl) . "</td></tr>\n";
 	}
-	$target_auto_tags = getUserAutoTags ($username);
+	$target_auto_tags = generateEntityAutoTags ('user', $username);
 	if (getConfigVar ('SHOW_AUTOMATIC_TAGS') == 'yes' and count ($target_auto_tags))
 	{
 		echo "<tr><th width='50%' class=tdright><span class=tagheader>Automatic tags</span>:</th><td class=tdleft>";
@@ -5663,7 +5700,9 @@ function renderFile ($file_id = 0)
 	echo "<tr><th width='50%' class=tdright>Type:</th>";
 	printf("<td class=tdleft>%s</td></tr>", htmlspecialchars ($file['type']));
 	echo "<tr><th width='50%' class=tdright>Size:</th>";
-	printf("<td class=tdleft>%s</td></tr>", formatFileSize($file['size']));
+	echo "<td class=tdleft><a href='${root}download.php?file_id=${file_id}'>";
+	printImageHREF ('download', 'Download file');
+	printf("</a>&nbsp;%s</td></tr>", formatFileSize($file['size']));
 	echo "<tr><th width='50%' class=tdright>Created:</th>";
 	printf("<td class=tdleft>%s</td></tr>", formatTimestamp($file['ctime']));
 	echo "<tr><th width='50%' class=tdright>Modified:</th>";
@@ -5736,6 +5775,17 @@ function renderFile ($file_id = 0)
 
 	echo "</td></tr>";
 	echo "</table>\n";
+}
+
+function renderFileReuploader ()
+{
+	showMessageOrError();
+	startPortlet ('Replace existing contents');
+	printOpFormIntro ('replaceFile', array ('MAX_FILE_SIZE' => convertToBytes(get_cfg_var('upload_max_filesize'))), TRUE);
+	echo "<input type=file size=10 name=file tabindex=100>&nbsp;\n";
+	printImageHREF ('save', 'Save changes', TRUE, 101);
+	echo "</form>\n";
+	finishPortlet();
 }
 
 function renderFileProperties ($file_id = 0)
@@ -5831,7 +5881,7 @@ function renderFilesByLink ()
 		return;
 	}
 	echo '<br><br><table cellpadding=5 cellspacing=0 align=center class=cooltable>';
-	echo '<tr><th>File</th><th>Linked to</th></tr>';
+	echo '<tr><th>File</th><th>Linked to</th><th>Actions</th></tr>';
 	$order = 'odd';
 	foreach ($files as $file)
 	{
@@ -5841,7 +5891,11 @@ function renderFilesByLink ()
 		$links = getFileLinks($file['id']);
 		if (count ($links))
 			printf("<small>%s</small>", serializeFileLinks($links));
-		echo "</td></tr>\n";
+		echo "</td><td class=tdleft>";
+		echo "<a href='".makeHrefProcess(array('op'=>'deleteFile', 'file_id'=>$file['id'], 'entity_type'=>$entity_type)).
+			"' onclick=\"javascript:return confirm('Are you sure you want to delete the file?')\">";
+		printImageHREF ('DESTROY', 'Delete file');
+		echo "</a></td></tr>\n";
 		$order = $nextorder[$order];
 	}
 	echo '</table>';
@@ -5935,7 +5989,8 @@ function renderFilesForEntity ($entity_id = 0)
 			echo "</td><td class=tdleft>${file['comment']}</td><td class=tdleft>";
 			echo "<a href='".makeHrefProcess(array('op'=>'unlinkFile', 'link_id'=>$file['link_id'], $id_name=>$entity_id, 'name'=>$file['name']))."'>";
 			printImageHREF ('CUT', 'Unlink file');
-			echo "</a> <a href='".makeHrefProcess(array('op'=>'deleteFile', 'file_id'=>$file_id, $id_name=>$entity_id))."'>";
+			echo "<a href='".makeHrefProcess(array('op'=>'deleteFile', 'file_id'=>$file['id'], $id_name=>$entity_id)).
+				"' onclick=\"javascript:return confirm('Are you sure you want to delete the file?')\">";
 			printImageHREF ('DESTROY', 'Unlink and delete file');
 			echo "</a></td></tr>\n";
 		}
@@ -5999,7 +6054,7 @@ function printRoutersTD ($rlist)
 function printIPv4NetInfoTDs ($netinfo, $tdclass = 'tdleft', $indent = 0, $symbol = 'spacer', $symbolurl = '')
 {
 	global $root;
-	$tags = isset ($netinfo['id']) ? loadIPv4PrefixTags ($netinfo['id']) : array();
+	$tags = isset ($netinfo['id']) ? loadEntityTags ('ipv4net', $netinfo['id']) : array();
 	if ($symbol == 'spacer')
 	{
 		$indent++;
@@ -6043,7 +6098,7 @@ function renderIPv4NetCell ($netinfo)
 	else
 		echo "<tr><td class=sparenetwork>no name</td></tr>";
 	echo '<td>';
-	$tags = loadIPv4PrefixTags ($netinfo['id']);
+	$tags = loadEntityTags ('ipv4net', $netinfo['id']);
 	echo count ($tags) ? ("<small>" . serializeTags ($tags) . "</small>") : '&nbsp;';
 	echo "</td></tr></table>";
 }
@@ -6060,7 +6115,7 @@ function renderUserCell ($account)
 	else
 		echo "<tr><td class=sparenetwork>no name</td></tr>";
 	echo '<td>';
-	$tags = loadUserTags ($account['user_id']);
+	$tags = loadEntityTags ('user', $account['user_id']);
 	echo count ($tags) ? ("<small>" . serializeTags ($tags) . "</small>") : '&nbsp;';
 	echo "</td></tr></table>";
 }
@@ -6074,7 +6129,7 @@ function renderLBCell ($object_id)
 	echo "</td></tr><tr><td>";
 	printImageHREF ('LB');
 	echo "</td></tr><tr><td><small>";
-	echo serializeTags (loadRackObjectTags ($object_id));
+	echo serializeTags (loadEntityTags ('object', $object_id));
 	echo "</small></td></tr></table>";
 }
 
@@ -6087,7 +6142,7 @@ function renderRSPoolCell ($pool_id, $pool_name)
 	echo "</a></td></tr><tr><td>";
 	printImageHREF ('RS pool');
 	echo "</td></tr><tr><td><small>";
-	echo serializeTags (loadIPv4RSPoolTags ($pool_id));
+	echo serializeTags (loadEntityTags ('ipv4rspool', $pool_id));
 	echo "</small></td></tr></table>";
 }
 
@@ -6108,7 +6163,7 @@ function renderIPv4VSCell ($vsinfo)
 	echo "</a></td></tr><tr><td>";
 	echo $vsinfo['name'];
 	echo '</td></tr><tr><td>';
-	$tags = loadIPv4VSTags ($vsinfo['id']);
+	$tags = loadEntityTags ('ipv4vs', $vsinfo['id']);
 	echo count ($tags) ? ("<small>" . serializeTags ($tags) . "</small>") : '&nbsp;';
 	echo "</td></tr></table>";
 }
@@ -6124,7 +6179,7 @@ function renderRouterCell ($dottedquad, $ifname, $object_id, $object_dname)
 	echo "</td></tr><tr><td>";
 	printImageHREF ('router');
 	echo "</td></tr><tr><td><small>";
-	echo serializeTags (loadRackObjectTags ($object_id));
+	echo serializeTags (loadEntityTags ('object', $object_id));
 	echo "</small></td></tr></table>";
 }
 
@@ -6149,7 +6204,7 @@ function renderFileCell ($fileinfo)
 	echo "</td><td>";
 	printf ("<a href='${root}?page=file&file_id=%s'><strong>%s</strong></a>", $fileinfo['id'], niftyString ($fileinfo['name']));
 	echo "</td></tr><tr><td>";
-	$tags = loadFileTags ($fileinfo['id']);
+	$tags = loadEntityTags ('file', $fileinfo['id']);
 	echo count ($tags) ? ("<small>" . serializeTags ($tags) . "</small>") : '&nbsp;';
 	echo "</td></tr><tr><td><a href='${root}download.php?file_id=${fileinfo['id']}'>";
 	printImageHREF ('download', 'Download file');

@@ -129,6 +129,12 @@ if ($rackCode['result'] != 'ACK')
 	exit (1);
 }
 $rackCode = $rackCode['load'];
+// Only call buildPredicateTable() once and save the result, because it will remain
+// constant during one execution for constraints processing.
+$pTable = buildPredicateTable ($rackCode);
+// Constraints parse trees aren't cached in the database, so the least to keep
+// things running is to maintain application cache for them.
+$parseCache = array();
 
 require_once 'inc/auth.php';
 $auto_tags = array();
@@ -249,9 +255,9 @@ $target_given_tags = array();
 $user_given_tags = array();
 if (!isset ($script_mode) or $script_mode !== TRUE)
 {
-	$auto_tags = array_merge ($auto_tags, getUserAutoTags());
+	$auto_tags = array_merge ($auto_tags, generateEntityAutoTags ('user', $remote_username));
 	if (isset ($accounts[$remote_username]))
-		$user_given_tags = loadUserTags ($accounts[$remote_username]['user_id']);
+		$user_given_tags = loadEntityTags ('user', $accounts[$remote_username]['user_id']);
 }
 
 ?>
