@@ -3599,10 +3599,7 @@ function makeMainHistory($start_rev, $end_rev)
 // Return file id by file name.
 function findFileByName ($filename)
 {
-	global $dbxlink;
-	$query = $dbxlink->prepare('SELECT id FROM File WHERE name = ?');
-	$query->bindParam(1, $filename);
-	$query->execute();
+	$query = Database::query('SELECT id FROM File WHERE name = ?', array(1=>$filename));
 	if (($row = $query->fetch (PDO::FETCH_ASSOC)))
 		return $row['id'];
 
