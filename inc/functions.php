@@ -987,14 +987,19 @@ function generateEntityAutoTags ($entity_realm = '', $bypass_value = '')
 			$ret[] = array ('tag' => '$any_rack');
 			break;
 		case 'object':
-			$oinfo = getObjectInfo ($bypass_value, FALSE);
-			$ret[] = array ('tag' => '$id_' . $bypass_value);
-			$ret[] = array ('tag' => '$typeid_' . $oinfo['objtype_id']);
-			$ret[] = array ('tag' => '$any_object');
-			if (validTagName ('$cn_' . $oinfo['name']))
-				$ret[] = array ('tag' => '$cn_' . $oinfo['name']);
-			if (!count (getResidentRacksData ($bypass_value, FALSE)))
-				$ret[] = array ('tag' => '$unmounted');
+			try {
+				$oinfo = getObjectInfo ($bypass_value, FALSE);
+				$ret[] = array ('tag' => '$id_' . $bypass_value);
+				$ret[] = array ('tag' => '$typeid_' . $oinfo['objtype_id']);
+				$ret[] = array ('tag' => '$any_object');
+				if (validTagName ('$cn_' . $oinfo['name']))
+					$ret[] = array ('tag' => '$cn_' . $oinfo['name']);
+				if (!count (getResidentRacksData ($bypass_value, FALSE)))
+					$ret[] = array ('tag' => '$unmounted');
+			} catch (OutOfRevisionRangeException $e) {
+				$ret[] = array ('tag' => '$id_' . $object_id);
+				$ret[] = array ('tag' => '$any_object');
+			}
 			break;
 		case 'ipv4net':
 			$netinfo = getIPv4NetworkInfo ($bypass_value);

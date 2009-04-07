@@ -97,6 +97,7 @@ foreach($database_meta as $tname => $tvalue)
 ";
 	$queryDropLegacy = "DROP TABLE IF EXISTS ${tname};\n";
 	$queryCreateLegacy = "CREATE TABLE ${tname} as \n\tSELECT \n\t\t${tname}__s.id AS id $queryViewRevFields $queryViewStatFields \n\tFROM \n\t\t${tname}__r \n\t\tJOIN (SELECT id, max(rev) AS rev FROM ${tname}__r GROUP BY id) AS ${tname}__vr ON ${tname}__r.id = ${tname}__vr.id and ${tname}__r.rev = ${tname}__vr.rev \n\t\tJOIN ${tname}__s ON ${tname}__s.id = ${tname}__r.id \n\tWHERE ${tname}__r.rev_terminal = 0;\n";
+	$queryCreateLegacy .= "ALTER TABLE ${tname} ADD PRIMARY KEY(id);\n";
 	echo $queryMain."\n";
 	echo $queryRev."\n";
 	$queryProc .= $queryDropLegacy . $queryCreateLegacy;

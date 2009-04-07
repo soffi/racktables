@@ -387,6 +387,8 @@ class Database {
 
 	private function substituteTable($table)
 	{
+		if (self::$currentRevision == 'head')
+			return $table;
 		if (!isset(self::$database_meta[$table]))
 			return $table;
 		$sql = "( select ${table}__s.id, ${table}__r.rev ";
@@ -397,8 +399,7 @@ class Database {
 		$sql.= " from ${table}__r ";
 		$sql .= " join ( ";
 		$sql .= "select id, max(rev) as rev from ${table}__r";
-		if (self::$currentRevision !== 'head')
-			$sql .= " where rev <= ".self::$currentRevision;
+		$sql .= " where rev <= ".self::$currentRevision;
 		$sql .= " group by id ) as tmp__r on ${table}__r.id = tmp__r.id and ${table}__r.rev = tmp__r.rev ";
 		$sql .= " join ${table}__s ";
 		$sql .= " on ${table}__s.id = ${table}__r.id where ${table}__r.rev_terminal = 0 )";
