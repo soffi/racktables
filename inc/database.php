@@ -172,16 +172,14 @@ function getNarrowObjectList ($varname = '')
 	$result = useSelectBlade ($query, __FUNCTION__);
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		$ret[$row['id']] = displayedName ($row);
-	if (strlen ($varname))
+	if (strlen ($varname) and strlen (getConfigVar ($varname)))
 	{
-		$filtertext = getConfigVar ('IPV4LB_LISTSRC');
-		if (strlen ($filtertext))
-		{
-			$filter = spotPayload ($filtertext, 'SYNT_EXPR');
-			if ($filter['result'] != 'ACK')
-				return array();
-			$ret = filterEntityList ($ret, 'object', $filter['load']);
-		}
+		global $parseCache;
+		if (!isset ($parseCache[$varname]))
+			$parseCache[$varname] = spotPayload (getConfigVar ($varname), 'SYNT_EXPR');
+		if ($parseCache[$varname]['result'] != 'ACK')
+			return array();
+		$ret = filterEntityList ($ret, 'object', $parseCache[$varname]['load']);
 	}
 	return $ret;
 }
@@ -3598,14 +3596,16 @@ function makeMainHistory($start_rev, $end_rev)
 	return $operations;
 }
 
-// Return file id by file name. There may be more, than one record in the database,
-// so return only the first one, until it is fixed by appropriate UNIQUE key.
+// Return file id by file name.
 function findFileByName ($filename)
 {
-	$result = useSelectBlade ("select id from File where name = '${filename}' limit 1"); 
-	if ($row = $result->fetch (PDO::FETCH_ASSOC))
+	global $dbxlink;
+	$query = $dbxlink->prepare('SELECT id FROM File WHERE name = ?');
+	$query->bindParam(1, $filename);
+	$query->execute();
+	if (($row = $query->fetch (PDO::FETCH_ASSOC)))
 		return $row['id'];
-	else
-		return NULL;
+
+	return NULL;
 }
 ?>
