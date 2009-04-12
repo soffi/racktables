@@ -169,7 +169,7 @@ function getNarrowObjectList ($varname = '')
 		"RackObject inner join Dictionary on objtype_id=dict_key join Chapter on Chapter.id = Dictionary.chapter_id " .
 		"where RackObject.deleted = 'no' and Chapter.name = 'RackObjectType' " .
 		"order by objtype_id, name";
-	$result = useSelectBlade ($query, __FUNCTION__);
+	$result = Database::query($query);
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		$ret[$row['id']] = displayedName ($row);
 	if (strlen ($varname) and strlen (getConfigVar ($varname)))
