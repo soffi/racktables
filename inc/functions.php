@@ -34,6 +34,7 @@ $etype_by_pageno = array
 	'rack' => 'rack',
 	'user' => 'user',
 	'file' => 'file',
+	'ipaddress' => 'ipaddress',
 );
 
 // Objects of some types should be explicitly shown as
@@ -756,26 +757,29 @@ function getAutoPorts ($type_id)
 	return $ret;
 }
 
-// Find if a particular tag id exists on the tree, then attach the
-// given child tag to it. If the parent tag doesn't exist, return FALSE.
-function attachChildTag (&$tree, $parent_id, $child_id, $child_info, $threshold = 0)
+// Use pre-served trace to traverse the tree, then place given node where it belongs.
+function pokeNode (&$tree, $trace, $key, $value, $threshold = 0)
 {
-	$self = __FUNCTION__;
-	foreach (array_keys ($tree) as $tagid)
+	// This function needs the trace to be followed FIFO-way. The fastest
+	// way to do so is to use array_push() for putting values into the
+	// list and array_shift() for getting them out. This exposed up to 11%
+	// performance gain compared to other patterns of array_push/array_unshift/
+	// array_reverse/array_pop/array_shift conjunction.
+	$myid = array_shift ($trace);
+	if (!count ($trace)) // reached the target
 	{
-		if ($tagid == $parent_id)
-		{
-			if (!$threshold or ($threshold and $tree[$tagid]['kidc'] + 1 < $threshold))
-				$tree[$tagid]['kids'][$child_id] = $child_info;
-			// Reset the list only once.
-			if (++$tree[$tagid]['kidc'] == $threshold)
-				$tree[$tagid]['kids'] = array();
-			return TRUE;
-		}
-		elseif ($self ($tree[$tagid]['kids'], $parent_id, $child_id, $child_info, $threshold))
-			return TRUE;
+		if (!$threshold or ($threshold and $tree[$myid]['kidc'] + 1 < $threshold))
+			$tree[$myid]['kids'][$key] = $value;
+		// Reset accumulated records once, when the limit is reached, not each time
+		// after that.
+		if (++$tree[$myid]['kidc'] == $threshold)
+			$tree[$myid]['kids'] = array();
 	}
-	return FALSE;
+	else // not yet
+	{
+		$self = __FUNCTION__;
+		$self ($tree[$myid]['kids'], $trace, $key, $value, $threshold);
+	}
 }
 
 // Build a tree from the item list and return it. Input and output data is
@@ -783,63 +787,61 @@ function attachChildTag (&$tree, $parent_id, $child_id, $child_info, $threshold 
 // key, which is in turn indexed by id. Functions, which are ready to handle
 // tree collapsion/expansion themselves, may request non-zero threshold value
 // for smaller resulting tree.
-function treeFromList ($mytaglist, $threshold = 0)
+function treeFromList ($nodelist, $threshold = 0, $return_main_payload = TRUE)
 {
-	$ret = array();
-	while (count ($mytaglist) > 0)
+	$tree = array();
+	// Array equivalent of traceEntity() function.
+	$trace = array();
+	// set kidc and kids only once
+	foreach (array_keys ($nodelist) as $nodeid)
 	{
-		$picked = FALSE;
-		foreach ($mytaglist as $tagid => $taginfo)
+		$nodelist[$nodeid]['kidc'] = 0;
+		$nodelist[$nodeid]['kids'] = array();
+	}
+	do
+	{
+		$nextpass = FALSE;
+		foreach (array_keys ($nodelist) as $nodeid)
 		{
-			$taginfo['kidc'] = 0;
-			$taginfo['kids'] = array();
-			if ($taginfo['parent_id'] == NULL)
+			// When adding a node to the working tree, book another
+			// iteration, because the new item could make a way for
+			// others onto the tree. Also remove any item added from
+			// the input list, so iteration base shrinks.
+			// First check if we can assign directly.
+			if ($nodelist[$nodeid]['parent_id'] == NULL)
 			{
-				$ret[$tagid] = $taginfo;
-				$picked = TRUE;
-				unset ($mytaglist[$tagid]);
+				$tree[$nodeid] = $nodelist[$nodeid];
+				$trace[$nodeid] = array(); // Trace to root node is empty
+				unset ($nodelist[$nodeid]);
+				$nextpass = TRUE;
 			}
-			elseif (attachChildTag ($ret, $taginfo['parent_id'], $tagid, $taginfo, $threshold))
+			// Now look if it fits somewhere on already built tree.
+			elseif (isset ($trace[$nodelist[$nodeid]['parent_id']]))
 			{
-				$picked = TRUE;
-				unset ($mytaglist[$tagid]);
+				// Trace to a node is a trace to its parent plus parent id.
+				$trace[$nodeid] = $trace[$nodelist[$nodeid]['parent_id']];
+				$trace[$nodeid][] = $nodelist[$nodeid]['parent_id'];
+				pokeNode ($tree, $trace[$nodeid], $nodeid, $nodelist[$nodeid], $threshold);
+				// path to any other node is made of all parent nodes plus the added node itself
+				unset ($nodelist[$nodeid]);
+				$nextpass = TRUE;
 			}
 		}
-		if (!$picked) // Only orphaned items on the list.
-			break;
 	}
-	return $ret;
+	while ($nextpass);
+	if ($return_main_payload)
+		return $tree;
+	else
+		return $nodelist;
 }
 
 // Build a tree from the tag list and return everything _except_ the tree.
+// IOW, return taginfo items, which have parent_id set and pointing outside
+// of the "normal" tree, which originates from the root.
 function getOrphanedTags ()
 {
 	global $taglist;
-	$mytaglist = $taglist;
-	$dummy = array();
-	while (count ($mytaglist) > 0)
-	{
-		$picked = FALSE;
-		foreach ($mytaglist as $tagid => $taginfo)
-		{
-			$taginfo['kidc'] = 0;
-			$taginfo['kids'] = array();
-			if ($taginfo['parent_id'] == NULL)
-			{
-				$dummy[$tagid] = $taginfo;
-				$picked = TRUE;
-				unset ($mytaglist[$tagid]);
-			}
-			elseif (attachChildTag ($dummy, $taginfo['parent_id'], $tagid, $taginfo))
-			{
-				$picked = TRUE;
-				unset ($mytaglist[$tagid]);
-			}
-		}
-		if (!$picked) // Only orphaned items on the list.
-			return $mytaglist;
-	}
-	return array();
+	return treeFromList ($taglist, 0, FALSE);
 }
 
 function serializeTags ($chain, $baseurl = '')
@@ -1091,6 +1093,7 @@ function fixContext ()
 		$impl_tags,
 		$target_given_tags,
 		$user_given_tags,
+		$etype_by_pageno,
 		$page;
 
 	$pmap = array
@@ -1120,10 +1123,11 @@ function fixContext ()
 	if
 	(
 		$pageno != 'user' and
+		isset ($etype_by_pageno[$pageno]) and
 		isset ($page[$pageno]['bypass']) and
 		isset ($_REQUEST[$page[$pageno]['bypass']])
 	)
-		$auto_tags = array_merge ($auto_tags, generateEntityAutoTags ($pageno, $_REQUEST[$page[$pageno]['bypass']]));
+		$auto_tags = array_merge ($auto_tags, generateEntityAutoTags ($etype_by_pageno[$pageno], $_REQUEST[$page[$pageno]['bypass']]));
 	if
 	(
 		isset ($page[$pageno]['bypass']) and
@@ -1216,6 +1220,24 @@ function getTagFilterStr ($tagfilter = array())
 	foreach (getExplicitTagsOnly (buildTagChainFromIds ($tagfilter)) as $taginfo)
 		$ret .= "&tagfilter[]=" . $taginfo['id'];
 	return $ret;
+}
+
+// Generate RackCode expression according to provided tag filter.
+function buildCellFilter ()
+{
+	if (!isset ($_REQUEST['tagfilter']) or !is_array ($_REQUEST['tagfilter']))
+		return array();
+	$ret = array();
+	$or = $text = '';
+	global $taglist;
+	foreach ($_REQUEST['tagfilter'] as $req_id)
+		if (isset ($taglist[$req_id]))
+		{
+			$text .= $or . '{' . $taglist[$req_id]['tag'] . '}';
+			$or = ' or ';
+		}
+	$expr = spotPayload ($text, 'SYNT_EXPR');
+	return $expr['load'];
 }
 
 function buildWideRedirectURL ($log, $nextpage = NULL, $nexttab = NULL, $moreArgs = array())
@@ -1334,7 +1356,8 @@ function getRackCodeStats ()
 
 function getRackImageWidth ()
 {
-	return 3 + getConfigVar ('rtwidth_0') + getConfigVar ('rtwidth_1') + getConfigVar ('rtwidth_2') + 3;
+	global $rtwidth;
+	return 3 + $rtwidth[0] + $rtwidth[1] + $rtwidth[2] + 3;
 }
 
 function getRackImageHeight ($units)
@@ -1658,6 +1681,13 @@ function loadOwnIPv4Addresses (&$node)
 
 function prepareIPv4Tree ($netlist, $expanded_id = 0)
 {
+	// treeFromList() requires parent_id to be correct for an item to get onto the tree,
+	// so perform necessary pre-processing to make orphans belong to root. This trick
+	// was earlier performed by getIPv4NetworkList().
+	$netids = array_keys ($netlist);
+	foreach ($netids as $cid)
+		if (!in_array ($netlist[$cid]['parent_id'], $netids))
+			$netlist[$cid]['parent_id'] = NULL;
 	$tree = treeFromList ($netlist); // medium call
 	sortTree ($tree, 'IPv4NetworkCmp');
 	// complement the tree before markup to make the spare networks have "symbol" set
@@ -1692,28 +1722,6 @@ function iptree_markup_collapsion (&$tree, $threshold = 1024, $target = 0)
 	return $ret;
 }
 
-// Get a tree and target entity ID on it. Return the list of IDs, which make the path
-// from the target entity to tree root. If such a path exists, it will consist of at
-// least the target ID. Otherwise an empty list will be returned. The "list" is a randomly
-// indexed array of values.
-function traceEntity ($tree, $target_id)
-{
-	$self = __FUNCTION__;
-	foreach ($tree as $node)
-	{
-		if ($node['id'] == $target_id) // here!
-			return array ($target_id);
-		$subtrace = $self ($node['kids'], $target_id); // below?
-		if (count ($subtrace))
-		{
-			array_push ($subtrace, $node['id']);
-			return $subtrace;
-		}
-		// next...
-	}
-	return array();
-}
-
 // Convert entity name to human-readable value
 function formatEntityName ($name) {
 	switch ($name)
@@ -1740,8 +1748,9 @@ function formatTimestamp ($timestamp)
 	return date('n/j/y g:iA', strtotime($timestamp));
 }
 
-// Display hrefs for all of a file's parents
-function serializeFileLinks ($links)
+// Display hrefs for all of a file's parents. If scissors are requested,
+// prepend cutting button to each of them.
+function serializeFileLinks ($links, $scissors = FALSE)
 {
 	global $root;
 
@@ -1770,10 +1779,15 @@ function serializeFileLinks ($links)
 				$params = "page=user&user_id=";
 				break;
 		}
-		$ret .= sprintf("%s<a href='%s?%s%s'>%s</a>", $comma, $root, $params, $li['entity_id'], $li['name']);
-		$comma = ', ';
+		$ret .= $comma;
+		if ($scissors)
+		{
+			$ret .= "<a href='" . makeHrefProcess(array('op'=>'unlinkFile', 'link_id'=>$link_id)) . "'";
+			$ret .= getImageHREF ('cut') . '</a> ';
+		}
+		$ret .= sprintf("<a href='%s?%s%s'>%s</a>", $root, $params, $li['entity_id'], $li['name']);
+		$comma = '<br>';
 	}
-
 	return $ret;
 }
 
@@ -1962,10 +1976,22 @@ function filterEntityList ($list_in, $realm, $expression = array())
 		return array();
 	if (!count ($expression))
 		return $list_in;
-	global $rackCode;
 	$list_out = array();
 	foreach ($list_in as $item_key => $item_value)
 		if (TRUE === judgeEntity ($realm, $item_key, $expression))
+			$list_out[$item_key] = $item_value;
+	return $list_out;
+}
+
+function filterCellList ($list_in, $expression = array())
+{
+	if ($expression === NULL)
+		return array();
+	if (!count ($expression))
+		return $list_in;
+	$list_out = array();
+	foreach ($list_in as $item_key => $item_value)
+		if (TRUE === judgeCell ($item_value, $expression))
 			$list_out[$item_key] = $item_value;
 	return $list_out;
 }
@@ -1989,6 +2015,24 @@ function judgeEntity ($realm, $id, $expression)
 	);
 }
 
+// Idem, but use complete record instead of key.
+function judgeCell ($cell, $expression)
+{
+	global $pTable;
+	return eval_expression
+	(
+		$expression,
+		array_merge
+		(
+			$cell['etags'],
+			$cell['itags'],
+			$cell['atags']
+		),
+		$pTable,
+		TRUE
+	);
+}
+
 // If the requested predicate exists, return its [last] definition.
 // Otherwise return NULL (to signal filterEntityList() about error).
 // Also detect "not set" option selected.
@@ -1996,12 +2040,10 @@ function interpretPredicate ($pname)
 {
 	if ($pname == '_')
 		return array();
-	global $rackCode;
-	$ret = NULL;
-	foreach ($rackCode as $sentence)
-		if ($sentence['type'] == 'SYNT_DEFINITION' and $sentence['term'] == $pname)
-			$ret = $sentence['definition'];
-	return $ret;
+	global $pTable;
+	if (isset ($pTable[$pname]))
+		return $pTable[$pname];
+	return NULL;
 }
 
 // Tell, if a constraint from config option permits given record.

@@ -61,7 +61,7 @@ echo "<input type=hidden name=step value='${next_step}'>\n";
 // Check if the software is already installed.
 function not_already_installed()
 {
-	@include ('inc/secret.php');
+	@include ('local/secret.php');
 	if (isset ($pdo_dsn))
 	{
 		echo 'Your configuration file exists and seems to hold necessary data already.<br>';
@@ -100,8 +100,8 @@ function platform_is_ok ()
 	}
 	echo '</td></tr>';
 
-	echo '<tr><td>hash functions</td>';
-	if (function_exists ('hash_algos'))
+	echo '<tr><td>hash function</td>';
+	if (function_exists ('sha1'))
 		echo '<td class=msg_success>Ok';
 	else
 	{
@@ -128,7 +128,7 @@ function platform_is_ok ()
 	echo '</td></tr>';
 
 	echo '<tr><td>HTTP scheme</td>';
-	if (!empty($_SERVER['HTTPS']))
+	if (!empty($_SERVER['HTTPS']) and $_SERVER['HTTPS'] != 'off')
 		echo '<td class=msg_success>HTTPs';
 	else
 		echo '<td class=msg_warning>HTTP (all your passwords will be transmitted in cleartext)';
@@ -164,10 +164,10 @@ function platform_is_ok ()
 // credentials.
 function init_config ()
 {
-	if (!is_writable ('inc/secret.php'))
+	if (!is_writable ('local/secret.php'))
 	{
-		echo "The inc/secret.php file is not writable by web-server. Make sure it is.";
-		echo "The following commands should suffice:<pre>touch inc/secret.php\nchmod 666 inc/secret.php</pre>";
+		echo "The local/secret.php file is not writable by web-server. Make sure it is.";
+		echo "The following commands should suffice:<pre>touch local/secret.php\nchmod 666 local/secret.php</pre>";
 		echo 'Fedora Linux with SELinux may require this file to be owned by specific user (apache) and/or executing "setenforce 0" for the time of installation. ';
 		echo 'SELinux may be turned back on with "setenforce 1" command.';
 		return FALSE;
@@ -224,10 +224,10 @@ function init_config ()
 		return FALSE;
 	}
 
-	$conf = fopen ('inc/secret.php', 'w+');
+	$conf = fopen ('local/secret.php', 'w+');
 	if ($conf === FALSE)
 	{
-		echo "Error: failed to open inc/secret.php for writing";
+		echo "Error: failed to open local/secret.php for writing";
 		return FALSE;
 	}
 	fwrite ($conf, "<?php\n/* This file has been generated automatically by RackTables installer.\n");
@@ -252,7 +252,7 @@ function init_config ()
 
 function connect_to_db ()
 {
-	require ('inc/secret.php');
+	require ('local/secret.php');
 	global $dbxlink;
 	try
 	{
@@ -367,8 +367,10 @@ function init_database_dynamic ()
 	}
 	else
 	{
+		// Never send cleartext password over the wire.
+		$hash = sha1 ($_REQUEST['password']);
 		$query = "INSERT INTO `UserAccount` (`user_id`, `user_name`, `user_password_hash`, `user_realname`) " .
-			"VALUES (1,'admin',sha1('${_REQUEST['password']}'),'RackTables Administrator')";
+			"VALUES (1,'admin','${hash}','RackTables Administrator')";
 		$result = $dbxlink->exec ($query);
 		echo "Administrator password has been set successfully.<br>";
 		return TRUE;

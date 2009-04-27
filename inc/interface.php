@@ -96,6 +96,9 @@ $image['destroy']['height'] = 16;
 $image['nodestroy']['path'] = 'pix/tango-user-trash-16x16-gray.png';
 $image['nodestroy']['width'] = 16;
 $image['nodestroy']['height'] = 16;
+$image['NODESTROY']['path'] = 'pix/tango-user-trash-32x32-gray.png';
+$image['NODESTROY']['width'] = 32;
+$image['NODESTROY']['height'] = 32;
 $image['DESTROY']['path'] = 'pix/tango-user-trash-32x32.png';
 $image['DESTROY']['width'] = 32;
 $image['DESTROY']['height'] = 32;
@@ -240,6 +243,14 @@ $attrtypes = array
 	'dict' => '[D] dictionary record'
 );
 
+// Rack thumbnail image width summands: "front", "interior" and "rear" elements w/o surrounding border.
+$rtwidth = array
+(
+	0 => 9,
+	1 => 21,
+	2 => 9
+);
+
 // Main menu.
 function renderIndex ()
 {
@@ -308,25 +319,36 @@ function renderRackspace ()
 	$rackrowList = getRackspace ($tagfilter);
 	global $nextorder;
 	$rackwidth = getRackImageWidth();
+	// Zero value effectively disables the limit.
+	$maxPerRow = getConfigVar ('RACKS_PER_ROW');
 	$order = 'odd';
 	foreach ($rackrowList as $rackrow)
 	{
-		echo "<tr class=row_${order}><th class=tdleft>";
-		echo "<a href='".makeHref(array('page'=>'row', 'row_id'=>$rackrow['row_id']))."${tagfilter_str}'>";
-		echo "${rackrow['row_name']}</a></th>";
 		$rackList = getRacksForRow ($rackrow['row_id'], $tagfilter);
-		echo "<td><table border=0 cellspacing=5><tr>";
+		$rackListIdx = 0;
 		foreach ($rackList as $rack)
 		{
+			if ($rackListIdx % $maxPerRow == 0)
+			{
+				if ($rackListIdx > 0)
+					echo '</tr></table></tr>';
+				echo "<tr class=row_${order}><th class=tdleft>";
+				echo "<a href='".makeHref(array('page'=>'row', 'row_id'=>$rackrow['row_id']))."${tagfilter_str}'>";
+				echo "${rackrow['row_name']}</a>";
+				if ($rackListIdx > 0)
+					echo ' (continued)';
+				echo "</th><td><table border=0 cellspacing=5><tr>";
+				$order = $nextorder[$order];
+			}
 			echo "<td align=center><a href='".makeHref(array('page'=>'rack', 'rack_id'=>$rack['id']))."'>";
 			echo "<img border=0 width=${rackwidth} height=";
 			echo getRackImageHeight ($rack['height']);
 			echo " title='${rack['height']} units'";
 			echo "src='render_image.php?img=minirack&rack_id=${rack['id']}&r=${revision}'>";
 			echo "<br>${rack['name']}</a></td>";
+			$rackListIdx++;
 		}
 		echo "</tr></table></tr>\n";
-		$order = $nextorder[$order];
 	}
 	echo "</table>\n";
 	echo "</td></tr></table>\n";
@@ -337,31 +359,35 @@ function renderRackspaceRowEditor ()
 	function printNewItemTR ()
 	{
 		printOpFormIntro ('addRow');
-		echo "<tr><td><input type=text name=name tabindex=100></td><td>";
+		echo "<tr><td>";
+		printImageHREF ('create', 'Add new row', TRUE);
+		echo "</td><td><input type=text name=name tabindex=100></td><td>";
 		printImageHREF ('create', 'Add new row', TRUE, 101);
-		echo "</td><td></td></tr></form>";
+		echo "</td></tr></form>";
 	}
 	global $pageno, $tabno;
 	showMessageOrError();
 	startPortlet ('Rows');
 	echo "<table border=0 cellspacing=0 cellpadding=5 align=center class=widetable>\n";
-	echo "<tr><th>Name</th></tr>\n";
+	echo "<tr><th>&nbsp;</th><th>Name</th><th>&nbsp;</th></tr>\n";
 	if (getConfigVar ('ADDNEW_AT_TOP') == 'yes')
 		printNewItemTR();
 	$rackrowList = getRackspace ();
 	foreach ($rackrowList as $rackrow)
 	{
-		printOpFormIntro ('updateRow', array ('row_id' => $rackrow['row_id']));
-		echo "<tr><td><input type=text name=name value='${rackrow['row_name']}'></td><td>";
-		printImageHREF ('save', 'Save changes', TRUE);
-		echo "</td></form><td>";
-		if ($rackrow['count'] == 0)
+		echo "<tr><td>";
+		if ($rackrow['count'])
+			printImageHREF ('nodestroy', $rackrow['count'] . ' racks');
+		else
 		{
-			echo "<a href=\"".makeHrefProcess(array('op'=>'delete', 'row_id'=>$rackrow['row_id'], 'name'=>$rackrow['row_name']))."\">";
-			printImageHREF ('delete', 'Delete row');
+			echo "<a href=\"".makeHrefProcess(array('op'=>'delete', 'row_id'=>$rackrow['row_id']))."\">";
+			printImageHREF ('destroy', 'Delete row');
 			echo "</a>";
 		}
-		echo "</td></tr>\n";
+		printOpFormIntro ('updateRow', array ('row_id' => $rackrow['row_id']));
+		echo "</td><td><input type=text name=name value='${rackrow['row_name']}'></td><td>";
+		printImageHREF ('save', 'Save changes', TRUE);
+		echo "</form></td></tr>\n";
 	}
 	if (getConfigVar ('ADDNEW_AT_TOP') != 'yes')
 		printNewItemTR();
@@ -403,17 +429,27 @@ function renderRow ($row_id = 0)
 
 	global $nextorder;
 	$rackwidth = getRackImageWidth() * getConfigVar ('ROW_SCALE');
+	// Maximum number of racks per row is proportionally less, but at least 1.
+	$maxPerRow = max (floor (getConfigVar ('RACKS_PER_ROW') / getConfigVar ('ROW_SCALE')), 1);
+	$rackListIdx = 0;
 	$order = 'odd';
 	startPortlet ('Racks');
 	echo "<table border=0 cellspacing=5 align='center'><tr>";
 	foreach ($rackList as $rack)
 	{
+		if ($rackListIdx % $maxPerRow == 0)
+		{
+			if ($rackListIdx > 0)
+				echo '</tr>';
+			echo '<tr>';
+		}
 		echo "<td align=center class=row_${order}><a href='".makeHref(array('page'=>'rack', 'rack_id'=>$rack['id']))."'>";
 		echo "<img border=0 width=${rackwidth} height=" . (getRackImageHeight ($rack['height']) * getConfigVar ('ROW_SCALE'));
 		echo " title='${rack['height']} units'";
 		echo "src='render_image.php?img=minirack&rack_id=${rack['id']}&r=${revision}'>";
 		echo "<br>${rack['name']}</a></td>";
 		$order = $nextorder[$order];
+		$rackListIdx++;
 	}
 	echo "</tr></table>\n";
 	finishPortlet();
@@ -542,7 +578,7 @@ function renderNewRackForm ($row_id)
 		$defh = '';
 	echo "<tr><th class=tdright>Rack name (*):</th><td class=tdleft><input type=text name=rack_name tabindex=1></td>";
 	echo "<td rowspan=4>Assign tags:<br>";
-	renderTagSelect();
+	renderNewEntityTags();
 	echo "</td></tr>\n";
 	echo "<tr><th class=tdright>Height in units (*):</th><td class=tdleft><input type=text name=rack_height1 tabindex=2 value='${defh}'></td></tr>\n";
 	echo "<tr><th class=tdright>Comment:</th><td class=tdleft><input type=text name=rack_comment tabindex=3></td></tr>\n";
@@ -559,7 +595,7 @@ function renderNewRackForm ($row_id)
 		$defh = '';
 	echo "<tr><th class=tdright>Height in units (*):</th><td class=tdleft><input type=text name=rack_height2 value='${defh}'></td>";
 	echo "<td rowspan=3 valign=top>Assign tags:<br>";
-	renderTagSelect();
+	renderNewEntityTags();
 	echo "</td></tr>\n";
 	echo "<tr><th class=tdright>Rack names (*):</th><td class=tdleft><textarea name=rack_names cols=40 rows=25></textarea></td></tr>\n";
 	echo "<tr><td class=submit colspan=2>";
@@ -572,7 +608,7 @@ function renderEditObjectForm ($object_id)
 {
 	showMessageOrError();
 
-	global $pageno, $tabno;
+	global $pageno;
 	$object = getObjectInfo ($object_id);
 	if ($object == NULL)
 	{
@@ -581,38 +617,22 @@ function renderEditObjectForm ($object_id)
 	}
 	startPortlet ();
 	printOpFormIntro ('update');
-	echo '<table border=0 width=100%><tr><td class=pcleft>';
 
 	// static attributes
-	echo '<table border=0 align=center>';
-	echo "<tr><th colspan=2><h2>Static attributes</h2></th></tr>";
-	echo "<tr><th class=tdright>Type:</th><td class=tdleft>";
+	echo '<table border=0 cellspacing=0 cellpadding=3 align=center>';
+	echo "<tr><td>&nbsp;</td><th colspan=2><h2>Attributes</h2></th></tr>";
+	echo "<tr><td>&nbsp;</td><th class=tdright>Type:</th><td class=tdleft>";
 	printSelect (getObjectTypeList(), 'object_type_id', $object['objtype_id']);
 	echo "</td></tr>\n";
 	// baseline info
-	echo "<tr><th class=tdright>Common name:</th><td class=tdleft><input type=text name=object_name value='${object['name']}'></td></tr>\n";
-	echo "<tr><th class=tdright>Visible label:</th><td class=tdleft><input type=text name=object_label value='${object['label']}'></td></tr>\n";
-	echo "<tr><th class=tdright>Asset tag:</th><td class=tdleft><input type=text name=object_asset_no value='${object['asset_no']}'></td></tr>\n";
-	echo "<tr><th class=tdright>Barcode:</th><td class=tdleft><input type=text name=object_barcode value='${object['barcode']}'></td></tr>\n";
-	echo "<tr><th class=tdright>Has problems:</th><td class=tdleft><input type=checkbox name=object_has_problems";
-	if ($object['has_problems'] == 'yes')
-		echo ' checked';
-	echo "></td></tr>\n";
-	echo "<tr><th class=tdright>Actions:</th><td class=tdleft><a href='".
-		makeHrefProcess(array('op'=>'deleteObject', 'page'=>'objects', 'tab'=>'default', 'object_id'=>$object_id, 'name'=>$object['name'])).
-		"' onclick=\"javascript:return confirm('Are you sure you want to delete the object?')\">Delete object</a></td></tr>\n";
-	echo "<tr><td colspan=2><b>Comment:</b><br><textarea name=object_comment rows=10 cols=80>${object['comment']}</textarea></td></tr>";
-	echo '</table>';
-
-	echo '</td><td class=pcright>';
-	
+	echo "<tr><td>&nbsp;</td><th class=tdright>Common name:</th><td class=tdleft><input type=text name=object_name value='${object['name']}'></td></tr>\n";
+	echo "<tr><td>&nbsp;</td><th class=tdright>Visible label:</th><td class=tdleft><input type=text name=object_label value='${object['label']}'></td></tr>\n";
+	echo "<tr><td>&nbsp;</td><th class=tdright>Asset tag:</th><td class=tdleft><input type=text name=object_asset_no value='${object['asset_no']}'></td></tr>\n";
+	echo "<tr><td>&nbsp;</td><th class=tdright>Barcode:</th><td class=tdleft><input type=text name=object_barcode value='${object['barcode']}'></td></tr>\n";
 	// optional attributes
 	$values = getAttrValues ($object_id);
 	if (count($values) > 0)
 	{
-		echo "<table border=0 cellspacing=0 cellpadding=5 align=center class=widetable>\n";
-		echo "<tr><th colspan=3><h2>Optional attributes</h2></th></tr>";
-		echo "<tr><th>&nbsp;</th><th>Attribute</th><th>Value</th></tr>\n";
 		echo '<input type=hidden name=num_attrs value=' . count($values) . ">\n";
 		$i = 0;
 		foreach ($values as $record)
@@ -628,7 +648,7 @@ function renderEditObjectForm ($object_id)
 			else
 				echo '&nbsp;';
 			echo '</td>';
-			echo "<td class=tdright>${record['name']}:</td><td class=tdleft>";
+			echo "<th class=sticker>${record['name']}:</th><td class=tdleft>";
 			switch ($record['type'])
 			{
 				case 'uint':
@@ -646,11 +666,17 @@ function renderEditObjectForm ($object_id)
 			echo "</td></tr>\n";
 			$i++;
 		}
-		echo "</table>";
 	}
-	echo "</td></tr>\n";
+	echo "<tr><td>&nbsp;</td><th class=tdright>Has problems:</th><td class=tdleft><input type=checkbox name=object_has_problems";
+	if ($object['has_problems'] == 'yes')
+		echo ' checked';
+	echo "></td></tr>\n";
+	echo "<tr><td>&nbsp;</td><th class=tdright>Actions:</th><td class=tdleft><a href='".
+		makeHrefProcess(array('op'=>'deleteObject', 'page'=>'objects', 'tab'=>'default', 'object_id'=>$object_id, 'name'=>$object['name'])).
+		"' onclick=\"javascript:return confirm('Are you sure you want to delete the object?')\">Delete object</a></td></tr>\n";
+	echo "<tr><td colspan=3><b>Comment:</b><br><textarea name=object_comment rows=10 cols=80>${object['comment']}</textarea></td></tr>";
 
-	echo "<tr><th class=submit colspan=2>";
+	echo "<tr><th class=submit colspan=3>";
 	printImageHREF ('SAVE', 'Save changes', TRUE);
 	echo "</form></th></tr></table>\n";
 	finishPortlet();
@@ -858,7 +884,7 @@ function renderRackObject ($object_id = 0)
 		echo "<tr><td colspan=2 class=msg_error>Has problems</td></tr>\n";
 	foreach (getAttrValues ($object_id, TRUE) as $record)
 		if (!empty ($record['value']))
-			echo "<tr><th width='50%' class=tdright><span class=sticker>${record['name']}</span>:</th><td class=tdleft>${record['a_value']}</td></tr>\n";
+			echo "<tr><th width='50%' class=sticker>${record['name']}:</th><td class=sticker>${record['a_value']}</td></tr>\n";
 	printTagTRs (makeHref(array('page'=>'objgroup', 'tab'=>'default', 'group_id'=>$info['objtype_id']))."&");
 	echo "</table><br>\n";
 	finishPortlet();
@@ -1465,7 +1491,7 @@ function printLog ($log)
 			$msginfo = array
 			(
 // records 0~99 with success messages
-				0 => array ('code' => 'success', 'format' => 'Success: %s'),
+				0 => array ('code' => 'success', 'format' => '%s'),
 				1 => array ('code' => 'success', 'format' => '%u new records done, %u already existed'),
 				2 => array ('code' => 'success', 'format' => 'NATv4 rule was successfully added.'),
 				3 => array ('code' => 'success', 'format' => 'NATv4 rule was successfully deleted.'),
@@ -1534,21 +1560,22 @@ function printLog ($log)
 				66 => array ('code' => 'success', 'format' => "File sent Ok via handler '%s'"),
 				67 => array ('code' => 'success', 'format' => "Tag rolling done, %u objects involved"),
 				68 => array ('code' => 'success', 'format' => "Updated rack '%s'"),
-				69 => array ('code' => 'success', 'format' => 'File %s was added successfully'),
-				70 => array ('code' => 'success', 'format' => 'File %s was updated successfully'),
-				71 => array ('code' => 'success', 'format' => 'File %s was linked successfully'),
-				72 => array ('code' => 'success', 'format' => 'File %s was unlinked successfully'),
-				73 => array ('code' => 'success', 'format' => 'File %s was deleted successfully'),
-				74 => array ('code' => 'success', 'format' => 'Row %s was added successfully'),
-				75 => array ('code' => 'success', 'format' => 'Row %s was updated successfully'),
-				76 => array ('code' => 'success', 'format' => 'Object %s was deleted successfully'),
-				77 => array ('code' => 'success', 'format' => 'Row %s was deleted successfully'),
-				78 => array ('code' => 'success', 'format' => 'File %s saved Ok'),
-				79 => array ('code' => 'success', 'format' => 'Rack %s was deleted successfully'),
+				69 => array ('code' => 'success', 'format' => 'File "%s" was added successfully'),
+				70 => array ('code' => 'success', 'format' => 'File "%s" was updated successfully'),
+				71 => array ('code' => 'success', 'format' => 'File "%s" was linked successfully'),
+				72 => array ('code' => 'success', 'format' => 'File was unlinked successfully'),
+				73 => array ('code' => 'success', 'format' => 'File "%s" was deleted successfully'),
+				74 => array ('code' => 'success', 'format' => 'Row "%s" was added successfully'),
+				75 => array ('code' => 'success', 'format' => 'Row "%s" was updated successfully'),
+				76 => array ('code' => 'success', 'format' => 'Object "%s" was deleted successfully'),
+				77 => array ('code' => 'success', 'format' => 'Row "%s" was deleted successfully'),
+				78 => array ('code' => 'success', 'format' => 'File "%s" saved Ok'),
+				79 => array ('code' => 'success', 'format' => 'Rack "%s" was deleted successfully'),
 				80 => array ('code' => 'success', 'format' => 'Milestone was set successfully'),
+				81 => array ('code' => 'success', 'format' => "Added new object '%s'"),
 
 // records 100~199 with fatal error messages
-				100 => array ('code' => 'error', 'format' => 'Generic error: %s'),
+				100 => array ('code' => 'error', 'format' => '%s'),
 				101 => array ('code' => 'error', 'format' => 'Port name cannot be empty'),
 				102 => array ('code' => 'error', 'format' => "Error creating user account '%s'"),
 				103 => array ('code' => 'error', 'format' => 'getHashByID() failed'),
@@ -1632,9 +1659,13 @@ function printLog ($log)
 				181 => array ('code' => 'error', 'format' => "file uploads not allowed, change 'file_uploads' parameter in php.ini"),
 				182 => array ('code' => 'error', 'format' => 'SQL query failed: %s'),
 				183 => array ('code' => 'error', 'format' => "Tag id '%s' does not exist."),
+				184 => array ('code' => 'error', 'format' => 'Submitted form is invalid at line %u'),
+				185 => array ('code' => 'error', 'format' => "Failed to add object '%s'"),
+				186 => array ('code' => 'error', 'format' => 'Incomplete form has been ignored. Cheers.'),
+				187 => array ('code' => 'error', 'format' => "Internal error in function '%s'"),
 
 // records 200~299 with warnings
-				200 => array ('code' => 'warning', 'format' => 'generic warning: %s'),
+				200 => array ('code' => 'warning', 'format' => '%s'),
 				201 => array ('code' => 'warning', 'format' => 'nothing happened...'),
 				202 => array ('code' => 'warning', 'format' => 'gw: %s'),
 				203 => array ('code' => 'warning', 'format' => 'Port %s seems to be the first in VLAN %u at this switch.'),
@@ -1642,6 +1673,7 @@ function printLog ($log)
 				205 => array ('code' => 'warning', 'format' => '%u change request(s) have been ignored'),
 				206 => array ('code' => 'warning', 'format' => 'Rack is not empty'),
 				207 => array ('code' => 'warning', 'format' => 'Ignored empty request'),
+
 			);
 			// Handle the arguments. Is there any better way to do it?
 			foreach ($log['m'] as $record)
@@ -2002,8 +2034,6 @@ function renderObjectGroup ()
 	echo '</td><td class=pcleft>';
 
 	$objects = getObjectList ($group_id, $tagfilter, getTFMode());
-	if (isset ($_REQUEST['pfilter']))
-		$objects = filterEntityList ($objects, 'object', interpretPredicate ($_REQUEST['pfilter']));
 	startPortlet ('Objects (' . count ($objects) . ')');
 	if ($objects === NULL)
 	{
@@ -2233,8 +2263,8 @@ function renderIPv4Space ()
 {
 	global $pageno, $tabno;
 	$tagfilter = getTagFilter();
-	$netlist = getIPv4NetworkList ($tagfilter, getTFMode());
-
+	$netlist = filterCellList (listCells ('ipv4net'), buildCellFilter());
+	array_walk ($netlist, 'amplifyCell');
 
 	$netcount = count ($netlist);
 	// expand request can take either natural values or "ALL". Zero means no expanding.
@@ -2360,7 +2390,7 @@ function renderIPv4SpaceEditor ()
 	echo "<input type=hidden name=op value=addIPv4Prefix>\n";
 	// tags column
 	echo '<tr><td rowspan=4><h3>assign tags</h3>';
-	renderTagSelect();
+	renderNewEntityTags();
 	echo '</td>';
 	// inputs column
 	echo "<th class=tdright>prefix</th><td class=tdleft><input type=text name='range' size=18 class='live-validate' tabindex=1></td>";
@@ -2372,7 +2402,8 @@ function renderIPv4SpaceEditor ()
 	echo "</form></table><br><br>\n";
 	finishPortlet();
 
-	$addrspaceList = getIPv4NetworkList();
+	$addrspaceList = listCells ('ipv4net');
+	array_walk ($addrspaceList, 'amplifyCell');
 	if (count ($addrspaceList))
 	{
 		startPortlet ('Manage existing (' . count ($addrspaceList) . ')');
@@ -3049,59 +3080,37 @@ function renderNATv4ForObject ($object_id = 0)
 	echo "</table><br><br>";
 }
 
-// FIXME: move related code away into ophandler(s)
 function renderAddMultipleObjectsForm ()
 {
-	global $root, $pageno, $tabno, $nextorder;
-
-	$type_id = array();
-	$global_type_id = 0;
-	$name = array();
-	$asset_no = array();
-	$keepvalues1 = $keepvalues2 = FALSE;
 	showMessageOrError();
-
-	// Render a form for the next.
 	$typelist = getObjectTypeList();
 	$typelist[0] = 'select type...';
+	$max = getConfigVar ('MASSCOUNT');
+	$tabindex = 100;
 
 	startPortlet ('Distinct types, same tags');
-	$max = getConfigVar ('MASSCOUNT');
 	printOpFormIntro ('addObjects');
 	echo '<table border=0 align=center>';
 	echo "<tr><th>Object type</th><th>Common name</th><th>Visible label</th>";
 	echo "<th>Asset tag</th><th>Barcode</th><th>Tags</th></tr>\n";
-	// If a user forgot to select object type on input, we keep his
-	// previous input in the form.
 	for ($i = 0; $i < $max; $i++)
 	{
 		echo '<tr><td>';
 		// Don't employ DEFAULT_OBJECT_TYPE to avoid creating ghost records for pre-selected empty rows.
-		printSelect ($typelist, "${i}_object_type_id", 0);
+		printSelect ($typelist, "${i}_object_type_id", 0, $tabindex);
 		echo '</td>';
-		echo "<td><input type=text size=30 name=${i}_object_name";
-		if ($keepvalues1 and isset ($name[$i]) and (!isset ($type_id[$i]) or $type_id[$i] == 0))
-			echo " value='${name[$i]}'";
-		echo "></td>";
-		echo "<td><input type=text size=30 name=${i}_object_label";
-		if ($keepvalues1 and isset ($label[$i]) and (!isset ($type_id[$i]) or $type_id[$i] == 0))
-			echo " value='${label[$i]}'";
-		echo "></td>";
-		echo "<td><input type=text size=20 name=${i}_object_asset_no";
-		if ($keepvalues1 and isset ($asset_no[$i]) and (!isset ($type_id[$i]) or $type_id[$i] == 0))
-			echo " value='${asset_no[$i]}'";
-		echo "></td>";
-		echo "<td><input type=text size=10 name=${i}_object_barcode";
-		if ($keepvalues1 and isset ($barcode[$i]) and (!isset ($type_id[$i]) or $type_id[$i] == 0))
-			echo " value='${barcode[$i]}'";
-		echo "></td>";
+		echo "<td><input type=text size=30 name=${i}_object_name tabindex=${tabindex}></td>";
+		echo "<td><input type=text size=30 name=${i}_object_label tabindex=${tabindex}></td>";
+		echo "<td><input type=text size=20 name=${i}_object_asset_no tabindex=${tabindex}></td>";
+		echo "<td><input type=text size=10 name=${i}_object_barcode tabindex=${tabindex}></td>";
 		if ($i == 0)
 		{
 			echo "<td valign=top rowspan=${max}>";
-			renderTagSelect();
+			renderNewEntityTags();
 			echo "</td>\n";
 		}
 		echo "</tr>\n";
+		$tabindex++;
 	}
 	echo "<tr><td class=submit colspan=5><input type=submit name=got_fast_data value='Go!'></td></tr>\n";
 	echo "</form></table>\n";
@@ -3111,14 +3120,12 @@ function renderAddMultipleObjectsForm ()
 	printOpFormIntro ('addLotOfObjects');
 	echo "<table border=0 align=center><tr><th>names</th><th>type</th></tr>";
 	echo "<tr><td rowspan=3><textarea name=namelist cols=40 rows=25>\n";
-	if ($keepvalues2 and $global_type_id == 0)
-		echo $_REQUEST['namelist'];
 	echo "</textarea></td><td valign=top>";
 	printSelect ($typelist, "global_type_id", getConfigVar ('DEFAULT_OBJECT_TYPE'));
 	echo "</td></tr>";
 	echo "<tr><th>Tags</th></tr>";
 	echo "<tr><td valign=top>";
-	renderTagSelect();
+	renderNewEntityTags();
 	echo "</td></tr>";
 	echo "<tr><td colspan=2><input type=submit name=got_very_fast_data value='Go!'></td></tr></table>\n";
 	echo "</form>\n";
@@ -3385,7 +3392,7 @@ function renderSearchResults ()
 					foreach ($what as $item)
 					{
 						echo "<tr class=row_${order}><td class=tdleft>";
-						renderUserCell ($item);
+						renderCell ($item);
 						echo "</td></tr>";
 						$order = $nextorder[$order];
 					}
@@ -3443,27 +3450,39 @@ function renderAtomGrid ($data)
 	}
 }
 
-function renderUserList ()
+function renderCellList ($realm = NULL, $title = 'list', $do_amplify = FALSE)
 {
-	global $nextorder, $accounts, $root, $pageno;
+	if ($realm === NULL)
+	{
+		global $pageno;
+		$realm = $pageno;
+	}
+	global $nextorder;
 	echo "<table border=0 class=objectview>\n";
 	echo "<tr><td class=pcleft>";
-	startPortlet ('User accounts');
+	startPortlet ($title);
 	echo "<table class=cooltable border=0 cellpadding=5 cellspacing=0 align=center>\n";
 	$order = 'odd';
-	$tagfilter = getTagFilter();
-	foreach (getUserAccounts ($tagfilter, getTFMode()) as $user)
+	$celllist = filterCellList (listCells ($realm), buildCellFilter());
+	if ($do_amplify)
+		array_walk ($celllist, 'amplifyCell');
+	foreach ($celllist as $cell)
 	{
 		echo "<tr class=row_${order}><td>";
-		renderUserCell ($user);
+		renderCell ($cell);
 		echo "</td></tr>\n";
 		$order = $nextorder[$order];
 	}
 	echo '</table>';
 	finishPortlet();
 	echo '</td><td class=pcright>';
-	renderTagFilterPortlet ($tagfilter, 'user');
+	renderTagFilterPortlet (getTagFilter(), $realm);
 	echo "</td></tr></table>\n";
+}
+
+function renderUserList ()
+{
+	renderCellList ('user', 'User accounts');
 }
 
 function renderUserListEditor ()
@@ -3706,14 +3725,20 @@ function renderChaptersEditor ()
 	{
 		printOpFormIntro ('add');
 		echo '<tr><td>';
-		printImageHREF ('add', 'Add new', TRUE);
+		printImageHREF ('create', 'Add new', TRUE);
 		echo "</td><td><input type=text name=chapter_name tabindex=100></td><td>&nbsp;</td><td>";
-		printImageHREF ('add', 'Add new', TRUE, 101);
+		printImageHREF ('create', 'Add new', TRUE, 101);
 		echo '</td></tr></form>';
 	}
 	global $pageno, $tabno;
 	showMessageOrError();
 	$dict = getDict();
+	foreach (array_keys ($dict) as $chapter_no)
+		$dict[$chapter_no]['mapped'] = FALSE;
+	foreach (getAttrMap() as $attrinfo)
+		if ($attrinfo['type'] == 'dict')
+			foreach ($attrinfo['application'] as $app)
+				$dict[$app['chapter_no']]['mapped'] = TRUE;
 	echo "<table cellspacing=0 cellpadding=5 align=center class=widetable>\n";
 	echo '<tr><th>&nbsp;</th><th>Chapter name</th><th>Words</th><th>&nbsp;</th></tr>';
 	if (getConfigVar ('ADDNEW_AT_TOP') == 'yes')
@@ -3726,13 +3751,15 @@ function renderChaptersEditor ()
 		echo '<tr>';
 		echo '<td>';
 		if ($sticky)
-			printImageHREF ('nodelete', 'system chapter');
+			printImageHREF ('nodestroy', 'system chapter');
 		elseif ($wordcount > 0)
-			printImageHREF ('nodelete', 'contains ' . $wordcount . ' word(s)');
+			printImageHREF ('nodestroy', 'contains ' . $wordcount . ' word(s)');
+		elseif ($chapter['mapped'])
+			printImageHREF ('nodestroy', 'used in attribute map');
 		else
 		{
 			echo "<a href='".makeHrefProcess(array('op'=>'del', 'chapter_no'=>$chapter['no']))."'>";
-			printImageHREF ('delete', 'Remove chapter');
+			printImageHREF ('destroy', 'Remove chapter');
 			echo "</a>";
 		}
 		echo '</td>';
@@ -3887,12 +3914,17 @@ function renderEditAttrMapForm ()
 
 function printImageHREF ($tag, $title = '', $do_input = FALSE, $tabindex = 0)
 {
+	echo getImageHREF ($tag, $title, $do_input, $tabindex);
+}
+
+function getImageHREF ($tag, $title = '', $do_input = FALSE, $tabindex = 0)
+{
 	global $root, $image;
 	if (!isset ($image[$tag]))
 		$tag = 'error';
 	$img = $image[$tag];
 	if ($do_input == TRUE)
-		echo
+		return
 			"<input type=image name=submit class=icon " .
 			"src='${root}${img['path']}' " .
 			"border=0 " .
@@ -3900,7 +3932,7 @@ function printImageHREF ($tag, $title = '', $do_input = FALSE, $tabindex = 0)
 			(empty ($title) ? '' : " title='${title}'") . // JT: Add title to input hrefs too
 			">";
 	else
-		echo
+		return
 			"<img " .
 			"src='${root}${img['path']}' " .
 			"width=${img['width']} " .
@@ -4684,7 +4716,7 @@ function renderVSListEditForm ()
 	printImageHREF ('CREATE', 'create virtual service', TRUE);
 	echo "</td></tr><tr><th>VS configuration</th><td colspan=4 class=tdleft><textarea name=vsconfig rows=10 cols=80></textarea></td>\n";
 	echo "<td rowspan=2><h3>assign tags</h3>";
-	renderTagSelect();
+	renderNewEntityTags();
 	echo "</td></tr>";
 	echo "<tr><th>RS configuration</th><td colspan=4 class=tdleft><textarea name=rsconfig rows=10 cols=80></textarea></td></tr>\n";
 	echo "</table>";
@@ -4779,7 +4811,7 @@ function editRSPools ()
 	printImageHREF ('CREATE', 'create real server pool', TRUE);
 	echo "</td></tr><tr><th>VS configuration</th><td><textarea name=vsconfig rows=10 cols=80></textarea></td>";
 	echo "<td rowspan=2><h3>assign tags</h3>";
-	renderTagSelect();
+	renderNewEntityTags();
 	echo "</td></tr>";
 	echo "<tr><th>RS configuration</th><td><textarea name=rsconfig rows=10 cols=80></textarea></td></tr>";
 	echo "</table></form>";
@@ -4939,6 +4971,7 @@ function renderLivePTR ($id = 0)
 	echo "<table class='widetable' border=0 cellspacing=0 cellpadding=5 align='center'>\n";
 	echo "<tr><th>address</th><th>current name</th><th>DNS data</th><th>import</th></tr>\n";
 	$idx = 1;
+	$box_counter = 1;
 	$cnt_match = $cnt_mismatch = $cnt_missing = 0;
 	for ($ip = $startip; $ip <= $endip; $ip++)
 	{
@@ -4980,13 +5013,15 @@ function renderLivePTR ($id = 0)
 		echo "'><a href='".makeHref(array('page'=>'ipaddress', 'ip'=>$straddr))."'>${straddr}</a></td>";
 		echo "<td class=tdleft>${addr['name']}</td><td class=tdleft>${ptrname}</td><td>";
 		if ($print_cbox)
-			echo "<input type=checkbox name=import_${idx} tabindex=${idx}>";
+			echo "<input type=checkbox name=import_${idx} tabindex=${idx} id=atom_1_" . $box_counter++ . "_1>";
 		else
 			echo '&nbsp;';
 		echo "</td></tr>\n";
 		$idx++;
 	}
-	echo "<tr><td colspan=4 align=center><input type=submit value='Import selected records'></td></tr>";
+	echo "<tr><td colspan=3 align=center><input type=submit value='Import selected records'></td><td>";
+	echo --$box_counter ? "<a href='javascript:;' onclick=\"toggleColumnOfAtoms(1, 1, ${box_counter})\">(toggle selection)</a>" : '&nbsp;';
+	echo "</td></tr>";
 	echo "</table>";
 	echo "</form>";
 	finishPortlet();
@@ -5031,6 +5066,7 @@ function renderAutoPortsForm ($object_id = 0)
 
 function renderTagRowForViewer ($taginfo, $level = 0)
 {
+	$self = __FUNCTION__;
 	if (!count ($taginfo['kids']))
 		$level++; // Shift instead of placing a spacer. This won't impact any nested nodes.
 	echo "<tr><td align=left style='padding-left: " . ($level * 16) . "px;'>";
@@ -5040,12 +5076,13 @@ function renderTagRowForViewer ($taginfo, $level = 0)
 	echo $taginfo['tag'] . '</span>';
 	echo "</td></tr>\n";
 	foreach ($taginfo['kids'] as $kid)
-		renderTagRowForViewer ($kid, $level + 1);
+		$self ($kid, $level + 1);
 }
 
 // FIXME: generated hyperlink must depend on the realm given
 function renderTagRowForCloud ($taginfo, $realm, $level = 0)
 {
+	$self = __FUNCTION__;
 	echo "<tr><td align=left style='padding-left: " . ($level * 16) . "px;'>";
 	echo "<a href='".makeHref(array('page'=>'objgroup', 'group_id'=>0, 'tagfilter[]'=>$taginfo['id']))."'>";
 	echo $taginfo['tag'] . '</a>';
@@ -5053,11 +5090,12 @@ function renderTagRowForCloud ($taginfo, $realm, $level = 0)
 		echo ' (' . $taginfo['refcnt'][$realm] . ')';
 	echo "</td></tr>\n";
 	foreach ($taginfo['kids'] as $kid)
-		renderTagRowForCloud ($kid, $realm, $level + 1);
+		$self ($kid, $realm, $level + 1);
 }
 
 function renderTagRowForEditor ($taginfo, $level = 0)
 {
+	$self = __FUNCTION__;
 	global $pageno, $tabno, $taglist;
 	if (!count ($taginfo['kids']))
 		$level++; // Idem
@@ -5089,7 +5127,7 @@ function renderTagRowForEditor ($taginfo, $level = 0)
 	printImageHREF ('save', 'Save changes', TRUE);
 	echo "</form></td></tr>\n";
 	foreach ($taginfo['kids'] as $kid)
-		renderTagRowForEditor ($kid, $level + 1);
+		$self ($kid, $level + 1);
 }
 
 function renderTagTree ()
@@ -5174,64 +5212,42 @@ function renderTagTreeEditor ()
 	finishPortlet();
 }
 
-// Output a sequence of OPTION elements, selecting those, which are present on the
-// given (not effective) explicit tags list.
-function renderTagOption ($taginfo, $level = 0)
+function renderTagCheckbox ($inputname, $preselect, $taginfo, $level = 0)
 {
-	global $target_given_tags;
 	$self = __FUNCTION__;
-	$selected = tagOnChain ($taginfo, $target_given_tags) ? ' selected' : '';
-	echo '<option value=' . $taginfo['id'] . "${selected}>";
-	for ($i = 0; $i < $level; $i++)
-		echo '-- ';
-	echo $taginfo['tag'] . "</option>\n";
-	foreach ($taginfo['kids'] as $kid)
-		$self ($kid, $level + 1);
-}
-
-function renderTagCheckbox ($taginfo, $level = 0)
-{
-	global $target_given_tags;
-	$self = __FUNCTION__;
-	$selected = tagOnChain ($taginfo, $target_given_tags) ? ' checked' : '';
-	echo "<tr><td colspan=2 align=left style='padding-left: " . ($level * 16) . "px;'>";
-	echo '<input type=checkbox name=taglist[] value=' . $taginfo['id'] . "${selected}> ";
+	if (tagOnChain ($taginfo, $preselect))
+	{
+		$selected = ' checked';
+		$class = 'seltagbox';
+	}
+	else
+	{
+		$selected = '';
+		$class = 'tagbox';
+	}
+	echo "<tr><td colspan=2 class=${class} style='padding-left: " . ($level * 16) . "px;'>";
+	echo "<input type=checkbox name='${inputname}[]' value='${taginfo['id']}'${selected}> ";
 	echo $taginfo['tag'] . "</td></tr>\n";
 	foreach ($taginfo['kids'] as $kid)
-		$self ($kid, $level + 1);
-}
-
-// Idem, but select those, which are shown on the $_REQUEST['tagfiler'] array.
-// Ignore tag ids, which can't be found on the tree.
-function renderTagOptionForFilter ($taginfo, $tagfilter, $realm, $level = 0)
-{
-	$selected = tagOnIdList ($taginfo, $tagfilter) ?' selected' : '';
-	echo '<option value=' . $taginfo['id'] . "${selected}>";
-	for ($i = 0; $i < $level; $i++)
-		echo '-- ';
-	echo $taginfo['tag'] . (isset ($taginfo['refcnt'][$realm]) ? ' (' . $taginfo['refcnt'][$realm] . ')' : '') . "</option>\n";
-	foreach ($taginfo['kids'] as $kid)
-		renderTagOptionForFilter ($kid, $tagfilter, $realm, $level + 1);
+		$self ($inputname, $preselect, $kid, $level + 1);
 }
 
 function renderEntityTags ($entity_id = 0)
 {
-	global $tagtree, $target_given_tags, $pageno, $page, $etype_by_pageno, $target_given_tags;
+	global $tagtree, $target_given_tags, $pageno, $page, $target_given_tags;
 	if ($entity_id <= 0)
 	{
 		showError ('Invalid or missing arguments', __FUNCTION__);
 		return;
 	}
 	showMessageOrError();
-	$entity_realm = $etype_by_pageno[$pageno];
 	$bypass_name = $page[$pageno]['bypass'];
 	startPortlet ('Tag list');
-	if (count ($target_given_tags))
-		echo '<h3>(' . serializeTags ($target_given_tags) . ')</h3>';
-	echo '<table border=0 align=center>';
-	printOpFormIntro ('saveTags', array ($bypass_name => $entity_id));
+	echo '<table border=0 cellspacing=0 cellpadding=3 align=center>';
+	printOpFormIntro ('saveTags');
+	// Show a tree of tags with preselection, which matches current chain.
 	foreach ($tagtree as $taginfo)
-		renderTagCheckbox ($taginfo);
+		renderTagCheckbox ('taglist', $target_given_tags, $taginfo);
 	echo '<tr><td class=tdleft>';
 	printImageHREF ('SAVE', 'Save changes', TRUE);
 	echo "</form></td><td class=tdright>";
@@ -5239,10 +5255,11 @@ function renderEntityTags ($entity_id = 0)
 		printImageHREF ('CLEAR gray');
 	else
 	{
-		printOpFormIntro ('saveTags', array ($bypass_name => $entity_id, 'taglist[]' => ''));
+		printOpFormIntro ('saveTags', array ('taglist[]' => ''));
 		printImageHREF ('CLEAR', 'Reset all tags', TRUE);
+		echo '</form>';
 	}
-	echo '</form></td></tr></table>';
+	echo '</td></tr></table>';
 	finishPortlet();
 }
 
@@ -5251,22 +5268,21 @@ function printTagTRs ($baseurl = '')
 	global $expl_tags, $impl_tags, $auto_tags, $target_given_tags;
 	if (getConfigVar ('SHOW_EXPLICIT_TAGS') == 'yes' and count ($target_given_tags))
 	{
-		echo "<tr><th width='50%' class=tdright><span class=tagheader>Given explicit tags</span>:</th><td class=tdleft>";
+		echo "<tr><th width='50%' class=tagchain>Given explicit tags:</th><td class=tagchain>";
 		echo serializeTags ($target_given_tags, $baseurl) . "</td></tr>\n";
-	}
-	if (getConfigVar ('SHOW_EXPLICIT_TAGS') == 'yes' and count ($expl_tags))
-	{
-		echo "<tr><th width='50%' class=tdright><span class=tagheader>Effective explicit tags</span>:</th><td class=tdleft>";
-		echo serializeTags ($expl_tags, $baseurl) . "</td></tr>\n";
+		// only display "effective" line, when if differs
+		if (tagChainCmp ($target_given_tags, $expl_tags))
+			echo "<tr><th width='50%' class=tagchain>Effective explicit tags:</th><td class=tagchain>" .
+				serializeTags ($expl_tags, $baseurl) . "</td></tr>\n";
 	}
 	if (getConfigVar ('SHOW_IMPLICIT_TAGS') == 'yes' and count ($impl_tags))
 	{
-		echo "<tr><th width='50%' class=tdright>Effective implicit tags:</th><td class=tdleft>";
+		echo "<tr><th width='50%' class=tagchain>Effective implicit tags:</th><td class=tagchain>";
 		echo serializeTags ($impl_tags, $baseurl) . "</td></tr>\n";
 	}
 	if (getConfigVar ('SHOW_AUTOMATIC_TAGS') == 'yes' and count ($auto_tags))
 	{
-		echo "<tr><th width='50%' class=tdright>Automatic tags:</th><td class=tdleft>";
+		echo "<tr><th width='50%' class=tagchain>Automatic tags:</th><td class=tagchain>";
 		echo serializeTags ($auto_tags) . "</td></tr>\n";
 	}
 }
@@ -5284,25 +5300,25 @@ function renderTagFilterPortlet ($tagfilter, $realm, $bypass_name = '', $bypass_
 {
 	global $pageno, $tabno, $taglist, $tagtree;
 	$objectivetags = getObjectiveTagTree ($tagtree, $realm);
-	startPortlet ('T-filter');
+	startPortlet ('filter');
 	if (!count ($objectivetags))
 	{
-		echo "None defined for current realm.<br>";
+		echo "None used in current realm.<br>";
+		finishPortlet();
 		return;
 	}
 	echo '<table border=0 align=center>';
 
-	if (count ($tagfilter))
-		echo '<h3>(' . serializeTags (buildTagChainFromIds ($tagfilter)) . ')</h3>';
 	echo "<form method=get>\n";
 	echo "<input type=hidden name=page value=${pageno}>\n";
 	echo "<input type=hidden name=tab value=${tabno}>\n";
 	if ($bypass_name != '')
 		echo "<input type=hidden name=${bypass_name} value='${bypass_value}'>\n";
-	echo '<tr><td colspan=2><select name=tagfilter[] multiple size=' . getConfigVar ('MAXSELSIZE') . '>';
+	echo '<tr><td colspan=2>';
+	// Show a tree of tags, pre-select according to currently requested list filter.
 	foreach ($objectivetags as $taginfo)
-		renderTagOptionForFilter ($taginfo, complementByKids ($tagfilter), $realm);
-	echo '</select></td></tr><tr><td>';
+		renderTagCheckbox ('tagfilter', buildTagChainFromIds ($tagfilter), $taginfo);
+	echo '</td></tr><tr><td>';
 //	$tfmode = getTFMode();
 //	echo '<input type=radio name=tfmode value=all' . ($tfmode == 'all' ? ' checked' : '') . '>all ';
 //	echo '<input type=radio name=tfmode value=any' . ($tfmode == 'any' ? ' checked' : '') . '>any ';
@@ -5349,7 +5365,7 @@ function renderTagFilterPortlet ($tagfilter, $realm, $bypass_name = '', $bypass_
 }
 
 // Dump all tags in a single SELECT element.
-function renderTagSelect ()
+function renderNewEntityTags ()
 {
 	global $taglist, $tagtree;
 	if (!count ($taglist))
@@ -5359,7 +5375,7 @@ function renderTagSelect ()
 	}
 	echo '<div class=tagselector><table border=0 align=center>';
 	foreach ($tagtree as $taginfo)
-		renderTagCheckbox ($taginfo);
+		renderTagCheckbox ('taglist', array(), $taginfo);
 	echo '</table></div>';
 }
 
@@ -5375,7 +5391,7 @@ function renderTagRollerForRow ($row_id)
 	echo "rack row.<br>The tag(s) selected below will be ";
 	echo "appended to already assigned tag(s) of each particular entity. </td></tr>";
 	echo "<tr><th>Tags</th><td>";
-	renderTagSelect();
+	renderNewEntityTags();
 	echo "</td></tr>";
 	echo "<tr><th>Control question: the sum of ${a} and ${b}</th><td><input type=text name=sum></td></tr>";
 	echo "<tr><td colspan=2 align=center><input type=submit value='Go!'></td></tr>";
@@ -5569,19 +5585,19 @@ function renderUser ($user_id)
 	$baseurl = makeHref(array('page'=>'userlist', 'tab'=>'default'))."&";
 	if (getConfigVar ('SHOW_EXPLICIT_TAGS') == 'yes' and count ($target_given_tags))
 	{
-		echo "<tr><th width='50%' class=tdright><span class=tagheader>Given explicit tags</span>:</th><td class=tdleft>";
+		echo "<tr><th width='50%' class=tagchain>Given explicit tags:</th><td class=tagchain>";
 		echo serializeTags ($target_given_tags, $baseurl) . "</td></tr>\n";
 	}
 	$target_shadow = getImplicitTags ($target_given_tags);
 	if (getConfigVar ('SHOW_IMPLICIT_TAGS') == 'yes' and count ($target_shadow))
 	{
-		echo "<tr><th width='50%' class=tdright><span class=tagheader>Given implicit tags</span>:</th><td class=tdleft>";
+		echo "<tr><th width='50%' class=tagchain>Given implicit tags:</th><td class=tagchain>";
 		echo serializeTags ($target_shadow, $baseurl) . "</td></tr>\n";
 	}
 	$target_auto_tags = generateEntityAutoTags ('user', $username);
 	if (getConfigVar ('SHOW_AUTOMATIC_TAGS') == 'yes' and count ($target_auto_tags))
 	{
-		echo "<tr><th width='50%' class=tdright><span class=tagheader>Automatic tags</span>:</th><td class=tdleft>";
+		echo "<tr><th width='50%' class=tagchain>Automatic tags:</th><td class=tagchain>";
 		echo serializeTags ($target_auto_tags) . "</td></tr>\n";
 	}
 	echo '</table>';
@@ -5610,7 +5626,6 @@ function renderAccessDenied ()
 	echo '<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />';
 	echo "<link rel=stylesheet type='text/css' href=pi.css />\n";
 	echo "<link rel=icon href='" . getFaviconURL() . "' type='image/x-icon' />";
-	echo "<link rel=icon href='" . getFaviconURL() . "' type='image/x-icon' />";
 	echo "</head><body>";
 	global $root, $pageno, $tabno,
 		$user_given_tags,
@@ -5624,15 +5639,15 @@ function renderAccessDenied ()
 	echo ' access denied ';
 	printImageHREF ('DENIED');
 	echo '</h3></th></tr>';
-	echo "<tr><th width='50%' class=tdright><span class=tagheader>User given tags</span>:</th><td class=tdleft>";
+	echo "<tr><th width='50%' class=tagchain>User given tags:</th><td class=tagchain>";
 	echo serializeTags ($user_given_tags) . "&nbsp;</td></tr>\n";
-	echo "<tr><th width='50%' class=tdright><span class=tagheader>Target given tags</span>:</th><td class=tdleft>";
+	echo "<tr><th width='50%' class=tagchain>Target given tags:</th><td class=tagchain>";
 	echo serializeTags ($target_given_tags) . "&nbsp;</td></tr>\n";
-	echo "<tr><th width='50%' class=tdright><span class=tagheader>Effective explicit tags</span>:</th><td class=tdleft>";
+	echo "<tr><th width='50%' class=tagchain>Effective explicit tags:</th><td class=tagchain>";
 	echo serializeTags ($expl_tags) . "&nbsp;</td></tr>\n";
-	echo "<tr><th width='50%' class=tdright><span class=tagheader>Effective implicit tags</span>:</th><td class=tdleft>";
+	echo "<tr><th width='50%' class=tagchain>Effective implicit tags:</th><td class=tagchain>";
 	echo serializeTags ($impl_tags) . "&nbsp;</td></tr>\n";
-	echo "<tr><th width='50%' class=tdright><span class=tagheader>Automatic tags</span>:</th><td class=tdleft>";
+	echo "<tr><th width='50%' class=tagchain>Automatic tags:</th><td class=tagchain>";
 	echo serializeTags ($auto_tags) . "&nbsp;</td></tr>\n";
 	echo "<tr><th width='50%' class=tdright>Requested page:</th><td class=tdleft>${pageno}</td></tr>\n";
 	echo "<tr><th width='50%' class=tdright>Requested tab:</th><td class=tdleft>${tabno}</td></tr>\n";
@@ -5651,33 +5666,6 @@ function renderMyAccount ()
 }
 
 // File-related functions
-function renderFileSpace ()
-{
-	global $taglist, $tagtree;
-	echo "<table border=0 class=objectview>\n";
-	echo "<tr><td class=pcleft width='50%'>";
-	startPortlet ('View all by link');
-	$linkInfo = getFileLinkInfo();
-	if ($linkInfo === NULL)
-	{
-		showError ('getFileLinkInfo() failed', __FUNCTION__);
-		return;
-	}
-	if (count ($linkInfo) == 0)
-		echo "No files exist in DB";
-	else
-	{
-		echo '<div align=left><ul>';
-		foreach ($linkInfo as $li)
-			echo "<li><a href='".makeHref(array('page'=>'filesbylink', 'entity_type'=>$li['entity_type']))."'>${li['name']}</a> (${li['count']})</li>";
-		echo '</ul></div>';
-	}
-	finishPortlet();
-	echo '</td><td class=pcright>';
-	renderTagFilterPortlet (getTagFilter(), 'file');
-	echo "</td></tr></table>\n";
-}
-
 function renderFile ($file_id = 0)
 {
 	global $nextorder, $aac, $root, $numeric_revision, $head_revision;
@@ -5748,7 +5736,7 @@ function renderFile ($file_id = 0)
 					if (NULL === $username or !isset ($accounts[$username]))
 						echo "Internal error: user id ${link['entity_id']} not found";
 					else
-						renderUserCell ($accounts[$username]);
+						renderCell ($accounts[$username]);
 					break;
 				case 'ipv4net':
 					renderIPv4NetCell (getIPv4NetworkInfo ($link['entity_id']));
@@ -5781,7 +5769,7 @@ function renderFileReuploader ()
 {
 	showMessageOrError();
 	startPortlet ('Replace existing contents');
-	printOpFormIntro ('replaceFile', array ('MAX_FILE_SIZE' => convertToBytes(get_cfg_var('upload_max_filesize'))), TRUE);
+	printOpFormIntro ('replaceFile', array (), TRUE);
 	echo "<input type=file size=10 name=file tabindex=100>&nbsp;\n";
 	printImageHREF ('save', 'Save changes', TRUE, 101);
 	echo "</form>\n";
@@ -5811,17 +5799,22 @@ function renderFileProperties ($file_id = 0)
 	echo '</th></tr></form></table>';
 }
 
-// Used for uploading a parentless file
-function renderFileUploadForm ()
+function renderFileBrowser ()
 {
-	global $aat, $pageno, $tabno, $nextorder;
+	renderCellList ('file', 'Files', TRUE);
+}
 
+// Like renderFileBrowser(), but with the option to delete files
+function renderFileManager ()
+{
+	global $pageno, $tabno, $nextorder, $root;
 	showMessageOrError();
+
+	// Used for uploading a parentless file
 	startPortlet ('Upload new');
 	echo "<table border=0 cellspacing=0 cellpadding='5' align='center' class='widetable'>\n";
 	echo "<tr><th>File</th><th>Comment</th><th></th></tr>\n";
-
-	printOpFormIntro ('addFile', array ('MAX_FILE_SIZE' => convertToBytes(get_cfg_var('upload_max_filesize'))), TRUE);
+	printOpFormIntro ('addFile', array (), TRUE);
 	echo "<tr>";
 	echo "<td class=tdleft><input type='file' size='10' name='file' tabindex=100></td>\n";
 	echo "<td class=tdleft><textarea tabindex=101 name=comment rows=10 cols=80></textarea></td>\n";
@@ -5830,81 +5823,38 @@ function renderFileUploadForm ()
 	echo '</td></tr></form>';
 	echo "</table><br>\n";
 	finishPortlet();
-}
 
-function renderFilesByLink ()
-{
-	global $pageno, $tabno, $nextorder, $taglist, $tagtree, $root;
-	assertStringArg ('entity_type', __FUNCTION__, TRUE);
-	$entity_type = $_REQUEST['entity_type'];
-	$tagfilter = getTagFilter();
-	$tagfilter_str = getTagFilterStr ($tagfilter);
-	echo "<table border=0 class=objectview>\n";
-	echo "<tr><td class=pcleft width='25%'>";
-
-	startPortlet ('change type');
-	$linkInfo = getFileLinkInfo();
-	if ($linkInfo === NULL)
-	{
-		showError ('getFileLinkInfo() failed', __FUNCTION__);
+	$files = listCells ('file');
+	if (!count ($files))
 		return;
-	}
-	if (count ($linkInfo) == 0)
-		echo 'No files exist in DB';
-	else
-	{
-		echo '<div align=left><ul>';
-		foreach ($linkInfo as $li)
-		{
-			echo "<li><a href='".makeHref(array('page'=>$pageno, 'entity_type'=>$li['entity_type']))."${tagfilter_str}'>";
-			if ($li['entity_type'] == $entity_type)
-				echo '<strong>';
-			echo "${li['name']}</a>";
-			if ($li['entity_type'] == $entity_type)
-				echo '</strong>';
-			echo " (${li['count']})";
-			if ($li['entity_type'] == $entity_type)
-				echo ' &larr;';
-			echo "</li>";
-		}
-		echo '</ul></div>';
-	}
-	finishPortlet();
 
-	echo '</td><td class=pcleft>';
-
-	$files = getFileList ($entity_type, $tagfilter, getTFMode());
-	startPortlet ('Files (' . count ($files) . ')');
-	if ($files === NULL)
-	{
-		showError ('getFileList() failed', __FUNCTION__);
-		return;
-	}
-	echo '<br><br><table cellpadding=5 cellspacing=0 align=center class=cooltable>';
-	echo '<tr><th>File</th><th>Linked to</th><th>Actions</th></tr>';
+	startPortlet ('Manage existing (' . count ($files) . ')');
 	$order = 'odd';
+	echo '<table cellpadding=5 cellspacing=0 align=center class=cooltable>';
+	echo '<tr><th>File</th><th>Unlink</th><th>Destroy</th></tr>';
 	foreach ($files as $file)
 	{
 		printf("<tr class=row_%s valign=top><td class=tdleft>", $order);
-		renderFileCell ($file);
-		echo "</td><td class='tdleft'>";
-		$links = getFileLinks($file['id']);
-		if (count ($links))
-			printf("<small>%s</small>", serializeFileLinks($links));
-		echo "</td><td class=tdleft>";
-		echo "<a href='".makeHrefProcess(array('op'=>'deleteFile', 'file_id'=>$file['id'], 'entity_type'=>$entity_type)).
-			"' onclick=\"javascript:return confirm('Are you sure you want to delete the file?')\">";
-		printImageHREF ('DESTROY', 'Delete file');
-		echo "</a></td></tr>\n";
+		renderCell ($file);
+		// Don't load links data earlier to enable special processing.
+		amplifyCell ($file);
+		echo '</td><td class=tdleft>';
+		echo serializeFileLinks ($file['links'], TRUE);
+		echo '</td><td class=tdcenter>';
+		if (count ($file['links']))
+			printImageHREF ('NODESTROY', 'References (' . count ($file['links']) . ')');
+		else
+		{
+			echo "<a href='".makeHrefProcess(array('op'=>'deleteFile', 'file_id'=>$file['id'])).
+				"' onclick=\"javascript:return confirm('Are you sure you want to delete the file?')\">";
+			printImageHREF ('DESTROY', 'Delete file');
+			echo "</a>";
+		}
+		echo "</td></tr>\n";
 		$order = $nextorder[$order];
 	}
 	echo '</table>';
 	finishPortlet();
-
-	echo "</td><td class=pcright width='25%'>";
-
-	renderTagFilterPortlet ($tagfilter, 'file', 'entity_type', $entity_type);
-	echo "</td></tr></table>\n";
 }
 
 function renderFilesPortlet ($entity_type = NULL, $entity_id = 0)
@@ -5937,7 +5887,7 @@ function renderFilesPortlet ($entity_type = NULL, $entity_id = 0)
 
 function renderFilesForEntity ($entity_id = 0)
 {
-	global $root, $page, $pageno, $tabno, $etype_by_pageno;
+	global $page, $pageno, $etype_by_pageno;
 	if ($entity_id <= 0)
 	{
 		showError ('Invalid entity info', __FUNCTION__);
@@ -5949,10 +5899,10 @@ function renderFilesForEntity ($entity_id = 0)
 	$entity_type = $etype_by_pageno[$pageno];
 	$id_name = $page[$pageno]['bypass'];
 	
-	startPortlet ('Upload new');
+	startPortlet ('Upload and link new');
 	echo "<table border=0 cellspacing=0 cellpadding='5' align='center' class='widetable'>\n";
 	echo "<tr><th>File</th><th>Comment</th><th></th></tr>\n";
-	printOpFormIntro ('addFile', array ('entity_type' => $entity_type, 'entity_id' => $entity_id, 'MAX_FILE_SIZE' => convertToBytes(get_cfg_var('upload_max_filesize'))), TRUE);
+	printOpFormIntro ('addFile', array (), TRUE);
 	echo "<tr>";
 	echo "<td class=tdleft><input type='file' size='10' name='file' tabindex=100></td>\n";
 	echo "<td class=tdleft><textarea tabindex=101 name=comment rows=10 cols=80></textarea></td><td>\n";
@@ -5964,7 +5914,7 @@ function renderFilesForEntity ($entity_id = 0)
 	$files = getAllUnlinkedFiles ($entity_type, $entity_id);
 	if (count ($files))
 	{
-		startPortlet ('Use existing');
+		startPortlet ('Link existing (' . count ($files) . ')');
 		printOpFormIntro ('linkFile');
 		echo "<table border=0 cellspacing=0 cellpadding='5' align='center'>\n";
 		echo '<tr><td class=tdleft>';
@@ -5979,19 +5929,16 @@ function renderFilesForEntity ($entity_id = 0)
 	$filelist = getFilesOfEntity ($entity_type, $entity_id);
 	if (count ($filelist))
 	{
-		startPortlet ('Manage linked');
+		startPortlet ('Manage linked (' . count ($filelist) . ')');
 		echo "<table border=0 cellspacing=0 cellpadding='5' align='center' class='widetable'>\n";
-		echo "<tr><th>File</th><th>Comment</th><th>Actions</th></tr>\n";
+		echo "<tr><th>File</th><th>Comment</th><th>Unlink</th></tr>\n";
 		foreach ($filelist as $file_id => $file)
 		{
 			echo "<tr valign=top><td class=tdleft>";
 			renderFileCell ($file);
-			echo "</td><td class=tdleft>${file['comment']}</td><td class=tdleft>";
-			echo "<a href='".makeHrefProcess(array('op'=>'unlinkFile', 'link_id'=>$file['link_id'], $id_name=>$entity_id, 'name'=>$file['name']))."'>";
+			echo "</td><td class=tdleft>${file['comment']}</td><td class=tdcenter>";
+			echo "<a href='".makeHrefProcess(array('op'=>'unlinkFile', 'link_id'=>$file['link_id'], $id_name=>$entity_id))."'>";
 			printImageHREF ('CUT', 'Unlink file');
-			echo "<a href='".makeHrefProcess(array('op'=>'deleteFile', 'file_id'=>$file['id'], $id_name=>$entity_id)).
-				"' onclick=\"javascript:return confirm('Are you sure you want to delete the file?')\">";
-			printImageHREF ('DESTROY', 'Unlink and delete file');
 			echo "</a></td></tr>\n";
 		}
 		echo "</table><br>\n";
@@ -6103,6 +6050,22 @@ function renderIPv4NetCell ($netinfo)
 	echo "</td></tr></table>";
 }
 
+function renderCell ($cell)
+{
+	switch ($cell['realm'])
+	{
+	case 'user':
+		renderUserCell ($cell);
+		break;
+	case 'file':
+		renderFileCell ($cell);
+		break;
+	default:
+		showError ('odd data', __FUNCTION__);
+		break;
+	}
+}
+
 function renderUserCell ($account)
 {
 	global $root;
@@ -6115,8 +6078,9 @@ function renderUserCell ($account)
 	else
 		echo "<tr><td class=sparenetwork>no name</td></tr>";
 	echo '<td>';
-	$tags = loadEntityTags ('user', $account['user_id']);
-	echo count ($tags) ? ("<small>" . serializeTags ($tags) . "</small>") : '&nbsp;';
+	if (!isset ($account['etags']))
+		$account['etags'] = loadEntityTags ('user', $account['user_id']);
+	echo count ($account['etags']) ? ("<small>" . serializeTags ($account['etags']) . "</small>") : '&nbsp;';
 	echo "</td></tr></table>";
 }
 
@@ -6203,9 +6167,13 @@ function renderFileCell ($fileinfo)
 	}
 	echo "</td><td>";
 	printf ("<a href='${root}?page=file&file_id=%s'><strong>%s</strong></a>", $fileinfo['id'], niftyString ($fileinfo['name']));
+	echo "</td><td rowspan=3 valign=top>";
+	if (isset ($fileinfo['links']) and count ($fileinfo['links']))
+		printf ("<small>%s</small>", serializeFileLinks ($fileinfo['links']));
 	echo "</td></tr><tr><td>";
-	$tags = loadEntityTags ('file', $fileinfo['id']);
-	echo count ($tags) ? ("<small>" . serializeTags ($tags) . "</small>") : '&nbsp;';
+	if (!isset ($fileinfo['etags']))
+		$fileinfo['etags'] = loadEntityTags ('file', $fileinfo['id']);
+	echo count ($fileinfo['etags']) ? ("<small>" . serializeTags ($fileinfo['etags']) . "</small>") : '&nbsp;';
 	echo "</td></tr><tr><td><a href='${root}download.php?file_id=${fileinfo['id']}'>";
 	printImageHREF ('download', 'Download file');
 	echo '</a>&nbsp;';

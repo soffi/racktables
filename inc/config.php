@@ -12,11 +12,7 @@
 
 // Current code version is subject to change with each new release.
 define ('CODE_VERSION', '0.18.0');
-define ('MAX_DICT_KEY', 933);
-
-// The name of hash used to store account password hashes
-// in the database. I think, we are happy with this one forever.
-define ('PASSWORD_HASH', 'sha1');
+define ('MAX_DICT_KEY', 988);
 
 define ('TAGNAME_REGEXP', '^[[:alnum:]]([\. _~-]?[[:alnum:]])*$');
 define ('AUTOTAGNAME_REGEXP', '^\$[[:alnum:]]([\. _~-]?[[:alnum:]])*$');

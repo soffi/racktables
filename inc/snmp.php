@@ -47,6 +47,11 @@ function doSNMPmining ($object_id, $community)
 		429 => 'WS-C2950G-48 (48 Ethernet 10/100 ports and 2 1000 GBIC uplinks)',
 		559 => 'WS-C2950T-48 (48 Ethernet 10/100 ports and 2 10/100/1000 uplinks)',
 		920 => 'WS-CBS3032-DEL-F (16 Ethernet 10/100/1000 and up to 8 10/100/1000 uplinks)',
+		719 => 'N5K-C5020 (40-ports system)',
+		// FIXME: the following two origin at a different OID, so a complete form should be
+		// used at a latter point to avoid value clashes.
+		36 => 'HP J8164A (24 Ethernet 10/100 ports and 2 100/1000 uplinks)',
+		35 => 'HP J8165A (48  Ethernet 10/100 ports and 2 100/1000 uplinks)',
 	);
 	// Cisco sysObjectID to Dictionary dict_key map
 	$hwtype = array
@@ -81,6 +86,9 @@ function doSNMPmining ($object_id, $community)
 		716 => 164,
 		717 => 162,
 		920 => 795,
+		719 => 960,
+		36 => 865,
+		35 => 867,
 	);
 	// Cisco portType to Dictionary dict_key map
 	$porttype = array
@@ -99,19 +107,34 @@ function doSNMPmining ($object_id, $community)
 	$sysChassi = @snmpget ($endpoints[0], $community, '1.3.6.1.4.1.9.3.6.3.0');
 	if ($sysChassi === FALSE or $sysChassi == NULL)
 		$sysChassi = '';
+	else
+		$sysChassi = str_replace ('"', '', substr ($sysChassi, strlen ('STRING: ')));
 	// Strip the object type, it's always string here.
 	$sysDescr = substr ($sysDescr, strlen ('STRING: '));
-	$IOSversion = ereg_replace ('^.*, Version ([^ ]+), .*$', '\\1', $sysDescr);
-	$sysChassi = str_replace ('"', '', substr ($sysChassi, strlen ('STRING: ')));
-	if (strpos ($sysDescr, 'Cisco IOS Software') === 0 or strpos ($sysDescr, 'Cisco Internetwork Operating System Software') === 0)
-		$log[] = array ('code' => 'success', 'message' => 'Seems to be a Cisco box');
-	else
+	if (FALSE !== ereg ('^(Cisco )?IOS .+$', $sysDescr))
 	{
-		$log[] = array ('code' => 'error', 'message' => 'No idea how to handle ' . $sysDescr);
-		return $log;
+		$swfamily = 'IOS';
+		$swversion = ereg_replace ('^.*, Version ([^ ]+), .*$', '\\1', $sysDescr);
+		$swrelease = ereg_replace ('^([[:digit:]]+\.[[:digit:]]+)[^[:digit:]].*', '\\1', $swversion);
 	}
-
-	// It's a Cisco box. Go on.
+	elseif (FALSE !== ereg ('^Cisco NX-OS.+$', $sysDescr))
+	{
+		$swfamily = 'NX-OS';
+		$swversion = ereg_replace ('^.*, Version ([^ ]+), .*$', '\\1', $sysDescr);
+		$swrelease = ereg_replace ('^([[:digit:]]+\.[[:digit:]]+)[^[:digit:]].*', '\\1', $swversion);
+	}
+	elseif
+	(
+		FALSE !== ereg ('^HP [[:alnum:]]+ ProCurve Switch', $sysDescr) or
+		FALSE !== ereg ('^ProCurve [[:alnum:]]+ Switch', $sysDescr)
+	)
+	{
+		$swfamily = 'HP';
+		$swversion = ereg_replace ('^.* revision ([^ ]+), .*$', '\\1', $sysDescr);
+		$swrelease = 'HP';
+	}
+	else
+		$log[] = array ('code' => 'error', 'message' => 'No idea how to handle ' . $sysDescr);
 	$attrs = getAttrValues ($object_id);
 	// Only fill in attribute values, if they are not set.
 	// FIXME: this is hardcoded
@@ -125,11 +148,11 @@ function doSNMPmining ($object_id, $community)
 			$log[] = array ('code' => 'error', 'message' => 'Failed settig FQDN: ' . $error);
 	}
 
-	if (empty ($attrs[5]['value']) and strlen ($IOSversion) > 0) // SW version
+	if (empty ($attrs[5]['value']) and strlen ($swversion) > 0) // SW version
 	{
-		$error = commitUpdateAttrValue ($object_id, 5, $IOSversion);
+		$error = commitUpdateAttrValue ($object_id, 5, $swversion);
 		if ($error == TRUE)
-			$log[] = array ('code' => 'success', 'message' => 'SW version set to ' . $IOSversion);
+			$log[] = array ('code' => 'success', 'message' => 'SW version set to ' . $swversion);
 		else
 			$log[] = array ('code' => 'error', 'message' => 'Failed settig SW version: ' . $error);
 	}
@@ -143,33 +166,39 @@ function doSNMPmining ($object_id, $community)
 			$log[] = array ('code' => 'error', 'message' => 'Failed settig OEM S/N 1: ' . $error);
 	}
 
-	if (empty ($attrs[4]['value'])) // switch OS type
+	if (empty ($attrs[4]['value']) and $swfamily != 'HP') // switch OS type
 	{
-		switch (substr ($IOSversion, 0, 4))
+		switch ($swfamily . '-' . $swrelease)
 		{
-			case '12.2':
+			case 'IOS-12.2':
 				$error = commitUpdateAttrValue ($object_id, 4, 252);
 				break;
-			case '12.1':
+			case 'IOS-12.1':
 				$error = commitUpdateAttrValue ($object_id, 4, 251);
 				break;
-			case '12.0':
+			case 'IOS-12.0':
 				$error = commitUpdateAttrValue ($object_id, 4, 244);
 				break;
+			case 'NX-OS-4.0':
+				$error = commitUpdateAttrValue ($object_id, 4, 963);
+				break;
+			case 'NX-OS-4.1':
+				$error = commitUpdateAttrValue ($object_id, 4, 964);
+				break;
 			default:
-				$log[] = array ('code' => 'error', 'message' => "Unknown IOS version ${IOSversion}");
+				$log[] = array ('code' => 'error', 'message' => "Unknown SW version ${swversion}");
 				$error = TRUE;
 				break;
 		}
 		if ($error == TRUE)
-			$log[] = array ('code' => 'success', 'message' => 'Switch OS type set to Cisco IOS ' . substr ($IOSversion, 0, 4));
+			$log[] = array ('code' => 'success', 'message' => "Switch OS type set to ${swfamily} ${swrelease}");
 		else
 			$log[] = array ('code' => 'error', 'message' => 'Failed setting Switch OS type');
 	}
 
 	$sysObjectID = snmpget ($endpoints[0], $community, 'sysObjectID.0');
 	// Transform OID
-	$sysObjectID = substr ($sysObjectID, strlen ('OID: SNMPv2-SMI::enterprises.9.1.'));
+	$sysObjectID = ereg_replace ('^.*(enterprises\.9\.1\.|enterprises\.9\.12\.3\.1\.3\.|enterprises.11.2.3.7.11.)([[:digit:]]+)$', '\\2', $sysObjectID);
 	if (!isset ($ciscomodel[$sysObjectID]))
 	{
 		$log[] = array ('code' => 'error', 'message' => 'Could not guess exact HW model!');
@@ -528,8 +557,28 @@ function doSNMPmining ($object_id, $community)
 					$log[] = array ('code' => 'error', 'message' => 'Failed to add port ' . $label . ': ' . $error);
 			}
 			break;
+		case '719':
+			break;
+		case '35':
+			$n100 = 48;
+			// fall through
+		case '36':
+			if ($sysObjectID == '36')
+				$n100 = 24;
+			$n1000 = 2;
+			for ($i = 1; $i <= $n100; $i++)
+				if ('' == ($error = commitAddPort ($object_id, $i, 19, $i, $ifList2[$i]['phyad'])))
+					$newports++;
+				else
+					$log[] = array ('code' => 'error', 'message' => "Failed to add port ${i}: " . $error);
+			for ($i = $n100 + 1; $i <= $n100 + $n1000; $i++)
+				if ('' == ($error = commitAddPort ($object_id, $i, 24, $i, $ifList2[$i]['phyad'])))
+					$newports++;
+				else
+					$log[] = array ('code' => 'error', 'message' => "Failed to add port ${i}: " . $error);
+			break;
 		default:
-			showError ("Unexpected sysObjectID '${sysObjectID}'", __FUNCTION__);
+			$log[] = array ('code' => 'error', 'message' => "Unexpected sysObjectID '${sysObjectID}'");
 	}
 	$error = commitAddPort ($object_id, 'con0', 29, 'console', '');
 	if ($error == '')

@@ -111,6 +111,9 @@ INSERT INTO `AttributeMap__s` (`id`, `objtype_id`, `attr_id`, `chapter_id`) VALU
 INSERT INTO `AttributeMap__s` (`id`, `objtype_id`, `attr_id`, `chapter_id`) VALUES (69,798,21,0);
 INSERT INTO `AttributeMap__s` (`id`, `objtype_id`, `attr_id`, `chapter_id`) VALUES (70,798,22,0);
 INSERT INTO `AttributeMap__s` (`id`, `objtype_id`, `attr_id`, `chapter_id`) VALUES (71,798,24,0);
+INSERT INTO `AttributeMap__s` (`id`, `objtype_id`, `attr_id`, `chapter_id`) VALUES (72,965,1,0);
+INSERT INTO `AttributeMap__s` (`id`, `objtype_id`, `attr_id`, `chapter_id`) VALUES (73,965,3,0);
+INSERT INTO `AttributeMap__s` (`id`, `objtype_id`, `attr_id`, `chapter_id`) VALUES (74,965,2,25);
 
 INSERT INTO `AttributeMap__r` (`id`, `rev`, `rev_terminal`) VALUES (1,0,0);
 INSERT INTO `AttributeMap__r` (`id`, `rev`, `rev_terminal`) VALUES (2,0,0);
@@ -183,6 +186,9 @@ INSERT INTO `AttributeMap__r` (`id`, `rev`, `rev_terminal`) VALUES (68,0,0);
 INSERT INTO `AttributeMap__r` (`id`, `rev`, `rev_terminal`) VALUES (69,0,0);
 INSERT INTO `AttributeMap__r` (`id`, `rev`, `rev_terminal`) VALUES (70,0,0);
 INSERT INTO `AttributeMap__r` (`id`, `rev`, `rev_terminal`) VALUES (71,0,0);
+INSERT INTO `AttributeMap__r` (`id`, `rev`, `rev_terminal`) VALUES (72,0,0);
+INSERT INTO `AttributeMap__r` (`id`, `rev`, `rev_terminal`) VALUES (73,0,0);
+INSERT INTO `AttributeMap__r` (`id`, `rev`, `rev_terminal`) VALUES (74,0,0);
 
 
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (11,'no');
@@ -200,6 +206,7 @@ INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (21,'no');
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (22,'no');
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (23,'no');
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (24,'no');
+INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (25,'no');
 
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (1,0,0,'RackObjectType');
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (2,0,0,'PortType');
@@ -216,11 +223,9 @@ INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (21,0,0,'K
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (22,0,0,'multiplexer models');
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (23,0,0,'console models');
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (24,0,0,'network security models');
+INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (25,0,0,'wireless models');
 
 
-INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('rtwidth_0','9','uint','no','yes','');
-INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('rtwidth_1','21','uint','no','yes','');
-INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('rtwidth_2','9','uint','no','yes','');
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('color_F','8fbfbf','string','no','yes','HSV: 180-25-75. Free atoms, they are available for allocation to objects.');
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('color_A','bfbfbf','string','no','yes','HSV: 0-0-75. Absent atoms.');
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('color_U','bf8f8f','string','no','yes','HSV: 0-25-75. Unusable atoms. Some problems keep them from being free.');
@@ -263,6 +268,7 @@ INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, 
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('PREVIEW_TEXT_COLS','80','uint','yes','no','Columns for text file preview');
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('PREVIEW_IMAGE_MAXPXS','320','uint','yes','no','Max pixels per axis for image file preview');
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('VENDOR_SIEVE','','string','yes','no','Vendor sieve configuration');
+INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('RACKS_PER_ROW','12','uint','yes','no','Racks per row');
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('DB_VERSION','0.18.0','string','no','yes','Database version.');
 
 
@@ -451,3 +457,4 @@ INSERT INTO `Script` VALUES ('RackCode','allow {$userid_1}');
 INSERT INTO `revision` (`id`, `timestamp`, `user_id`) VALUES (0,now(),1);
 INSERT INTO `operation` (`id`, `rev`, `user_id`) VALUES (0,0,1);
 INSERT INTO `milestone` (`id`, `rev`, `user_id`, `comment`) VALUES (0,0,1,'');
+

@@ -427,7 +427,7 @@ function createUser ()
 	assertStringArg ('realname', __FUNCTION__, TRUE);
 	assertStringArg ('password', __FUNCTION__);
 	$username = $_REQUEST['username'];
-	$password = hash (PASSWORD_HASH, $_REQUEST['password']);
+	$password = sha1 ($_REQUEST['password']);
 	$result = commitCreateUserAccount ($username, $_REQUEST['realname'], $password);
 	if ($result == TRUE)
 		return buildRedirectURL (__FUNCTION__, 'OK', array ($username));
@@ -448,7 +448,7 @@ function updateUser ()
 		return buildRedirectURL (__FUNCTION__, 'ERR1');
 	// Update user password only if provided password is not the same as current password hash.
 	if ($new_password != $old_hash)
-		$new_password = hash (PASSWORD_HASH, $new_password);
+		$new_password = sha1 ($new_password);
 	$result = commitUpdateUserAccount ($_REQUEST['user_id'], $username, $_REQUEST['realname'], $new_password);
 	if ($result == TRUE)
 		return buildRedirectURL (__FUNCTION__, 'OK', array ($username));
@@ -758,16 +758,14 @@ function updateObject ()
 
 function addMultipleObjects()
 {
-	
-	$log = array();
+	$log = emptyLog();
 	$taglist = isset ($_REQUEST['taglist']) ? $_REQUEST['taglist'] : array();
-	$keepvalues1 = TRUE;
 	$max = getConfigVar ('MASSCOUNT');
 	for ($i = 0; $i < $max; $i++)
 	{
 		if (!isset ($_REQUEST["${i}_object_type_id"]))
 		{
-			$log[] = array ('code' => 'error', 'message' => "Submitted form is invalid at line " . $i + 1);
+			$log = mergeLogs ($log, oneLiner (184, array ($i + 1)));
 			break;
 		}
 		assertUIntArg ("${i}_object_type_id", __FUNCTION__, TRUE);
@@ -775,40 +773,36 @@ function addMultipleObjects()
 		assertStringArg ("${i}_object_label", __FUNCTION__, TRUE);
 		assertStringArg ("${i}_object_asset_no", __FUNCTION__, TRUE);
 		assertStringArg ("${i}_object_barcode", __FUNCTION__, TRUE);
-		$type_id[$i] = $_REQUEST["${i}_object_type_id"];
-		// Save user input for possible rendering.
-		$name[$i] = $_REQUEST["${i}_object_name"];
-		$label[$i] = $_REQUEST["${i}_object_label"];
-		$asset_no[$i] = $_REQUEST["${i}_object_asset_no"];
-		$barcode[$i] = $_REQUEST["${i}_object_barcode"];
+		$name = $_REQUEST["${i}_object_name"];
 
 		// It's better to skip silently, than to print a notice.
-		if ($type_id[$i] == 0)
+		if ($_REQUEST["${i}_object_type_id"] == 0)
 			continue;
-		if (commitAddObject ($name[$i], $label[$i], $barcode[$i], $type_id[$i], $asset_no[$i], $taglist) === TRUE)
-			$log[] = array ('code' => 'success', 'message' => "Added new object '${name[$i]}'");
+		if (commitAddObject
+		(
+			$name,
+			$_REQUEST["${i}_object_label"],
+			$_REQUEST["${i}_object_barcode"],
+			$_REQUEST["${i}_object_type_id"],
+			$_REQUEST["${i}_object_asset_no"],
+			$taglist
+		) === TRUE)
+			$log = mergeLogs ($log, oneLiner (81, array ($name)));
 		else
-			$log[] = array ('code' => 'error', 'message' => __FUNCTION__ . ': commitAddObject() failed');
+			$log = mergeLogs ($log, oneLiner (185, array ($name)));
 	}
-
-	return buildWideRedirectURL($log);
+	return buildWideRedirectURL ($log);
 }
 
 function addLotOfObjects()
 {
-	$log = array();
+	$log = emptyLog();
 	$taglist = isset ($_REQUEST['taglist']) ? $_REQUEST['taglist'] : array();
-	$keepvalues2 = TRUE;
 	assertUIntArg ('global_type_id', __FUNCTION__, TRUE);
 	assertStringArg ('namelist', __FUNCTION__, TRUE);
 	$global_type_id = $_REQUEST['global_type_id'];
-	if ($global_type_id == 0)
-	{
-		if (!empty ($_REQUEST['namelist']))
-			$log[] = array ('code' => 'error', 'message' => 'Object type is not selected, check the form below');
-		else
-			$log[] = array ('code' => 'error', 'message' => 'Empty form has been ignored. Cheers.');
-	}
+	if ($global_type_id == 0 or empty ($_REQUEST['namelist']))
+		$log = mergeLogs ($log, oneLiner (186));
 	else
 	{
 		// The name extractor below was stolen from ophandlers.php:addMultiPorts()
@@ -823,15 +817,14 @@ function addLotOfObjects()
 			else
 				$names2[] = rtrim ($parts[0]);
 		}
-		foreach ($names2 as $cname)
-			if (commitAddObject ($cname, '', '', $global_type_id, '', $taglist) === TRUE)
-				$log[] = array ('code' => 'success', 'message' => "Added new object '${cname}'");
+		foreach ($names2 as $name)
+			if (commitAddObject ($name, '', '', $global_type_id, '', $taglist) === TRUE)
+				$log = mergeLogs ($log, oneLiner (81, array ($name)));
 			else
-				$log[] = array ('code' => 'error', 'message' => "Could not add '${cname}'");
+				$log = mergeLogs ($log, oneLiner (185, array ($name)));
 	}
-	return buildWideRedirectURL($log);
+	return buildWideRedirectURL ($log);
 }
-
 
 function deleteObject ()
 {
@@ -917,6 +910,7 @@ function resetUIConfig()
 	setConfigVar ('IPV4NAT_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}');
 	setConfigVar ('ASSETWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}');
 	setConfigVar ('NAMEWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}');
+	setConfigVar ('RACKS_PER_ROW','12');
 	return buildRedirectURL (__FUNCTION__, 'OK');
 }
 
@@ -1248,7 +1242,7 @@ function saveEntityTags ()
 {
 	global $explicit_tags, $implicit_tags, $page, $pageno, $etype_by_pageno;
 	if (!isset ($etype_by_pageno[$pageno]) or !isset ($page[$pageno]['bypass']))
-		throw new Exception ('Internal error');
+		return buildRedirectURL (__FUNCTION__, 'ERR2', array (__FUNCTION__));
 	$realm = $etype_by_pageno[$pageno];
 	$bypass = $page[$pageno]['bypass'];
 	assertUIntArg ($bypass, __FUNCTION__);
@@ -1260,19 +1254,14 @@ function saveEntityTags ()
 	$newchain = getExplicitTagsOnly (buildTagChainFromIds ($taglist));
 	$n_succeeds = $n_errors = 0;
 	foreach ($newchain as $taginfo)
-	{
-		if (!isset($oldTags[$taginfo['id']]))
-		{
-			addTagForEntity ($realm, $entity_id, $taginfo['id']);
+		if (addTagForEntity ($realm, $entity_id, $taginfo['id']))
 			$n_succeeds++;
-		}
 		else
-			unset($oldTags[$taginfo['id']]);
-
-	}
-	foreach ($oldTags as $tagid=>$tag)
-		deleteTagForEntity($realm, $entity_id, $tagid);
-	return buildRedirectURL (__FUNCTION__, 'OK', array ($n_succeeds));
+			$n_errors++;
+	if ($n_errors)
+		return buildRedirectURL (__FUNCTION__, 'ERR1', array ($n_succeeds, $n_errors));
+	else
+		return buildRedirectURL (__FUNCTION__, 'OK', array ($n_succeeds));
 }
 
 function destroyTag ()
@@ -1354,11 +1343,11 @@ function changeMyPassword ()
 	assertStringArg ('oldpassword', __FUNCTION__);
 	assertStringArg ('newpassword1', __FUNCTION__);
 	assertStringArg ('newpassword2', __FUNCTION__);
-	if ($accounts[$remote_username]['user_password_hash'] != hash (PASSWORD_HASH, $_REQUEST['oldpassword']))
+	if ($accounts[$remote_username]['user_password_hash'] != sha1 ($_REQUEST['oldpassword']))
 		return buildRedirectURL (__FUNCTION__, 'ERR2');
 	if ($_REQUEST['newpassword1'] != $_REQUEST['newpassword2'])
 		return buildRedirectURL (__FUNCTION__, 'ERR3');
-	if (commitUpdateUserAccount ($accounts[$remote_username]['user_id'], $accounts[$remote_username]['user_name'], $accounts[$remote_username]['user_realname'], hash (PASSWORD_HASH, $_REQUEST['newpassword1'])))
+	if (commitUpdateUserAccount ($accounts[$remote_username]['user_id'], $accounts[$remote_username]['user_name'], $accounts[$remote_username]['user_realname'], sha1 ($_REQUEST['newpassword1'])))
 		return buildRedirectURL (__FUNCTION__, 'OK');
 	else
 		return buildRedirectURL (__FUNCTION__, 'ERR4');
@@ -1468,14 +1457,13 @@ function updateRow ()
 function deleteRow ()
 {
 	assertUIntArg ('row_id', __FUNCTION__);
+	$rowinfo = getRackRowInfo ($_REQUEST['row_id']);
 
 	if (TRUE === commitDeleteRow ($_REQUEST['row_id']))
-		return buildRedirectURL (__FUNCTION__, 'OK', array ($_REQUEST['name']));
+		return buildRedirectURL (__FUNCTION__, 'OK', array ($rowinfo['name']));
 	else
-		return buildRedirectURL (__FUNCTION__, 'ERR', array ($_REQUEST['name']));
+		return buildRedirectURL (__FUNCTION__, 'ERR', array ($rowinfo['name']));
 }
-
-
 
 function addRack ()
 {
@@ -1615,24 +1603,26 @@ function addFileWithoutLink ()
 
 function addFileToEntity ()
 {
-	assertStringArg ('entity_type', __FUNCTION__);
-	assertUIntArg ('entity_id', __FUNCTION__);
+	global $page, $pageno, $etype_by_pageno;
+	if (!isset ($etype_by_pageno[$pageno]) or !isset ($page[$pageno]['bypass']))
+		return buildRedirectURL (__FUNCTION__, 'ERR1', array (__FUNCTION__));
+	$realm = $etype_by_pageno[$pageno];
+	$bypass = $page[$pageno]['bypass'];
+	assertUIntArg ($bypass, __FUNCTION__);
+	$entity_id = $_REQUEST[$bypass];
 	assertStringArg ('comment', __FUNCTION__, TRUE);
-	if (empty ($_REQUEST['entity_type']) || empty ($_REQUEST['entity_id']))
-		return buildRedirectURL (__FUNCTION__, 'ERR');
 
 	// Make sure the file can be uploaded
 	if (get_cfg_var('file_uploads') != 1)
-		return buildRedirectURL (__FUNCTION__, 'ERR', array ("file uploads not allowed, change 'file_uploads' parameter in php.ini"));
+		return buildRedirectURL (__FUNCTION__, 'ERR2');
 
 	$error = commitAddFile ($_FILES['file']['name'], $_FILES['file']['type'], $_FILES['file']['size'], $_FILES['file']['tmp_name'], $_REQUEST['comment']);
 	if ($error != '')
-		return buildRedirectURL (__FUNCTION__, 'ERR', array ($error));
+		return buildRedirectURL (__FUNCTION__, 'ERR3', array ($error));
 
-	$file_id = lastInsertID();
-	$error = commitLinkFile ($file_id, $_REQUEST['entity_type'], $_REQUEST['entity_id']);	
+	$error = commitLinkFile (lastInsertID(), $realm, $entity_id);	
 	if ($error != '')
-		return buildRedirectURL (__FUNCTION__, 'ERR', array ($error));
+		return buildRedirectURL (__FUNCTION__, 'ERR3', array ($error));
 
 	return buildRedirectURL (__FUNCTION__, 'OK', array ($_FILES['file']['name']));
 }
@@ -1697,7 +1687,7 @@ function unlinkFile ()
 	if ($error != '')
 		return buildRedirectURL (__FUNCTION__, 'ERR', array ($error));
 
-	return buildRedirectURL (__FUNCTION__, 'OK', array ($_REQUEST['name']));
+	return buildRedirectURL (__FUNCTION__, 'OK');
 }
 
 function deleteFile ()

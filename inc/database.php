@@ -216,25 +216,136 @@ function getObjectList ($type_id = 0, $tagfilter = array(), $tfmode = 'any')
 	$result = Database::query ($query, $wherevalues);
 	$ret = array();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		foreach (array (
-			'id',
-			'name',
-			'label',
-			'barcode',
-			'objtype_name',
-			'objtype_id',
-			'asset_no',
-			'rack_id',
-			'Rack_name',
-			'row_id',
-			'Row_name'
-			) as $cname)
-			$ret[$row['id']][$cname] = $row[$cname];
-		$ret[$row['id']]['dname'] = displayedName ($ret[$row['id']]);
-	}
+		$ret[$row['id']] = $row;
 	Database::closeCursor($result);
+	foreach (array_keys ($ret) as $key)
+		$ret[$key]['dname'] = displayedName ($ret[$key]);
 	return $ret;
+}
+
+// For a given realm return a list of entity records, each with
+// enough information for judgeEntityRecord() to execute.
+function listCells ($realm)
+{
+	switch ($realm)
+	{
+	case 'object':
+		$table = 'RackObject';
+		$columns = array
+		(
+			'id' => 'id',
+			'name' => 'name',
+			'objtype_id' => 'objtype_id'
+		);
+		$keycolumn = 'id';
+		break;
+	case 'user':
+		$table= 'UserAccount';
+		$columns = array
+		(
+			'user_id' => 'user_id',
+			'user_name' => 'user_name',
+			'user_password_hash' => 'user_password_hash',
+			'user_realname' => 'user_realname'
+		);
+		$keycolumn = 'user_id';
+		break;
+	case 'ipv4net':
+		$table = 'IPv4Network';
+		$columns = array
+		(
+			'id' => 'id',
+			'ip' => 'INET_NTOA(IPv4Network.ip)',
+			'mask' => 'mask',
+			'name' => 'name'
+		);
+		$keycolumn = 'id';
+		break;
+	case 'file':
+		$table = 'File';
+		$columns = array
+		(
+			'id' => 'id',
+			'name' => 'name',
+			'type' => 'type',
+			'size' => 'size',
+			'ctime' => 'ctime',
+			'mtime' => 'mtime',
+			'atime' => 'atime',
+			'comment' => 'comment',
+		);
+		$keycolumn = 'id';
+		break;
+	default:
+		showError ('invalid arg', __FUNCTION__);
+		return NULL;
+	}
+	$query = 'select tag_id';
+	foreach ($columns as $alias => $expression)
+		// Automatically prepend table name to each single column, but leave all others intact.
+		$query .= ', ' . ($alias == $expression ? "${table}.${alias}" : "${expression} as ${alias}");
+	$query .= " from ${table} left join TagStorage on entity_realm = '${realm}' and entity_id = ${table}.${keycolumn}";
+	$query .= " order by ${table}.${keycolumn}, tag_id";
+	$result = useSelectBlade ($query, __FUNCTION__);
+	$ret = array();
+	global $taglist;
+	// Index returned result by the value of key column.
+	while ($row = $result->fetch (PDO::FETCH_ASSOC))
+	{
+		$entity_id = $row[$keycolumn];
+		// Init the first record anyway, but store tag only if there is one.
+		if (!isset ($ret[$entity_id]))
+		{
+			$ret[$entity_id] = array ('realm' => $realm);
+			foreach (array_keys ($columns) as $alias)
+				$ret[$entity_id][$alias] = $row[$alias];
+			$ret[$entity_id]['etags'] = array();
+			if ($row['tag_id'] != NULL && isset ($taglist[$row['tag_id']]))
+				$ret[$entity_id]['etags'][] = array
+				(
+					'id' => $row['tag_id'],
+					'tag' => $taglist[$row['tag_id']]['tag'],
+					'parent_id' => $taglist[$row['tag_id']]['parent_id'],
+				);
+		}
+		else
+			// Meeting existing key later is always more tags on existing list.
+			$ret[$entity_id]['etags'][] = array
+			(
+				'id' => $row['tag_id'],
+				'tag' => $taglist[$row['tag_id']]['tag'],
+				'parent_id' => $taglist[$row['tag_id']]['parent_id'],
+			);
+	}
+	foreach (array_keys ($ret) as $entity_id)
+	{
+		$ret[$entity_id]['itags'] = getImplicitTags ($ret[$entity_id]['etags']);
+		$ret[$entity_id]['atags'] = generateEntityAutoTags ($realm, $entity_id);
+	}
+	return $ret;
+}
+
+// This function can be used with array_walk().
+function amplifyCell (&$record, $dummy = NULL)
+{
+	switch ($record['realm'])
+	{
+	case 'object':
+		$record['ports'] = getObjectPortsAndLinks ($record['id']);
+		$record['ipv4'] = getObjectIPv4Allocations ($record['id']);
+		$record['nat4'] = getNATv4ForObject ($record['id']);
+		$record['ipv4rspools'] = getRSPoolsForObject ($record['id']);
+		$record['files'] = getFilesOfEntity ($record['realm'], $record['id']);
+		break;
+	case 'ipv4net':
+		$record['ip_bin'] = ip2long ($record['ip']);
+		$record['parent_id'] = getIPv4AddressNetworkId ($record['ip'], $record['mask']);
+		break;
+	case 'file':
+		$record['links'] = getFileLinks ($record['id']);
+		break;
+	default:
+	}
 }
 
 function getRacksForRow ($row_id = 0, $tagfilter = array(), $tfmode = 'any')
@@ -575,6 +686,13 @@ function commitUpdateRack ($rack_id, $new_name, $new_height, $new_row_id, $new_c
 		showError ('Not all required args are present.', __FUNCTION__);
 		return FALSE;
 	}
+	$check_sql = "SELECT COUNT(*) AS count FROM RackSpace WHERE rack_id = '${rack_id}' AND unit_no > '{$new_height}'";
+	$check_result = Database::query($check_sql);
+	$check_row = $check_result->fetch (PDO::FETCH_ASSOC);
+	if ($check_row['count'] > 0) {
+		throw new Exception('Cannot shrink rack, objects are still mounted there');
+	}
+
 	Database::update(
 		array(
 			'name'=>$new_name,
@@ -1311,39 +1429,6 @@ function bindIpToObject ($ip = '', $object_id = 0, $name = '', $type = '')
 	return '';
 }
 
-// Collect data necessary to build a tree. Calling functions should care about
-// setting the rest of data.
-function getIPv4NetworkList ($tagfilter = array(), $tfmode = 'any')
-{
-	$whereclause = getWhereClause ($tagfilter);
-	$query =
-		"select distinct IPv4Network.id as id, INET_NTOA(ip) as ip, mask, name " .
-		"from IPv4Network left join TagStorage on IPv4Network.id = entity_id and entity_realm = 'ipv4net' " .
-		"where true ${whereclause} order by IPv4Network.ip, IPv4Network.mask";
-	$result = Database::query ($query);
-	$ret = array();
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		// ip_bin and mask are used by iptree_fill()
-		$row['ip_bin'] = ip2long ($row['ip']);
-		$ret[$row['id']] = $row;
-	}
-	// After all the keys are known we can update parent_id appropriately. Also we don't
-	// run two queries in parallel this way.
-	$keys = array_keys ($ret);
-	foreach ($keys as $netid)
-	{
-		// parent_id is for treeFromList()
-		$ret[$netid]['parent_id'] = getIPv4AddressNetworkId ($ret[$netid]['ip'], $ret[$netid]['mask']);
-		if ($ret[$netid]['parent_id'] and !in_array ($ret[$netid]['parent_id'], $keys))
-		{
-			$ret[$netid]['real_parent_id'] = $ret[$netid]['parent_id'];
-			$ret[$netid]['parent_id'] = NULL;
-		}
-	}
-	return $ret;
-}
-
 // Return the id of the smallest IPv4 network containing the given IPv4 address
 // or NULL, if nothing was found. When finding the covering network for
 // another network, it is important to filter out matched records with longer
@@ -1433,26 +1518,6 @@ function unbindIpFromObject ($ip='', $object_id=0)
 		'ip'=>array('left'=>'INET_ATON(', 'value'=>$ip, 'right'=>')'),
 		'object_id'=>$object_id));
 	return '';
-}
-
-// This function returns either all or one user account. Array key is user name.
-function getUserAccounts ($tagfilter = array(), $tfmode = 'any')
-{
-	$whereclause = getWhereClause ($tagfilter);
-	$query =
-		'select user_id, user_name, user_password_hash, user_realname ' .
-		'from UserAccount left join TagStorage ' .
-		"on UserAccount.user_id = TagStorage.entity_id and entity_realm = 'user' " .
-		"where true ${whereclause} " .
-		'order by user_name';
-	$result = Database::query ($query);
-	$ret = array();
-	$clist = array ('user_id', 'user_name', 'user_realname', 'user_password_hash');
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-		foreach ($clist as $cname)
-			$ret[$row['user_name']][$cname] = $row[$cname];
-	Database::closeCursor($result);
-	return $ret;
 }
 
 function searchByl2address ($port_l2address)
@@ -1561,7 +1626,11 @@ function getAccountSearchResult ($terms)
 				unset ($byRealname[$key2]);
 				continue 2;
 			}
-	return array_merge ($byUsername, $byRealname);
+	$ret = array_merge ($byUsername, $byRealname);
+	// Set realm, so it's renderable.
+	foreach (array_keys ($ret) as $key)
+		$ret[$key]['realm'] = 'user';
+	return $ret;
 }
 
 function getFileSearchResult ($terms)
@@ -1855,7 +1924,7 @@ function renderTagStats ()
 	echo '<th>IPv4 VS</th><th>IPv4 RS pools</th><th>users</th><th>files</th></tr>';
 	$pagebyrealm = array
 	(
-		'file' => 'filesbylink&entity_type=all',
+		'file' => 'files&entity_type=all',
 		'ipv4net' => 'ipv4space&tab=default',
 		'ipv4vs' => 'ipv4vslist&tab=default',
 		'ipv4rspool' => 'ipv4rsplist&tab=default',
@@ -3000,7 +3069,7 @@ function saveScript ($name, $text)
 
 function saveUserPassword ($user_id, $newp)
 {
-	$newhash = hash (PASSWORD_HASH, $newp);
+	$newhash = sha1 ($newp);
 	$q = Database::getDBLink()->prepare("update UserAccount set user_password_hash = ? where user_id = ?");
 	$q->bindValue(1, $newhash);
 	$q->bindValue(2, $user_id);
@@ -3385,7 +3454,7 @@ function getFileLinks ($file_id = 0)
 	if ($file_id <= 0)
 		throw new Exception ('Invalid file_id');
 
-	$query = Database::query('SELECT * FROM FileLink WHERE file_id = ? ORDER BY entity_id', array(1=>$file_id));
+	$query = Database::query('SELECT * FROM FileLink WHERE file_id = ? ORDER BY entity_type, entity_id', array(1=>$file_id));
 	$rows = $query->fetchAll (PDO::FETCH_ASSOC);
 	$ret = array();
 	foreach ($rows as $row)

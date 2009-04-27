@@ -9,10 +9,16 @@
 *
 */
 
-$root = (empty($_SERVER['HTTPS'])?'http':'https').
-	'://'.
-	(isset($_SERVER['HTTP_HOST'])?$_SERVER['HTTP_HOST']:($_SERVER['SERVER_NAME'].($_SERVER['SERVER_PORT']=='80'?'':$_SERVER['SERVER_PORT']))).
-	dirname($_SERVER['PHP_SELF']);
+// "Note that when using ISAPI with IIS, the value will be 'off' if the
+// request was not made through the HTTPS protocol."
+$root = (empty($_SERVER['HTTPS']) or $_SERVER['HTTPS'] == 'off') ? 'http://' : 'https://';
+$root .= isset ($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : ($_SERVER['SERVER_NAME'].($_SERVER['SERVER_PORT']=='80'?'':$_SERVER['SERVER_PORT']));
+// "Since PHP 4.3.0, you will often get a slash or a dot back from
+// dirname() in situations where the older functionality would have given
+// you the empty string."
+// "On Windows, both slash (/) and backslash (\) are used as directory
+// separator character."
+$root .= strtr (dirname ($_SERVER['PHP_SELF']), '\\', '/');
 if (substr ($root, -1) != '/')
 	$root .= '/';
 
@@ -26,13 +32,13 @@ require_once 'inc/revdatabase.php';
 require_once 'inc/milestone.php';
 require_once 'inc/operation.php';
 require_once 'inc/database.php';
-if (file_exists ('inc/secret.php'))
-	require_once 'inc/secret.php';
+if (file_exists ('local/secret.php'))
+	require_once 'local/secret.php';
 else
 {
 	showError
 	(
-		"Database connection parameters are read from inc/secret.php file, " .
+		"Database connection parameters are read from local/secret.php file, " .
 		"which cannot be found.\nYou probably need to complete the installation " .
 		"procedure by following <a href='${root}install.php'>this link</a>.",
 		__FILE__
@@ -136,6 +142,10 @@ $pTable = buildPredicateTable ($rackCode);
 // things running is to maintain application cache for them.
 $parseCache = array();
 
+$taglist = getTagList();
+$tagtree = treeFromList ($taglist);
+sortTree ($tagtree, 'taginfoCmp');
+
 require_once 'inc/auth.php';
 $auto_tags = array();
 authenticate(); // sometimes this generates autotags, but never --- given tags
@@ -198,7 +208,6 @@ else
 }
 require_once 'inc/navigation.php';
 
-
 if (basename($_SERVER['PHP_SELF']) == 'index.php')
 {
 	if ($numeric_revision != $head_revision and !in_array($tabno, $tabrev[$pageno]))
@@ -243,8 +252,8 @@ require_once 'inc/ajaxhandlers.php';
 require_once 'inc/triggers.php';
 require_once 'inc/gateways.php';
 require_once 'inc/snmp.php';
-if (file_exists ('inc/local.php'))
-	require_once 'inc/local.php';
+if (file_exists ('local/local.php'))
+	require_once 'local/local.php';
 
 // These will be filled in by fixContext()
 $expl_tags = array();

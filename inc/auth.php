@@ -18,12 +18,17 @@ function authenticate ()
 		showError ('secret.php misconfiguration: either user_auth_src or require_valid_user are missing', __FUNCTION__);
 		exit (1);
 	}
-	$accounts = getUserAccounts();
-	if ($accounts === NULL)
+	// This reindexing is necessary after switching to listCells(), which
+	// returns list indexed by id (while many other functions expect the
+	// user list to be indexed by username).
+	if (NULL === ($tmplist = listCells ('user')))
 	{
 		showError ('Failed to initialize access database.', __FUNCTION__);
 		exit (1);
 	}
+	$accounts = array();
+	foreach ($tmplist as $tmpval)
+		$accounts[$tmpval['user_name']] = $tmpval;
 	if (isset ($script_mode) and $script_mode === TRUE)
 		return;
 	if (isset ($_REQUEST['logout']))
@@ -248,19 +253,14 @@ function authenticated_via_ldap ($username, $password)
 function authenticated_via_database ($username, $password)
 {
 	global $accounts;
-	if (!defined ('HASH_HMAC'))
+	if (!function_exists ('sha1'))
 	{
-		showError ('Fatal error: PHP hash extension is missing', __FUNCTION__);
-		die();
-	}
-	if (array_search (PASSWORD_HASH, hash_algos()) === FALSE)
-	{
-		showError ('Password hash not supported, authentication impossible.', __FUNCTION__);
+		showError ('Fatal error: PHP sha1() function is missing', __FUNCTION__);
 		die();
 	}
 	if (!isset ($accounts[$username]['user_password_hash']))
 		return FALSE;
-	if ($accounts[$username]['user_password_hash'] == hash (PASSWORD_HASH, $password))
+	if ($accounts[$username]['user_password_hash'] == sha1 ($password))
 		return TRUE;
 	return FALSE;
 }
