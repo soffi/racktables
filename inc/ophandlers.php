@@ -1647,13 +1647,12 @@ function linkFileToEntity ()
 
 function replaceFile ()
 {
-	global $sic;
 	assertUIntArg ('file_id', __FUNCTION__);
 
 	// Make sure the file can be uploaded
 	if (get_cfg_var('file_uploads') != 1)
 		return buildRedirectURL (__FUNCTION__, 'ERR1');
-	$shortInfo = getFileInfo ($sic['file_id']);
+	$shortInfo = getFileInfo ($_REQUEST['file_id']);
 
 	$fp = fopen($_FILES['file']['tmp_name'], 'rb');
 	if ($fp === FALSE)
