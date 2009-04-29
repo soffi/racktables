@@ -1057,6 +1057,7 @@ function getRackCodeWarnings ()
 // Scan the given expression and return any issues found about its autotags.
 function findAutoTagWarnings ($expr)
 {
+	$self = __FUNCTION__;
 	switch ($expr['type'])
 	{
 		case 'LEX_BOOLCONST':
@@ -1097,15 +1098,17 @@ function findAutoTagWarnings ($expr)
 						'text' => "User account with ID '${recid}' does not exist."
 					));
 				case (mb_ereg_match ('^\$username_', $expr['load'])):
-					global $accounts;
 					$recid = mb_ereg_replace ('^\$username_', '', $expr['load']);
-					if (isset ($accounts[$recid]))
+					global $require_local_account;
+					if (!$require_local_account)
+						return array();
+					if (NULL !== getUserIDByUsername ($recid))
 						return array();
 					return array (array
 					(
 						'header' => refRCLineno ($expr['lineno']),
 						'class' => 'warning',
-						'text' => "User account with name '${recid}' does not exist."
+						'text' => "Local user account '${recid}' does not exist."
 					));
 				case (mb_ereg_match ('^\$page_[[:alpha:]]+$', $expr['load'])):
 				case (mb_ereg_match ('^\$tab_[[:alpha:]]+$', $expr['load'])):
@@ -1123,6 +1126,7 @@ function findAutoTagWarnings ($expr)
 				case (mb_ereg_match ('^\$typeid_[[:digit:]]+$', $expr['load'])): // FIXME: check value validity
 				case (mb_ereg_match ('^\$cn_.+$', $expr['load'])): // FIXME: check name validity and asset existence
 				case (mb_ereg_match ('^\$lgcn_.+$', $expr['load'])): // FIXME: check name validity
+				case (mb_ereg_match ('^\$unmounted$', $expr['load'])):
 					return array();
 				default:
 					return array (array
@@ -1133,12 +1137,12 @@ function findAutoTagWarnings ($expr)
 					));
 			}
 		case 'SYNT_NOTEXPR':
-			return findAutoTagWarnings ($expr['load']);
+			return $self ($expr['load']);
 		case 'SYNT_BOOLOP':
 			return array_merge
 			(
-				findAutoTagWarnings ($expr['left']),
-				findAutoTagWarnings ($expr['right'])
+				$self ($expr['left']),
+				$self ($expr['right'])
 			);
 		default:
 			return array (array

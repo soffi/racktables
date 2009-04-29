@@ -5,14 +5,14 @@ $relnotes = array
 (
 	'0.17.0' => "This release requires changes to the configuration file. " .
 		"Move inc/secret.php to local/secret.php and add the following to the file:<br><br>" .
-		"\$user_auth_src = 'database';<br>\$require_valid_user = TRUE;<br><br>" .
+		"\$user_auth_src = 'database';<br>\$require_local_account = TRUE;<br><br>" .
 		"(and adjust to your needs, if necessary)<br>" .
 		"Another change is the addition of support for file uploads.  Files are stored<br>" .
 		"in the database.  There are several settings in php.ini which you may need to modify:<br>" .
 		"<ul><li>file_uploads        - needs to be On</li>" .
 		"<li>upload_max_filesize - max size for uploaded files</li>" .
 		"<li>post_max_size       - max size of all form data submitted via POST (including files)</li></ul><br>" .
-		"User accounts used to have 'enabled' flag, which allowed individual blocking and<br>" .
+		"Local user accounts used to have 'enabled' flag, which allowed individual blocking and<br>" .
 		"unblocking of each. This flag was dropped in favor of existing mean of access<br>" .
 		"setup (RackCode). An unconditional denying rule is automatically added into RackCode<br>" .
 		"for such blocked account, so the effective security policy remains the same.<br>",
@@ -187,6 +187,9 @@ CREATE TABLE `FileLink` (
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('ASSETWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}','string','yes','no','List source: object, for which asset tag should be set')";
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('NAMEWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}','string','yes','no','List source: object, for which common name should be set')";
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('RACKS_PER_ROW','12','unit','yes','no','Racks per row')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_PREDICATE_SIEVE','','string','yes','no','Predicate sieve regex(7)')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('DEFAULT_FILTER_FORMAT','2','string','no','no','Default list filter format')')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('DEFAULT_FILTER_BOOLOP','or','string','no','no','Default list filter boolean operation (or/and)')')";
 			$query[] = "delete from Config where varname = 'USER_AUTH_SRC'";
 			$query[] = "delete from Config where varname = 'COOKIE_TTL'";
 			$query[] = "delete from Config where varname = 'rtwidth_0'";
@@ -212,6 +215,17 @@ CREATE TABLE `FileLink` (
 				$query[] = "insert into RackRow set id=${row[0]}, name='${row[1]}'";
 			}
 			$query[] = "delete from Dictionary where chapter_id = 3";
+			$query[] = "
+CREATE TABLE `LDAPCache` (
+  `presented_username` char(64) NOT NULL,
+  `successful_hash` char(40) NOT NULL,
+  `first_success` timestamp NOT NULL default CURRENT_TIMESTAMP,
+  `last_retry` timestamp NOT NULL default '0000-00-00 00:00:00',
+  `displayed_name` char(128) default NULL,
+  `memberof` text,
+  UNIQUE KEY `presented_username` (`presented_username`),
+  KEY `scanidx` (`presented_username`,`successful_hash`)
+) ENGINE=InnoDB;";
 			
 			$query[] = "UPDATE Config SET varvalue = '0.17.0' WHERE varname = 'DB_VERSION'";
 			break;

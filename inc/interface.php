@@ -254,7 +254,6 @@ $rtwidth = array
 // Main menu.
 function renderIndex ()
 {
-	global $root;
 ?>
 <table border=0 cellpadding=0 cellspacing=0 width='100%'>
 	<tr>
@@ -365,7 +364,6 @@ function renderRackspaceRowEditor ()
 		printImageHREF ('create', 'Add new row', TRUE, 101);
 		echo "</td></tr></form>";
 	}
-	global $pageno, $tabno;
 	showMessageOrError();
 	startPortlet ('Rows');
 	echo "<table border=0 cellspacing=0 cellpadding=5 align=center class=widetable>\n";
@@ -487,7 +485,6 @@ function renderRack ($rack_id = 0, $hl_obj_id = 0)
 		showError ('getRackData() failed', __FUNCTION__);
 		return;
 	}
-	global $pageno, $tabno;
 	markAllSpans ($rackData);
 	if ($hl_obj_id > 0)
 		highlightObject ($rackData, $hl_obj_id);
@@ -784,7 +781,6 @@ function renderGridForm ($rack_id = 0, $filter, $header, $submit, $state1, $stat
 		return;
 	}
 	showMessageOrError();
-	global $pageno, $tabno;
 	$filter ($rackData);
 	markupObjectProblems ($rackData);
 
@@ -834,23 +830,6 @@ function startPortlet ($title = '')
 function finishPortlet ()
 {
 	echo "</div>\n";
-}
-
-function printRefsOfType ($refs, $type, $eq)
-{
-	$gotone=0;
-	foreach ($refs as $ref)
-	{
-		if ($eq($ref['type'], $type))
-		{
-			if ($gotone) echo ', ';
-			echo "<a href='".makeHref(array('page'=>'object', 'object_id'=>$ref['object_id']))."'>";
-			if (!empty ($ref['name']))
-				echo $ref['name'] . '@';
-			echo "${ref['object_name']}</a>";
-			$gotone=1;
-		}
-	}
 }
 
 function renderRackObject ($object_id = 0)
@@ -1160,7 +1139,6 @@ function renderPortsForObject ($object_id = 0)
 		printImageHREF ('add', 'add a port', TRUE, 104);
 		echo "</td></tr></form>";
 	}
-	global $pageno, $tabno;
 	if ($object_id <= 0)
 	{
 		showError ('Invalid object_id', __FUNCTION__);
@@ -1381,7 +1359,7 @@ function renderIPv4ForObject ($object_id = 0)
 		printImageHREF ('add', 'allocate', TRUE, 103);
 		echo "</td></tr></form>";
 	}
-	global $pageno, $tabno, $aat;
+	global $aat;
 	if ($object_id <= 0)
 	{
 		showError ('Invalid object_id', __FUNCTION__);
@@ -1578,7 +1556,7 @@ function printLog ($log)
 				100 => array ('code' => 'error', 'format' => '%s'),
 				101 => array ('code' => 'error', 'format' => 'Port name cannot be empty'),
 				102 => array ('code' => 'error', 'format' => "Error creating user account '%s'"),
-				103 => array ('code' => 'error', 'format' => 'getHashByID() failed'),
+				103 => array ('code' => 'error', 'format' => 'User not found!'),
 				104 => array ('code' => 'error', 'format' => "Error updating user account '%s'"),
 // ...
 // ...
@@ -1621,9 +1599,9 @@ function printLog ($log)
 				143 => array ('code' => 'error', 'format' => 'Tried chaining %u tags, but experienced %u errors.'),
 				144 => array ('code' => 'error', 'format' => "Error deleting tag: '%s'"),
 				145 => array ('code' => 'error', 'format' => "Invalid tag name '%s'"),
-				146 => array ('code' => 'error', 'format' => "Tag '%s' (or similar name) already exists"),
-				147 => array ('code' => 'error', 'format' => "Could not create tag '%s' because of error '%s'"),
-				148 => array ('code' => 'error', 'format' => "Could not update tag '%s' because of error '%s'"),
+// ...
+				147 => array ('code' => 'error', 'format' => "Could not create tag '%s': %s"),
+				148 => array ('code' => 'error', 'format' => "Could not update tag '%s': %s"),
 				149 => array ('code' => 'error', 'format' => 'Turing test failed'),
 				150 => array ('code' => 'error', 'format' => 'Can only change password under DB authentication.'),
 				151 => array ('code' => 'error', 'format' => 'Old password doesn\'t match.'),
@@ -1796,10 +1774,7 @@ function renderRackSpaceForObject ($object_id = 0)
 	unset ($rackData);
 
 	// This is the time for rendering.
-	global $pageno, $tabno;
-
 	showMessageOrError();
-
 
 	// Main layout starts.
 	echo "<table border=0 class=objectview cellspacing=0 cellpadding=0><tr>";
@@ -1907,56 +1882,6 @@ function renderMolecule ($racks, $revision)
 	Database::setRevision($rev);
 }
 
-
-function renderUnmountedObjectsPortlet ()
-{
-	startPortlet ('Unmounted objects');
-	$objs = getUnmountedObjects();
-	if ($objs === NULL)
-	{
-		showError ('getUnmountedObjects() failed', __FUNCTION__);
-		return;
-	}
-	global $nextorder;
-	$order = 'odd';
-	echo '<br><br><table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
-	echo '<tr><th>Common name</th><th>Visible label</th><th>Asset number</th><th>Barcode</th></tr>';
-	foreach ($objs as $obj)
-	{
-		echo "<tr class=row_${order}><td><a href='".makeHref(array('page'=>'object', 'object_id'=>$obj['id']))."'>${obj['dname']}</a></td>";
-		echo "<td>${obj['label']}</td>";
-		echo "<td>${obj['asset_no']}</td>";
-		echo "<td>${obj['barcode']}</td>";
-		echo "</tr>";
-		$order = $nextorder[$order];
-	}
-	echo "</table><br>\n";
-	finishPortlet();
-}
-
-function renderProblematicObjectsPortlet ()
-{
-	startPortlet ('Problematic objects');
-	$objs = getProblematicObjects();
-	if ($objs === NULL)
-	{
-		showError ('getProblematicObjects() failed', __FUNCTION__);
-		return;
-	}
-	global $nextorder;
-	$order = 'odd';
-	echo '<br><br><table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
-	echo '<tr><th>Type</th><th>Common name</th></tr>';
-	foreach ($objs as $obj)
-	{
-		echo "<tr class=row_${order}><td>${obj['objtype_name']}</td>";
-		echo "<td><a href='".makeHref(array('page'=>'object', 'object_id'=>$obj['id']))."'>${obj['dname']}</a></tr>";
-		$order = $nextorder[$order];
-	}
-	echo "</table><br>\n";
-	finishPortlet();
-}
-
 function renderObjectSpace ()
 {
 	global $taglist, $tagtree;
@@ -1994,7 +1919,7 @@ function renderObjectSpace ()
 
 function renderObjectGroup ()
 {
-	global $pageno, $tabno, $nextorder, $taglist, $tagtree;
+	global $pageno, $nextorder;
 	showMessageOrError();
 	assertUIntArg ('group_id', __FUNCTION__, TRUE);
 	$group_id = $_REQUEST['group_id'];
@@ -2033,7 +1958,7 @@ function renderObjectGroup ()
 
 	echo '</td><td class=pcleft>';
 
-	$objects = getObjectList ($group_id, $tagfilter, getTFMode());
+	$objects = getObjectList ($group_id, $tagfilter);
 	startPortlet ('Objects (' . count ($objects) . ')');
 	if ($objects === NULL)
 	{
@@ -2262,8 +2187,8 @@ function renderIPv4SpaceRecords ($tree, &$tagcache, $baseurl, $target = 0, $leve
 function renderIPv4Space ()
 {
 	global $pageno, $tabno;
-	$tagfilter = getTagFilter();
-	$netlist = filterCellList (listCells ('ipv4net'), buildCellFilter());
+	$cellfilter = getCellFilter();
+	$netlist = filterCellList (listCells ('ipv4net'), $cellfilter['expression']);
 	array_walk ($netlist, 'amplifyCell');
 
 	$netcount = count ($netlist);
@@ -2290,12 +2215,12 @@ function renderIPv4Space ()
 		echo "<th>routed by</th>";
 	echo "</tr>\n";
 	$tagcache = array();
-	$baseurl = makeHref(array('page'=>$pageno, 'tab'=>$tabno)) . getTagFilterStr ($tagfilter);
+	$baseurl = makeHref(array('page'=>$pageno, 'tab'=>$tabno)) . getTagFilterStr (getTagFilter());
 	renderIPv4SpaceRecords ($tree, $tagcache, $baseurl, $eid);
 	echo "</table>\n";
 	finishPortlet();
 	echo '</td><td class=pcright>';
-	renderTagFilterPortlet ($tagfilter, 'ipv4net');
+	renderCellFilterPortlet ($cellfilter, 'ipv4net');
 	echo "</td></tr></table>\n";
 }
 
@@ -2367,7 +2292,6 @@ function renderIPv4SLB ()
 
 function renderIPv4SpaceEditor ()
 {
-	global $pageno, $tabno;
 	showMessageOrError();
 
 	// IPv4 validator
@@ -2858,7 +2782,7 @@ function renderIPv4AddressAllocations ($dottedquad)
 		printImageHREF ('add', 'allocate', TRUE, 103);
 		echo "</td></form></tr>";
 	}
-	global $pageno, $tabno, $aat;
+	global $aat;
 
 	$address = getIPv4Address ($dottedquad);
 
@@ -2952,7 +2876,6 @@ ENDJAVASCRIPT;
 
 function renderNATv4ForObject ($object_id = 0)
 {
-	global $root;
 	function printNewItemTR ($alloclist)
 	{
 		printOpFormIntro ('addNATv4Rule');
@@ -2979,7 +2902,6 @@ function renderNATv4ForObject ($object_id = 0)
 		printImageHREF ('add', 'Add new NAT rule', TRUE, 6);
 		echo "</td></tr></form>";
 	}
-	global $pageno, $tabno;
 	
 	$info = getObjectInfo ($object_id);
 	$forwards = getNATv4ForObject ($object_id);
@@ -3450,7 +3372,7 @@ function renderAtomGrid ($data)
 	}
 }
 
-function renderCellList ($realm = NULL, $title = 'list', $do_amplify = FALSE)
+function renderCellList ($realm = NULL, $title = 'items', $do_amplify = FALSE)
 {
 	if ($realm === NULL)
 	{
@@ -3458,14 +3380,15 @@ function renderCellList ($realm = NULL, $title = 'list', $do_amplify = FALSE)
 		$realm = $pageno;
 	}
 	global $nextorder;
-	echo "<table border=0 class=objectview>\n";
-	echo "<tr><td class=pcleft>";
-	startPortlet ($title);
-	echo "<table class=cooltable border=0 cellpadding=5 cellspacing=0 align=center>\n";
 	$order = 'odd';
-	$celllist = filterCellList (listCells ($realm), buildCellFilter());
+	$cellfilter = getCellFilter();
+	$celllist = filterCellList (listCells ($realm), $cellfilter['expression']);
 	if ($do_amplify)
 		array_walk ($celllist, 'amplifyCell');
+	echo "<table border=0 class=objectview>\n";
+	echo "<tr><td class=pcleft>";
+	startPortlet ($title . ' (' . count ($celllist) . ')');
+	echo "<table class=cooltable border=0 cellpadding=5 cellspacing=0 align=center>\n";
 	foreach ($celllist as $cell)
 	{
 		echo "<tr class=row_${order}><td>";
@@ -3476,7 +3399,7 @@ function renderCellList ($realm = NULL, $title = 'list', $do_amplify = FALSE)
 	echo '</table>';
 	finishPortlet();
 	echo '</td><td class=pcright>';
-	renderTagFilterPortlet (getTagFilter(), $realm);
+	renderCellFilterPortlet ($cellfilter, $realm);
 	echo "</td></tr></table>\n";
 }
 
@@ -3496,8 +3419,8 @@ function renderUserListEditor ()
 		printImageHREF ('create', 'Add new account', TRUE, 103);
 		echo "</td></tr></form>";
 	}
-	global $root, $pageno, $tabno, $accounts;
-	startPortlet ('User accounts');
+	$accounts = listCells ('user');
+	startPortlet ('User accounts (' . count ($accounts) . ')');
 	showMessageOrError();
 	echo "<table cellspacing=0 cellpadding=5 align=center class=widetable>\n";
 	echo "<tr><th>Username</th><th>Real name</th><th>Password</th><th>&nbsp;</th></tr>\n";
@@ -3530,7 +3453,7 @@ function renderPortMapEditor ()
 
 function renderPortMap ($editable = FALSE)
 {
-	global $nextorder, $pageno, $tabno;
+	global $nextorder;
 	showMessageOrError();
 	startPortlet ("Port compatibility map");
 	$ptlist = getPortTypes();
@@ -3658,7 +3581,7 @@ function renderChapter ($tgt_chapter_no)
 
 function renderChapterEditor ($tgt_chapter_no)
 {
-	global $pageno, $tabno, $nextorder;
+	global $nextorder;
 	function printNewItemTR ()
 	{
 		printOpFormIntro ('add');
@@ -3730,7 +3653,6 @@ function renderChaptersEditor ()
 		printImageHREF ('create', 'Add new', TRUE, 101);
 		echo '</td></tr></form>';
 	}
-	global $pageno, $tabno;
 	showMessageOrError();
 	$dict = getDict();
 	foreach (array_keys ($dict) as $chapter_no)
@@ -3821,7 +3743,6 @@ function renderEditAttributesForm ()
 		printImageHREF ('add', 'Create attribute', TRUE, 102);
 		echo '</td></tr></form>';
 	}
-	global $pageno, $tabno;
 	$attrMap = getAttrMap();
 	showMessageOrError();
 	startPortlet ('Optional attributes');
@@ -3876,7 +3797,6 @@ function renderEditAttrMapForm ()
 		echo '</td></tr>';
 		echo '</form>';
 	}
-	global $pageno, $tabno;
 	$attrMap = getAttrMap();
 	showMessageOrError();
 	startPortlet ('Attribute map');
@@ -4408,7 +4328,7 @@ function renderProgressBar ($percentage = 0, $theme = '')
 
 function renderRSPoolServerForm ($pool_id = 0)
 {
-	global $pageno, $tabno, $nextorder;
+	global $nextorder;
 	if ($pool_id <= 0)
 	{
 		showError ('Invalid pool_id', __FUNCTION__);
@@ -4486,7 +4406,7 @@ function renderRSPoolServerForm ($pool_id = 0)
 
 function renderRSPoolLBForm ($pool_id = 0)
 {
-	global $pageno, $tabno, $nextorder;
+	global $nextorder;
 	showMessageOrError();
 
 	$poolInfo = getRSPoolInfo ($pool_id);
@@ -4538,7 +4458,7 @@ function renderRSPoolLBForm ($pool_id = 0)
 
 function renderVServiceLBForm ($vs_id = 0)
 {
-	global $pageno, $tabno, $nextorder;
+	global $nextorder;
 	showMessageOrError();
 	$vsinfo = getVServiceInfo ($vs_id);
 
@@ -4668,9 +4588,9 @@ function renderRSPool ($pool_id = 0)
 
 function renderVSList ()
 {
-	global $pageno, $nextorder;
+	global $nextorder;
 	$tagfilter = getTagFilter();
-	$vslist = getVSList ($tagfilter, getTFMode());
+	$vslist = getVSList ($tagfilter);
 	echo "<table border=0 class=objectview>\n";
 	echo "<tr><td class=pcleft>";
 
@@ -4696,7 +4616,7 @@ function renderVSList ()
 
 function renderVSListEditForm ()
 {
-	global $pageno, $tabno, $nextorder;
+	global $nextorder;
 	showMessageOrError();
 	$protocols = array ('TCP' => 'TCP', 'UDP' => 'UDP');
 
@@ -4763,7 +4683,7 @@ function renderRSPoolList ()
 {
 	global $pageno, $nextorder;
 	$tagfilter = getTagFilter();
-	$pool_list = getRSPoolList ($tagfilter, getTFMode());
+	$pool_list = getRSPoolList ($tagfilter);
 	if ($pool_list === NULL)
 	{
 		showError ('getRSPoolList() failed', __FUNCTION__);
@@ -4800,7 +4720,7 @@ function renderRSPoolList ()
 
 function editRSPools ()
 {
-	global $pageno, $tabno, $nextorder;
+	global $nextorder;
 	showMessageOrError();
 
 	startPortlet ('Add new');
@@ -5096,7 +5016,7 @@ function renderTagRowForCloud ($taginfo, $realm, $level = 0)
 function renderTagRowForEditor ($taginfo, $level = 0)
 {
 	$self = __FUNCTION__;
-	global $pageno, $tabno, $taglist;
+	global $taglist;
 	if (!count ($taginfo['kids']))
 		$level++; // Idem
 	echo "<tr><td align=left style='padding-left: " . ($level * 16) . "px;'>";
@@ -5287,14 +5207,6 @@ function printTagTRs ($baseurl = '')
 	}
 }
 
-// Detect, filter and return requested tag filter mode: either 'and' or 'or'.
-function getTFMode ()
-{
-	if (isset ($_REQUEST['tfmode']) and $_REQUEST['tfmode'] == 'all')
-		return 'all';
-	return 'any';
-}
-
 // Output a portlet with currently selected tags and prepare a form for update.
 function renderTagFilterPortlet ($tagfilter, $realm, $bypass_name = '', $bypass_value = '')
 {
@@ -5319,9 +5231,6 @@ function renderTagFilterPortlet ($tagfilter, $realm, $bypass_name = '', $bypass_
 	foreach ($objectivetags as $taginfo)
 		renderTagCheckbox ('tagfilter', buildTagChainFromIds ($tagfilter), $taginfo);
 	echo '</td></tr><tr><td>';
-//	$tfmode = getTFMode();
-//	echo '<input type=radio name=tfmode value=all' . ($tfmode == 'all' ? ' checked' : '') . '>all ';
-//	echo '<input type=radio name=tfmode value=any' . ($tfmode == 'any' ? ' checked' : '') . '>any ';
 	printImageHREF ('apply', 'Apply filter', TRUE);
 	echo "</form></td><td>";
 
@@ -5334,29 +5243,82 @@ function renderTagFilterPortlet ($tagfilter, $realm, $bypass_name = '', $bypass_
 	printImageHREF ('clear', 'reset', TRUE);
 	echo '</form></td></tr></table>';
 	finishPortlet();
-	global $rackCode;
-	// underscore cannot start predicate name
-	$options = array ('_' => '-- NOT SET --');
-	foreach (array_keys (buildPredicateTable ($rackCode)) as $predicatename)
-		$options[$predicatename] = "[${predicatename}]";
-	if (!count ($options))
-		return;
-	startPortlet ('P-filter');
+}
+
+// This one is going to replace the tag filter.
+function renderCellFilterPortlet ($preselect, $realm, $bypass_name = '', $bypass_value = '')
+{
+	$cfv = $preselect['version'];
+	global $pageno, $tabno, $taglist, $tagtree;
+	startPortlet ('filter');
 	echo "<form method=get>\n";
 	echo "<input type=hidden name=page value=${pageno}>\n";
 	echo "<input type=hidden name=tab value=${tabno}>\n";
+	echo "<input type=hidden name=cfv value=${cfv}>\n";
 	if ($bypass_name != '')
 		echo "<input type=hidden name=${bypass_name} value='${bypass_value}'>\n";
 	echo '<table border=0 align=center>';
-	echo '<tr><td colspan=2>';
-	printSelect ($options, 'pfilter', isset ($_REQUEST['pfilter']) ? $_REQUEST['pfilter'] : NULL);
+	switch ($cfv)
+	{
+	case 1:
+		$objectivetags = getObjectiveTagTree ($tagtree, $realm);
+		if (!count ($objectivetags))
+		{
+			echo "None used in current realm.<br>";
+			break;
+		}
+		// Show a tree of tags, pre-select according to currently requested list filter.
+		foreach ($objectivetags as $taginfo)
+			renderTagCheckbox ('tagfilter', buildTagChainFromIds ($preselect['tagidlist']), $taginfo);
+		break;
+	case 2:
+		$objectivetags = getObjectiveTagTree ($tagtree, $realm);
+		if (!count ($objectivetags))
+			echo "<tr><td colspan=2 class='tagbox sparenetwork'>(nothing is tagged yet)</td></tr>";
+		else
+			foreach ($objectivetags as $taginfo)
+				renderTagCheckbox ('cft', buildTagChainFromIds ($preselect['tagidlist']), $taginfo);
+		global $pTable;
+		$myPredicates = array();
+		$psieve = getConfigVar ('FILTER_PREDICATE_SIEVE');
+		// Repack matching predicates in a way, which tagOnChain() understands.
+		foreach (array_keys ($pTable) as $pname)
+			if (mb_ereg_match ($psieve, $pname))
+				$myPredicates[] = array ('id' => $pname, 'tag' => $pname, 'kids' => array());
+		if (count ($myPredicates))
+		{
+			// Repack preselect likewise.
+			$myPreselect = array();
+			foreach ($preselect['pnamelist'] as $pname)
+				$myPreselect[] = array ('id' => $pname);
+			echo '<tr><td colspan=2 class=tagbox><hr></td></tr>';
+			foreach ($myPredicates as $pinfo)
+				renderTagCheckbox ('cfp', $myPreselect, $pinfo);
+		}
+		break;
+	case 3:
+		dragon();
+		break;
+	default:
+		showError ('Format version error', __FUNCTION__);
+		break;
+	}
+	echo "<input type=hidden name=page value=${pageno}>\n";
+	echo "<input type=hidden name=tab value=${tabno}>\n";
+	echo "<input type=hidden name=cfv value=${cfv}>\n";
+	if ($bypass_name != '')
+		echo "<input type=hidden name=${bypass_name} value='${bypass_value}'>\n";
+	echo '<tr><td colspan=2 class=tagbox><hr></td></tr>';
+	// "apply"
 	echo '</td></tr><tr><td>';
 	printImageHREF ('apply', 'Apply filter', TRUE);
 	echo "</form></td><td>";
+
 	// "reset"
 	echo "<form method=get>\n";
 	echo "<input type=hidden name=page value=${pageno}>\n";
 	echo "<input type=hidden name=tab value=${tabno}>\n";
+	echo "<input type=hidden name=cfv value=${cfv}>\n";
 	if ($bypass_name != '')
 		echo "<input type=hidden name=${bypass_name} value='${bypass_value}'>\n";
 	printImageHREF ('clear', 'reset', TRUE);
@@ -5400,7 +5362,7 @@ function renderTagRollerForRow ($row_id)
 
 function renderObjectSLB ($object_id)
 {
-	global $pageno, $tabno, $nextorder;
+	global $nextorder;
 	showMessageOrError();
 	$vs_list = $rsplist = array();
 	foreach (getVSList() as $vsid => $vsinfo)
@@ -5572,13 +5534,13 @@ ENDJAVASCRIPT;
 
 function renderUser ($user_id)
 {
-	global $accounts, $target_given_tags;
-	$username = getUsernameByID ($user_id);
+	global $target_given_tags;
+	$userinfo = getUserInfo ($user_id);
 
 	startPortlet ('summary');
 	echo '<table border=0 align=center>';
-	echo "<tr><th class=tdright>Account name:</th><td class=tdleft>${username}</td></tr>";
-	echo '<tr><th class=tdright>Real name:</th><td class=tdleft>' . $accounts[$username]['user_realname'] . '</td></tr>';
+	echo "<tr><th class=tdright>Account name:</th><td class=tdleft>${userinfo['user_name']}</td></tr>";
+	echo '<tr><th class=tdright>Real name:</th><td class=tdleft>' . $userinfo['user_realname'] . '</td></tr>';
 	// Using printTagTRs() is inappropriate here, because autotags will be filled with current user's
 	// data, not the viewed one. Another special reason is that the displayed user's given tags are in
 	// the "target" chain.
@@ -5594,7 +5556,7 @@ function renderUser ($user_id)
 		echo "<tr><th width='50%' class=tagchain>Given implicit tags:</th><td class=tagchain>";
 		echo serializeTags ($target_shadow, $baseurl) . "</td></tr>\n";
 	}
-	$target_auto_tags = generateEntityAutoTags ('user', $username);
+	$target_auto_tags = generateEntityAutoTags ('user', $userinfo['user_name']);
 	if (getConfigVar ('SHOW_AUTOMATIC_TAGS') == 'yes' and count ($target_auto_tags))
 	{
 		echo "<tr><th width='50%' class=tagchain>Automatic tags:</th><td class=tagchain>";
@@ -5658,10 +5620,10 @@ function renderAccessDenied ()
 
 function renderMyAccount ()
 {
-	global $remote_username, $accounts;
+	global $remote_username, $remote_displayname;
 	echo "<table border=0 class=objectview cellspacing=0 cellpadding=0 width='50%'>";
 	echo "<tr><td colspan=2 align=center><h1>${remote_username}</h1></td></tr>\n";
-	echo "<tr><td colspan=2 align=center><h2>" . $accounts[$remote_username]['user_realname'] . "</h2></td></tr>\n";
+	echo "<tr><td colspan=2 align=center><h2>${remote_displayname}</h2></td></tr>\n";
 	echo "</table>";
 }
 
@@ -5725,18 +5687,16 @@ function renderFile ($file_id = 0)
 	{
 		startPortlet ('Links (' . count ($links) . ')');
 		echo "<table cellspacing=0 cellpadding='5' align='center' class='widetable'>\n";
-		global $accounts;
 		foreach ($links as $link)
 		{
 			echo '<tr><td class=tdleft>';
 			switch ($link['entity_type'])
 			{
 				case 'user':
-					$username = getUsernameByID ($link['entity_id']);
-					if (NULL === $username or !isset ($accounts[$username]))
+					if (NULL === ($userinfo = getUserInfo ($link['entity_id'])))
 						echo "Internal error: user id ${link['entity_id']} not found";
 					else
-						renderCell ($accounts[$username]);
+						renderCell ($userinfo);
 					break;
 				case 'ipv4net':
 					renderIPv4NetCell (getIPv4NetworkInfo ($link['entity_id']));
@@ -5778,7 +5738,6 @@ function renderFileReuploader ()
 
 function renderFileProperties ($file_id = 0)
 {
-	global $root;
 	$file = getFileInfo ($file_id);
 	if ($file === NULL)
 	{
@@ -5807,7 +5766,7 @@ function renderFileBrowser ()
 // Like renderFileBrowser(), but with the option to delete files
 function renderFileManager ()
 {
-	global $pageno, $tabno, $nextorder, $root;
+	global $nextorder;
 	showMessageOrError();
 
 	// Used for uploading a parentless file
@@ -5859,7 +5818,6 @@ function renderFileManager ()
 
 function renderFilesPortlet ($entity_type = NULL, $entity_id = 0)
 {
-	global $root;
 	if ($entity_type == NULL || $entity_id <= 0)
 	{
 		showError ('Invalid entity info', __FUNCTION__);
@@ -5980,7 +5938,6 @@ function niftyString ($string, $maxlen = 30)
 // Iterate over what findRouters() returned and output some text suitable for a TD element.
 function printRoutersTD ($rlist)
 {
-	global $root;
 	$rtrclass = 'tdleft';
 	foreach ($rlist as $rtr)
 	{

@@ -33,7 +33,7 @@ function escapeString ($value, $do_db_escape = TRUE)
 	return $ret;
 }
 
-function getRackspace ($tagfilter = array(), $tfmode = 'any')
+function getRackspace ($tagfilter = array())
 {
 	$whereclause = getWhereClause ($tagfilter);
 	$query =
@@ -68,7 +68,6 @@ function getRackRowInfo ($rackrow_id)
 	return $row;
 }
 
-
 function getRackRows ()
 {
 	$query = "select id, name from RackRow ";
@@ -80,8 +79,6 @@ function getRackRows ()
 	asort ($rows);
 	return $rows;
 }
-
-
 
 function commitAddRow($rackrow_name)
 {
@@ -105,9 +102,6 @@ function commitDeleteRow($rackrow_id)
 	Database::closeCursor($result);
 	return TRUE;
 }
-
-
-
 
 // This function returns id->name map for all object types. The map is used
 // to build <select> input for objects.
@@ -185,7 +179,7 @@ function getNarrowObjectList ($varname = '')
 }
 
 // Return a filtered, detailed object list.
-function getObjectList ($type_id = 0, $tagfilter = array(), $tfmode = 'any')
+function getObjectList ($type_id = 0, $tagfilter = array())
 {
 	$wherevalues = array();
 	$wherenum = 1;
@@ -348,7 +342,7 @@ function amplifyCell (&$record, $dummy = NULL)
 	}
 }
 
-function getRacksForRow ($row_id = 0, $tagfilter = array(), $tfmode = 'any')
+function getRacksForRow ($row_id = 0, $tagfilter = array())
 {
 	$query =
 		"select Rack.id, Rack.name, height, Rack.comment, row_id, RackRow.name as row_name " .
@@ -955,48 +949,6 @@ function getObjectGroupInfo ()
 		}
 	Database::closeCursor($result);
 	$ret[0]['count'] = $total;
-	return $ret;
-}
-
-// This function returns objects, which have no rackspace assigned to them.
-// Additionally it keeps rack_id parameter, so we can silently pre-select
-// the rack required.
-function getUnmountedObjects ()
-{
-	$query =
-		'select dict_value as objtype_name, Dictionary.id as objtype_id, name, label, barcode, id, asset_no from ' .
-		'RackObject inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id ' .
-		'left join RackSpace on id = object_id '.
-		'where rack_id is null and Chapter.name = "RackObjectType" order by dict_value, name, label, asset_no, barcode';
-	$result = Database::query ($query);
-	$ret = array();
-	$clist = array ('id', 'name', 'label', 'barcode', 'objtype_name', 'objtype_id', 'asset_no');
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		foreach ($clist as $cname)
-			$ret[$row['id']][$cname] = $row[$cname];
-		$ret[$row['id']]['dname'] = displayedName ($ret[$row['id']]);
-	}
-	Database::closeCursor($result);
-	return $ret;
-}
-
-function getProblematicObjects ()
-{
-	$query =
-		'select dict_value as objtype_name, Dictionary.id as objtype_id, name, id, asset_no from ' .
-		'RackObject inner join Dictionary on objtype_id = Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id '.
-		'where has_problems = "yes" and Chapter.name = "RackObjectType" order by objtype_name, name';
-	$result = Database::query ($query);
-	$ret = array();
-	$clist = array ('id', 'name', 'objtype_name', 'objtype_id', 'asset_no');
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		foreach ($clist as $cname)
-			$ret[$row['id']][$cname] = $row[$cname];
-		$ret[$row['id']]['dname'] = displayedName ($ret[$row['id']]);
-	}
-	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -1823,7 +1775,7 @@ function getDict ($parse_links = FALSE)
 
 function getDictStats ()
 {
-	$stock_chapters = array (1, 2, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22, 23);
+	$stock_chapters = array (1, 2, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25);
 	$query =
 		"select Chapter.id as chapter_no, Chapter.name as chapter_name, count(Dictionary.id) as wc from " .
 		"Chapter left join Dictionary on Chapter.id = Dictionary.chapter_id group by Chapter.id";
@@ -2595,7 +2547,7 @@ function commitUpdateVS ($vsid = 0, $vip = '', $vport = 0, $proto = '', $name = 
 
 // Return the list of virtual services, indexed by vs_id.
 // Each record will be shown with its basic info plus RS pools counter.
-function getVSList ($tagfilter = array(), $tfmode = 'any')
+function getVSList ($tagfilter = array())
 {
 	$whereclause = getWhereClause ($tagfilter);
 	$query = "select vs.id, inet_ntoa(vip) as vip, vport, proto, vs.name, vs.vsconfig, vs.rsconfig, count(rspool_id) as poolcount " .
@@ -2612,7 +2564,7 @@ function getVSList ($tagfilter = array(), $tfmode = 'any')
 }
 
 // Return the list of RS pool, indexed by pool id.
-function getRSPoolList ($tagfilter = array(), $tfmode = 'any')
+function getRSPoolList ($tagfilter = array())
 {
 	$whereclause = getWhereClause ($tagfilter);
 	$query = "select pool.id, pool.name, count(rspool_id) as refcnt, pool.vsconfig, pool.rsconfig " .
@@ -2883,7 +2835,6 @@ function commitUpdateTag ($tag_id, $tag_name, $parent_id)
 	if ($parent_id == 0)
 		$parent_id = NULL;
 	Database::update(array('tag'=>$tag_name, 'parent_id'=>$parent_id), 'TagTree', $tag_id);
-	return '';
 }
 function getTagsForEntity($entity_realm, $entity_id)
 {
@@ -3117,16 +3068,6 @@ function recordExists ($id = 0, $realm = 'object')
 	return $count === '1';
 }
 
-function tagExistsInDatabase ($tname)
-{
-	$result = Database::query ("select count(*) from TagTree where lower(tag) = lower('${tname}')");
-	$row = $result->fetch (PDO::FETCH_NUM);
-	$count = $row[0];
-	Database::closeCursor($result);
-	unset ($result);
-	return $count !== '0';
-}
-
 function newPortForwarding ($object_id, $localip, $localport, $remoteip, $remoteport, $proto, $description)
 {
 	if (NULL === getIPv4AddressNetworkId ($localip))
@@ -3255,8 +3196,6 @@ function mergeSearchResults (&$objects, $terms, $fieldname)
 	}
 	$query .= " order by ${fieldname}";
 	$result = Database::query ($query);
-// FIXME: this dead call was executed 4 times per 1 object search!
-//	$typeList = getObjectTypeList();
 	$clist = array ('id', 'name', 'label', 'asset_no', 'barcode', 'objtype_id', 'objtype_name');
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 	{
@@ -3282,31 +3221,6 @@ function getLostIPv4Addresses ()
 	dragon();
 }
 
-// File-related functions
-function getAllFiles ()
-{
-	$query = "SELECT id, name, type, size, atime, comment FROM File ORDER BY name";
-	$result = Database::query ($query);
-	$ret=array();
-	$count=0;
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		$ret[$count]['id'] = $row['id'];
-		$ret[$count]['name'] = $row['name'];
-		$ret[$count]['type'] = $row['type'];
-		$ret[$count]['size'] = $row['size'];
-		$head = Database::getRevisionById(Database::getHeadRevisionForObject('File', $row['id']));
-		$ret[$count]['mtime'] = strftime('%F %T', $head['timestamp']);
-		$tail = Database::getRevisionById(Database::getTailRevisionForObject('File', $row['id']));
-		$ret[$count]['ctime'] = strftime('%F %T', $tail['timestamp']);
-		$ret[$count]['atime'] = $row['atime'];
-		$ret[$count]['comment'] = $row['comment'];
-		$count++;
-	}
-	Database::closeCursor($result);
-	return $ret;
-}
-
 // Return a list of files which are not linked to the specified record. This list
 // will be used by printSelect().
 function getAllUnlinkedFiles ($entity_type = NULL, $entity_id = 0)
@@ -3323,51 +3237,6 @@ function getAllUnlinkedFiles ($entity_type = NULL, $entity_id = 0)
 	$ret=array();
 	while ($row = $query->fetch (PDO::FETCH_ASSOC))
 		$ret[$row['id']] = $row['name'];
-	return $ret;
-}
-
-// Return a filtered, detailed file list.  Used on the main Files listing page.
-function getFileList ($entity_type = NULL, $tagfilter = array(), $tfmode = 'any')
-{
-	$whereclause = getWhereClause ($tagfilter);
-
-	if ($entity_type == 'no_links')
-		$whereclause .= 'AND FileLink.id is null ';
-	elseif ($entity_type != 'all')
-		$whereclause .= "AND entity_type = '${entity_type}' ";
-
-	$query =
-		'SELECT File.id, name, type, size, atime, comment ' .
-		'FROM File ' .
-		'LEFT JOIN FileLink ' .
-		'ON File.id = FileLink.file_id ' .
-		'LEFT JOIN TagStorage ' .
-		"ON File.id = TagStorage.entity_id AND entity_realm = 'file' " .
-		'WHERE size >= 0 ' .
-		$whereclause .
-		'ORDER BY name';
-
-	$result = Database::query ($query);
-	$ret = array();
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		foreach (array (
-			'id',
-			'name',
-			'type',
-			'size',
-			'atime',
-			'comment'
-			) as $cname)
-			$ret[$row['id']][$cname] = $row[$cname];
-		$head = Database::getRevisionById(Database::getHeadRevisionForObject('File', $row['id']));
-		$tail = Database::getRevisionById(Database::getTailRevisionForObject('File', $row['id']));
-
-		$ret[$row['id']]['mtime'] = strftime('%F %T', $head['timestamp']);
-		$ret[$row['id']]['ctime'] = strftime('%F %T', $tail['timestamp']);
-	}
-	
-	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -3495,10 +3364,8 @@ function getFileLinks ($file_id = 0)
 			case 'user':
 				$page = 'user';
 				$id_name = 'user_id';
-				global $accounts;
-				foreach ($accounts as $account)
-					if ($account['user_id'] == $row['entity_id'])
-						$name = $account['user_name'];
+				$userinfo = getUserInfo ($row['entity_id']);
+				$name = $userinfo['user_name'];
 				break;
 		}
 
@@ -3674,4 +3541,87 @@ function findFileByName ($filename)
 
 	return NULL;
 }
+function acquireLDAPCache ($form_username, $password_hash, $expiry = 0)
+{
+	global $dbxlink;
+	$dbxlink->beginTransaction();
+	$query = "select now() - first_success as success_age, now() - last_retry as retry_age, displayed_name, memberof " .
+		"from LDAPCache where presented_username = '${form_username}' and successful_hash = '${password_hash}' " .
+		"having success_age < ${expiry} for update";
+	$result = useSelectBlade ($query);
+	if ($row = $result->fetch (PDO::FETCH_ASSOC))
+	{
+		$row['memberof'] = unserialize (base64_decode ($row['memberof']));
+		return $row;
+	}
+	return NULL;
+}
+
+function releaseLDAPCache ()
+{
+	global $dbxlink;
+	$dbxlink->commit();
+}
+
+// This actually changes only last_retry.
+function touchLDAPCacheRecord ($form_username)
+{
+	global $dbxlink;
+	$query = "update LDAPCache set last_retry = NOW() where presented_username = '${form_username}'";
+	$dbxlink->exec ($query);
+}
+
+function replaceLDAPCacheRecord ($form_username, $password_hash, $dname, $memberof)
+{
+	deleteLDAPCacheRecord ($form_username);
+	useInsertBlade ('LDAPCache',
+		array
+		(
+			'presented_username' => "'${form_username}'",
+			'successful_hash' => "'${password_hash}'",
+			'displayed_name' => "'${dname}'",
+			'memberof' => "'" . base64_encode (serialize ($memberof)) . "'"
+		)
+	);
+}
+
+function deleteLDAPCacheRecord ($form_username)
+{
+	return useDeleteBlade ('LDAPCache', 'presented_username', "'${form_username}'");
+}
+
+// Age all records older, than cache_expiry seconds, and all records made in future.
+// Calling this function w/o argument purges the whole LDAP cache.
+function discardLDAPCache ($maxage = 0)
+{
+	global $dbxlink;
+	$dbxlink->exec ('DELETE from LDAPCache WHERE NOW() - first_success >= ${maxage} or NOW() < first_success');
+}
+
+function getUserIDByUsername ($username)
+{
+	$query = "select user_id from UserAccount where user_name = '${username}'";
+	if (($result = useSelectBlade ($query, __FUNCTION__)) == NULL) 
+	{
+		showError ('SQL query failed', __FUNCTION__);
+		die;
+	}
+	if ($row = $result->fetch (PDO::FETCH_ASSOC))
+		return $row['user_id'];
+	return NULL;
+}
+
+function getUserInfo ($user_id)
+{
+	$query = "select 'user' as realm, user_id, user_name, user_password_hash, user_realname from UserAccount where user_id = ${user_id}";
+	if (($result = useSelectBlade ($query, __FUNCTION__)) == NULL)
+	{
+		showError ('SQL query failed', __FUNCTION__);
+		die;
+	}
+	if ($row = $result->fetch (PDO::FETCH_ASSOC))
+		return $row;
+	return NULL;
+}
+
 ?>
