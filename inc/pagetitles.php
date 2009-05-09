@@ -159,39 +159,6 @@ function dynamic_title_search ()
 	return $ret;
 }
 
-function dynamic_title_objgroup ()
-{
-	global $pageno;
-	$ret = array();
-	switch ($pageno)
-	{
-		case 'objgroup':
-			assertUIntArg ('group_id', __FUNCTION__, TRUE);
-			$group_id = $_REQUEST['group_id'];
-			$groupInfo = getObjectGroupInfo();
-			if (isset($groupInfo[$group_id]))
-				$ret['name'] = $groupInfo[$group_id]['name'];
-			else
-				$ret['name'] = 'Unknown objectgroup '.$group_id;
-			$ret['params']['group_id'] = $group_id;
-			break;
-		case 'object':
-			assertUIntArg ('object_id', __FUNCTION__);
-			try {
-				$objectInfo = getObjectInfo ($_REQUEST['object_id'], FALSE);
-				$ret['name'] = $objectInfo['objtype_name'];
-				$ret['params']['group_id'] = $objectInfo['objtype_id'];
-			} catch (OutOfRevisionRangeException $e) {
-				$ret['name'] = 'Unknown objectgroup';
-				$ret['params'] = NULL;
-			}
-			break;
-		default:
-			return NULL;
-	}
-	return $ret;
-}
-
 function dynamic_title_user ()
 {
 	$userinfo = getUserInfo ($_REQUEST['user_id']);

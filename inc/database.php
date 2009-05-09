@@ -945,30 +945,6 @@ function getResidentRacksData ($object_id = 0, $fetch_rackdata = TRUE)
 	return $ret;
 }
 
-function getObjectGroupInfo ()
-{
-	$query =
-		'select Dictionary.id as id, dict_value as name, count(Dictionary.id) as count from ' .
-		'Dictionary join Chapter on Chapter.id = Dictionary.chapter_id join RackObject on Dictionary.id = objtype_id ' .
-		'where Chapter.name = "RackObjectType" ' .
-		'group by Dictionary.id order by dict_value';
-	$result = Database::query ($query);
-	$ret = array();
-	$ret[0] = array ('id' => 0, 'name' => 'ALL types');
-	$clist = array ('id', 'name', 'count');
-	$total = 0;
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-		if ($row['count'] > 0)
-		{
-			$total += $row['count'];
-			foreach ($clist as $cname)
-				$ret[$row['id']][$cname] = $row[$cname];
-		}
-	Database::closeCursor($result);
-	$ret[0]['count'] = $total;
-	return $ret;
-}
-
 function commitAddPort ($object_id = 0, $port_name, $port_type_id, $port_label, $port_l2address)
 {
 	if ($object_id <= 0)
