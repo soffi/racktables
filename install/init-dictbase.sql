@@ -197,7 +197,6 @@ INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (13,'no');
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (14,'no');
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (1,'yes');
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (2,'yes');
-INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (3,'yes');
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (16,'no');
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (17,'no');
 INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (18,'no');
@@ -210,7 +209,6 @@ INSERT INTO `Chapter__s` (`id`, `sticky`) VALUES (25,'no');
 
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (1,0,0,'RackObjectType');
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (2,0,0,'PortType');
-INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (3,0,0,'RackRow');
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (11,0,0,'server models');
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (12,0,0,'network switch models');
 INSERT INTO `Chapter__r` (`id`, `rev`, `rev_terminal`, `name`) VALUES (13,0,0,'server OS type');

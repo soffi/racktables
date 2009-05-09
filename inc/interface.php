@@ -1777,7 +1777,6 @@ and either delete them before unmounting or refuse to unmount the object.
 */
 
 // We extensively use $_REQUEST in the function.
-// FIXME: move related code into ophandler
 function renderRackSpaceForObject ($object_id = 0)
 {
 	if ($object_id <= 0)
@@ -1785,7 +1784,6 @@ function renderRackSpaceForObject ($object_id = 0)
 		showError ('Invalid object_id', __FUNCTION__);
 		return;
 	}
-	$is_submit = isset ($_REQUEST['got_atoms']);
 	$is_update = isset ($_REQUEST['rackmulti'][0]);
 	$info = getObjectInfo ($object_id);
 	if ($info == NULL)
@@ -1795,13 +1793,8 @@ function renderRackSpaceForObject ($object_id = 0)
 	}
 	// Always process occupied racks plus racks chosen by user. First get racks with
 	// already allocated rackspace...
-	$workingRacksData = getResidentRacksData ($object_id);
-	if ($workingRacksData === NULL)
-	{
-		print_r ($workingRacksData);
-		showError ('getResidentRacksData() failed', __FUNCTION__);
-		return;
-	}
+	if (NULL === ($workingRacksData = getResidentRacksData ($object_id)))
+		die; // some error already shown
 
 	// ...and then add those chosen by user (if any).
 	if (isset($_REQUEST['rackmulti']))
@@ -1884,7 +1877,7 @@ function renderRackSpaceForObject ($object_id = 0)
 		markupAtomGrid ($rackData, 'T');
 		// If we have a form processed, discard user input and show new database
 		// contents.
-		if (!$is_submit and $is_update)
+		if ($is_update)
 			mergeGridFormToRack ($rackData);
 		echo "<td valign=top>";
 		echo "<center>\n<h2>${rackData['name']}</h2>\n";
@@ -3526,11 +3519,10 @@ function renderRackPage ($rack_id)
 function renderDictionary ()
 {
 	global $nextorder;
-	$dict = getDict (TRUE);
 	echo '<ul>';
-	foreach ($dict as $chapter_no => $chapter)
+	foreach (getChapterList() as $chapter_no => $chapter)
 	{
-		$wc = count ($chapter['word']);
+		$wc = $chapter['wordc'];
 		echo "<li><a href='".makeHref(array('page'=>'chapter', 'chapter_no'=>$chapter_no))."'>${chapter['name']}</a>";
 		echo " (${wc} records)</li>";
 	}
@@ -3644,7 +3636,7 @@ function renderChaptersEditor ()
 		echo '</td></tr></form>';
 	}
 	showMessageOrError();
-	$dict = getDict();
+	$dict = getChapterList();
 	foreach (array_keys ($dict) as $chapter_no)
 		$dict[$chapter_no]['mapped'] = FALSE;
 	foreach (getAttrMap() as $attrinfo)
@@ -3655,11 +3647,11 @@ function renderChaptersEditor ()
 	echo '<tr><th>&nbsp;</th><th>Chapter name</th><th>Words</th><th>&nbsp;</th></tr>';
 	if (getConfigVar ('ADDNEW_AT_TOP') == 'yes')
 		printNewItemTR();
-	foreach ($dict as $chapter)
+	foreach ($dict as $chapter_id => $chapter)
 	{
-		$wordcount = count ($chapter['word']);
-		$sticky = $chapter['sticky'];
-		printOpFormIntro ('upd', array ('chapter_no' => $chapter['no']));
+		$wordcount = $chapter['wordc'];
+		$sticky = $chapter['sticky'] == 'yes';
+		printOpFormIntro ('upd', array ('chapter_no' => $chapter_id));
 		echo '<tr>';
 		echo '<td>';
 		if ($sticky)
@@ -3670,7 +3662,7 @@ function renderChaptersEditor ()
 			printImageHREF ('nodestroy', 'used in attribute map');
 		else
 		{
-			echo "<a href='".makeHrefProcess(array('op'=>'del', 'chapter_no'=>$chapter['no']))."'>";
+			echo "<a href='".makeHrefProcess(array('op'=>'del', 'chapter_no'=>$chapter_id))."'>";
 			printImageHREF ('destroy', 'Remove chapter');
 			echo "</a>";
 		}
@@ -3777,11 +3769,10 @@ function renderEditAttrMapForm ()
 		echo '<td>';
 		printSelect (getObjectTypeList(), 'objtype_id', NULL, 101);
 		echo '</td>';
-		$dict = getDict();
 		echo '<td><select name=chapter_no tabindex=102>';
-		foreach ($dict as $chapter)
+		foreach (getChapterList() as $chapter)
 			if (!$chapter['sticky'])
-				echo "<option value='${chapter['no']}'>${chapter['name']}</option>";
+				echo "<option value='${chapter['id']}'>${chapter['name']}</option>";
 		echo '</select></td><td>';
 		printImageHREF ('add', '', TRUE, 103);
 		echo '</td></tr>';
@@ -6556,7 +6547,7 @@ function dynamic_title_decoder ($path_position)
 		assertUIntArg ('chapter_no', __FUNCTION__);
 		$chapters = getChapterList();
 		$chapter_no = $_REQUEST['chapter_no'];
-		$chapter_name = isset ($chapters[$chapter_no]) ? $chapters[$chapter_no] : 'N/A';
+		$chapter_name = isset ($chapters[$chapter_no]) ? $chapters[$chapter_no]['name'] : 'N/A';
 		return array
 		(
 			'name' => "Chapter '${chapter_name}'",
