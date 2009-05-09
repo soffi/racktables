@@ -1104,6 +1104,8 @@ function fixContext ()
 		'rspool' => 'ipv4rsp',
 		'vservices' => 'ipv4vslist',
 		'vservice' => 'ipv4vs',
+		'objects' => 'depot',
+		'objgroup' => 'depot',
 	);
 	$tmap = array();
 	$tmap['objects']['newmulti'] = 'addmore';
@@ -1280,7 +1282,7 @@ function getCellFilter ()
 			}
 	}
 	if (isset ($_REQUEST['cfe']))
-		$ret['extratext'] = $_REQUEST['cfe'];
+		$ret['extratext'] = trim ($_REQUEST['cfe']);
 	$finaltext = array();
 	if (strlen ($ret['text']))
 		$finaltext[] = '(' . $ret['text'] . ')';
@@ -1291,6 +1293,11 @@ function getCellFilter ()
 	{
 		$parse = spotPayload ($finaltext, 'SYNT_EXPR');
 		$ret['expression'] = $parse['result'] == 'ACK' ? $parse['load'] : NULL;
+		// It's not quite fair enough to put the blame of the whole text onto
+		// non-empty "extra" portion of it, but it's the only user-generated portion
+		// of it, thus the most probable cause of parse error.
+		if (strlen ($ret['extratext']))
+			$ret['extraclass'] = $parse['result'] == 'ACK' ? 'validation-success' : 'validation-error';
 	}
 	return $ret;
 }
@@ -2114,6 +2121,46 @@ function considerConfiguredConstraint ($entity_realm, $entity_id, $varname)
 	if ($parseCache[$varname]['result'] != 'ACK')
 		return FALSE; // constraint set, but cannot be used due to compilation error
 	return judgeEntity ($entity_realm, $entity_id, $parseCache[$varname]['load']);
+}
+
+// Return list of records in the given realm, which conform to
+// the given RackCode expression. If the realm is unknown or text
+// doesn't validate as a RackCode expression, return NULL.
+// Otherwise (successful scan) return a list of all matched
+// records, even if the list is empty (array() !== NULL). If the
+// text is an empty string, return all found records in the given
+// realm.
+function scanRealmByText ($realm = NULL, $ftext = '')
+{
+	switch ($realm)
+	{
+	case 'object':
+	case 'user':
+	case 'ipv4net':
+	case 'file':
+	case 'ipv4vs':
+		if (!strlen ($ftext = trim ($ftext)))
+			$fexpr = array();
+		else
+		{
+			$fparse = spotPayload ($ftext, 'SYNT_EXPR');
+			if ($fparse['result'] != 'ACK')
+				return NULL;
+			$fexpr = $fparse['load'];
+		}
+		return filterCellList (listCells ($realm), $fexpr);
+	default:
+		return NULL;
+	}
+
+}
+
+function getIPv4VSOptions ()
+{
+	$ret = array();
+	foreach (listCells ('ipv4vs') as $vsid => $vsinfo)
+		$ret[$vsid] = $vsinfo['dname'] . (empty ($vsinfo['name']) ? '' : " (${vsinfo['name']})");
+	return $ret;
 }
 
 ?>

@@ -669,7 +669,7 @@ function renderEditObjectForm ($object_id)
 		echo ' checked';
 	echo "></td></tr>\n";
 	echo "<tr><td>&nbsp;</td><th class=tdright>Actions:</th><td class=tdleft><a href='".
-		makeHrefProcess(array('op'=>'deleteObject', 'page'=>'objects', 'tab'=>'default', 'object_id'=>$object_id, 'name'=>$object['name'])).
+		makeHrefProcess(array('op'=>'deleteObject', 'page'=>'depot', 'tab'=>'default', 'object_id'=>$object_id)).
 		"' onclick=\"javascript:return confirm('Are you sure you want to delete the object?')\">Delete object</a></td></tr>\n";
 	echo "<tr><td colspan=3><b>Comment:</b><br><textarea name=object_comment rows=10 cols=80>${object['comment']}</textarea></td></tr>";
 
@@ -1912,7 +1912,7 @@ function renderDepot ()
 	startPortlet ('Objects (' . count ($objects) . ')');
 	if ($objects === NULL)
 	{
-		showError ('getObjectList() failed', __FUNCTION__);
+		showError ('Fatal error retrieving object list', __FUNCTION__);
 		return;
 	}
 	echo '<br><br><table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
@@ -3021,7 +3021,7 @@ function renderSearchResults ()
 		showError ('Search string cannot be empty.', __FUNCTION__);
 		return;
 	}
-	if (!permitted ('objects', 'default'))
+	if (!permitted ('depot', 'default'))
 	{
 		showError ('You are not authorized for viewing information about objects.', __FUNCTION__);
 		return;
@@ -3183,7 +3183,7 @@ function renderSearchResults ()
 			switch ($where)
 			{
 				case 'object':
-					startPortlet ("<a href='${root}?page=objects'>Objects</a>");
+					startPortlet ("<a href='${root}?page=depot'>Objects</a>");
 					echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
 					echo '<tr><th>Common name</th><th>Visible label</th><th>Asset tag</th><th>Barcode</th></tr>';
 					foreach ($what as $obj)
@@ -4360,9 +4360,6 @@ function renderRSPoolLBForm ($pool_id = 0)
 	showMessageOrError();
 
 	$poolInfo = getRSPoolInfo ($pool_id);
-	$vs_list = array ();
-	foreach (getVSList() as $vsid => $vsinfo)
-		$vs_list[$vsid] = buildVServiceName ($vsinfo) . (empty ($vsinfo['name']) ? '' : " (${vsinfo['name']})");
 
 	if (count ($poolInfo['lblist']))
 	{
@@ -4396,7 +4393,7 @@ function renderRSPoolLBForm ($pool_id = 0)
 	printOpFormIntro ('addLB');
 	echo "<tr valign=top><th>LB / VS</th><td class=tdleft>";
 	printSelect (getNarrowObjectList ('IPV4LB_LISTSRC'), 'object_id', NULL, 1);
-	printSelect ($vs_list, 'vs_id', NULL, 2);
+	printSelect (getIPv4VSOptions(), 'vs_id', NULL, 2);
 	echo "</td><td>";
 	printImageHREF ('add', 'Configure LB', TRUE, 5);
 	echo "</td></tr>\n";
@@ -4538,30 +4535,7 @@ function renderRSPool ($pool_id = 0)
 
 function renderVSList ()
 {
-	global $nextorder;
-	$tagfilter = getTagFilter();
-	$vslist = getVSList ($tagfilter);
-	echo "<table border=0 class=objectview>\n";
-	echo "<tr><td class=pcleft>";
-
-	startPortlet ('Virtual services (' . count ($vslist) . ')');
-	echo "<table class=widetable border=0 cellpadding=10 cellspacing=0 align=center>\n";
-	echo "<tr><th>endpoint, name, tags</th><th>VS configuration</th><th>RS configuration</th></tr>";
-	$order = 'odd';
-	foreach ($vslist as $vsid => $vsinfo)
-	{
-		echo "<tr align=left valign=top class=row_${order}><td class=tdleft>";
-		renderVSCell ($vsid);
-		echo "</td><td class=slbconf>${vsinfo['vsconfig']}</td>";
-		echo "<td class=slbconf>${vsinfo['rsconfig']}</td>";
-		echo "</tr>\n";
-		$order = $nextorder[$order];
-	}
-	echo "</table>";
-	finishPortlet();
-	echo '</td><td class=pcright>';
-	renderTagFilterPortlet ($tagfilter, 'ipv4vs');
-	echo '</td></tr></table>';
+	renderCellList ('ipv4vs', 'Virtual services');
 }
 
 function renderVSListEditForm ()
@@ -4593,7 +4567,7 @@ function renderVSListEditForm ()
 	echo "</form>\n";
 	finishPortlet();
 
-	$vslist = getVSList();
+	$vslist = listCells ('ipv4vs');
 	if (!count ($vslist))
 		return;
 	startPortlet ('Manage existing (' . count ($vslist) . ')');
@@ -5183,11 +5157,14 @@ function renderCellFilterPortlet ($preselect, $realm, $bypass_name = '', $bypass
 		echo $hr;
 		$hr = $ruler;
 		$andor = strlen ($preselect['andor']) ? $preselect['andor'] : getConfigVar ('FILTER_DEFAULT_ANDOR');
-		echo '<tr><td class=tagbox><input type=radio name=andor value=and';
-		echo ($andor == 'and' ? ' checked' : '') . '>and</input></td>';
-		echo '<td class=tagbox><input type=radio name=andor value=or';
-		echo ($andor == 'or' ? ' checked' : '') . '>or</input></td>';
-		echo "</td></tr>";
+		echo '<tr>';
+		foreach (array ('and', 'or') as $boolop)
+		{
+			$class = $andor == $boolop ? 'seltagbox' : 'tagbox';
+			$checked = $andor == $boolop ? ' checked' : '';
+			echo "<td class=${class}><input type=radio name=andor value=${boolop}";
+			echo $checked . ">${boolop}</input></td>";
+		}
 	}
 	// tags block
 	if (getConfigVar ('FILTER_SUGGEST_TAGS') == 'yes' or count ($preselect['tagidlist']))
@@ -5223,7 +5200,6 @@ function renderCellFilterPortlet ($preselect, $realm, $bypass_name = '', $bypass
 			$myPreselect = array();
 			foreach ($preselect['pnamelist'] as $pname)
 				$myPreselect[] = array ('id' => $pname);
-			echo '<tr><td colspan=2 class=tagbox><hr></td></tr>';
 			foreach ($myPredicates as $pinfo)
 				renderTagCheckbox ('cfp', $myPreselect, $pinfo);
 		}
@@ -5233,7 +5209,8 @@ function renderCellFilterPortlet ($preselect, $realm, $bypass_name = '', $bypass
 	{
 		echo $hr;
 		$hr = $ruler;
-		echo "<tr><td colspan=2><textarea name=cfe>\n" . $preselect['extratext'];
+		$class = isset ($preselect['extraclass']) ? 'class=' . $preselect['extraclass'] : '';
+		echo "<tr><td colspan=2><textarea name=cfe ${class}>\n" . $preselect['extratext'];
 		echo "</textarea></td></tr>\n";
 	}
 	// submit block
@@ -5299,9 +5276,7 @@ function renderObjectSLB ($object_id)
 {
 	global $nextorder;
 	showMessageOrError();
-	$vs_list = $rsplist = array();
-	foreach (getVSList() as $vsid => $vsinfo)
-		$vs_list[$vsid] = buildVServiceName ($vsinfo) . (empty ($vsinfo['name']) ? '' : " (${vsinfo['name']})");
+	$rsplist = array();
 	foreach (getRSPoolList() as $pool_id => $poolInfo)
 		$rsplist[$pool_id] = $poolInfo['name'];
 
@@ -5309,7 +5284,7 @@ function renderObjectSLB ($object_id)
 	echo "<table cellspacing=0 cellpadding=5 align=center class=widetable>\n";
 	printOpFormIntro ('addLB');
 	echo "<tr valign=top><th>VS / RS pool</th><td class=tdleft>";
-	printSelect ($vs_list, 'vs_id', NULL, 1);
+	printSelect (getIPv4VSOptions(), 'vs_id', NULL, 1);
 	echo "</td><td>";
 	printSelect ($rsplist, 'pool_id', NULL, 2);
 	echo "</td><td>";
@@ -5952,6 +5927,9 @@ function renderCell ($cell)
 	case 'file':
 		renderFileCell ($cell);
 		break;
+	case 'ipv4vs':
+		renderIPv4VSCell ($cell);
+		break;
 	default:
 		showError ('odd data', __FUNCTION__);
 		break;
@@ -6015,8 +5993,10 @@ function renderIPv4VSCell ($vsinfo)
 	printImageHREF ('VS');
 	echo "</td><td>";
 	echo "<a href='${root}?page=ipv4vs&vs_id=${vsinfo['id']}'>";
-	echo buildVServiceName ($vsinfo);
-	echo "</a></td></tr><tr><td>";
+	// FIXME: this is a workaround
+	if (!isset ($vsinfo['dname']))
+		$vsinfo['dname'] = buildVServiceName ($vsinfo);
+	echo $vsinfo['dname'] . "</a></td></tr><tr><td>";
 	echo $vsinfo['name'];
 	echo '</td></tr><tr><td>';
 	$tags = loadEntityTags ('ipv4vs', $vsinfo['id']);
