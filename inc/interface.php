@@ -471,6 +471,49 @@ function showError ($info = '', $location = 'N/A')
 	echo "Go back or try starting from <a href='".makeHref()."'>index page</a>.<br></div>\n";
 }
 
+// This function assures that specified argument was passed
+// and is a number greater than zero.
+function assertUIntArg ($argname, $caller = 'N/A', $allow_zero = FALSE)
+{
+	if (!isset ($_REQUEST[$argname]))
+		throw new AssertException ("Parameter '${argname}' is missing");
+	if (!is_numeric ($_REQUEST[$argname]))
+		throw new AssertException ("Parameter '${argname}' is not a number");
+	if ($_REQUEST[$argname] < 0)
+		throw new AssertException ("Parameter '${argname}' is less than zero");
+	if (!$allow_zero and $_REQUEST[$argname] == 0)
+		throw new AssertException ("Parameter '${argname}' is equal to zero");
+}
+
+// This function assures that specified argument was passed
+// and is a non-empty string.
+function assertStringArg ($argname, $caller = 'N/A', $ok_if_empty = FALSE)
+{
+	if (!isset ($_REQUEST[$argname]))
+		throw new AssertException ("Parameter '${argname}' is missing");
+	if (!is_string ($_REQUEST[$argname]))
+		throw new AssertException ("Parameter '${argname}' is not a string");
+	if (!$ok_if_empty and empty ($_REQUEST[$argname]))
+		throw new AssertException ("Parameter '${argname}' is an empty string");
+}
+
+function assertBoolArg ($argname, $caller = 'N/A', $ok_if_empty = FALSE)
+{
+	if (!isset ($_REQUEST[$argname]))
+		throw new AssertException ("Parameter '${argname}' is missing");
+	if (!is_string ($_REQUEST[$argname]) or $_REQUEST[$argname] != 'on')
+		throw new AssertException ("Parameter '${argname}' is not a string");
+	if (!$ok_if_empty and empty ($_REQUEST[$argname]))
+		throw new AssertException ("Parameter '${argname}' is an empty string");
+}
+
+function assertIPv4Arg ($argname, $caller = 'N/A', $ok_if_empty = FALSE)
+{
+	assertStringArg ($argname, $caller, $ok_if_empty);
+	if (!empty ($_REQUEST[$argname]) and long2ip (ip2long ($_REQUEST[$argname])) !== $_REQUEST[$argname])
+		throw new AssertException ("IPv4 address validation failed for value '" . $_REQUEST[$argname] . "'");
+}
+
 // This function renders rack as HTML table.
 function renderRack ($rack_id = 0, $hl_obj_id = 0)
 {

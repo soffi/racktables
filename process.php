@@ -2,6 +2,8 @@
 require_once 'inc/exception.php';
 ob_start();
 try {
+	// Include init after ophandlers, not before, so local.php can redefine things later.
+	require 'inc/ophandlers.php';
 	require 'inc/init.php';
 	// FIXME: find a better way to handle this error
 	if ($_REQUEST['op'] == 'addFile' && !isset($_FILES['file']['error'])) {

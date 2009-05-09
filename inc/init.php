@@ -249,11 +249,9 @@ $taglist = getTagList();
 $tagtree = treeFromList ($taglist);
 sortTree ($tagtree, 'taginfoCmp');
 
-require_once 'inc/ophandlers.php';
 require_once 'inc/ajaxhandlers.php';
 require_once 'inc/triggers.php';
 require_once 'inc/gateways.php';
-require_once 'inc/snmp.php';
 if (file_exists ('local/local.php'))
 	require_once 'local/local.php';
 
