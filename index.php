@@ -162,6 +162,7 @@ if (isset ($tabhandler[$pageno][$tabno]))
 				showError ('Dispatching error for bypass parameter', __FILE__);
 				break;
 		}
+		showMessageOrError();
 		try {
 			$tabhandler[$pageno][$tabno] ($_REQUEST[$page[$pageno]['bypass']]);
 		} catch (OutOfRevisionRangeException $e) {
@@ -178,10 +179,16 @@ if (isset ($tabhandler[$pageno][$tabno]))
 		}
 	}
 	else
+	{
+		showMessageOrError();
 		$tabhandler[$pageno][$tabno] ();
+	}
 }
 elseif (isset ($page[$pageno]['handler']))
+{
+	showMessageOrError();
 	$page[$pageno]['handler'] ($tabno);
+}
 else
 	throw new Exception ("Failed to find handler for page '${pageno}', tab '${tabno}'");
 ?>
