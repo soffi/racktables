@@ -270,8 +270,11 @@ INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, 
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('VENDOR_SIEVE','','string','yes','no','Vendor sieve configuration');
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('RACKS_PER_ROW','12','uint','yes','no','Racks per row');
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('FILTER_PREDICATE_SIEVE','','string','yes','no','Predicate sieve regex(7)');
-INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('DEFAULT_FILTER_FORMAT','2','string','no','no','Default list filter format');
-INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('DEFAULT_FILTER_BOOLOP','or','string','no','no','Default list filter boolean operation (or/and)');
+INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('FILTER_DEFAULT_ANDOR','or','string','no','no','Default list filter boolean operation (or/and)');
+INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('FILTER_SUGGEST_ANDOR','yes','string','no','no','Suggest and/or selector in list filter');
+INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('FILTER_SUGGEST_TAGS','yes','string','no','no','Suggest tags in list filter');
+INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('FILTER_SUGGEST_PREDICATES','yes','string','no','no','Suggest predicates in list filter');
+INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('FILTER_SUGGEST_EXTRA','no','string','no','no','Suggest extra expression in list filter');
 INSERT INTO `Config` (`varname`, `varvalue`, `vartype`, `emptyok`, `is_hidden`, `description`) VALUES ('DB_VERSION','0.18.0','string','no','yes','Database version.');
 
 
