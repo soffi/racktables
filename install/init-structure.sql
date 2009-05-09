@@ -14,7 +14,7 @@ CREATE TABLE `Config` (
 CREATE TABLE `PortCompat` (
   `type1` int(10) unsigned NOT NULL,
   `type2` int(10) unsigned NOT NULL,
-  KEY `type1` (`type1`),
+  UNIQUE KEY `type1_2` (`type1`,`type2`),
   KEY `type2` (`type2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

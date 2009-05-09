@@ -219,9 +219,8 @@ CREATE TABLE `FileLink` (
 
 			$result = $dbxlink->query ("select dict_key, dict_value from Dictionary where chapter_no = 3");
 			while($row = $result->fetch(PDO::FETCH_NUM))
-			{
 				$query[] = "insert into RackRow set id=${row[0]}, name='${row[1]}'";
-			}
+			unset ($result);
 			$query[] = "delete from Dictionary where chapter_id = 3";
 			$query[] = "delete from Chapter where id = 3";
 			$query[] = "
@@ -240,6 +239,13 @@ CREATE TABLE `LDAPCache` (
 			$query[] = 'ALTER TABLE RackHistory DROP COLUMN deleted';
 			$query[] = 'ALTER TABLE RackObject DROP COLUMN deleted';
 			$query[] = 'ALTER TABLE RackObjectHistory DROP COLUMN deleted';
+			// Can't be added straight due to many duplicates, even in "dictbase" data.
+			$result = $dbxlink->query ('SELECT type1, type2, count(*) - 1 as excess FROM PortCompat GROUP BY type1, type2 HAVING excess > 0');
+			while ($row = $result->fetch (PDO::FETCH_ASSOC))
+				$query[] = "DELETE FROM PortCompat WHERE type1 = ${row['type1']} AND type2 = ${row['type2']} limit ${row['excess']}";
+			unset ($result);
+			$query[] = 'ALTER TABLE PortCompat DROP KEY type1';
+			$query[] = 'ALTER TABLE PortCompat ADD UNIQUE (type1, type2)';
 			$query[] = "UPDATE Config SET varvalue = '0.17.0' WHERE varname = 'DB_VERSION'";
 			break;
 		case '0.18.0':
