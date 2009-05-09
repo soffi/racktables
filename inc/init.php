@@ -249,7 +249,6 @@ $taglist = getTagList();
 $tagtree = treeFromList ($taglist);
 sortTree ($tagtree, 'taginfoCmp');
 
-require_once 'inc/pagetitles.php';
 require_once 'inc/ophandlers.php';
 require_once 'inc/ajaxhandlers.php';
 require_once 'inc/triggers.php';

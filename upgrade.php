@@ -147,8 +147,10 @@ CREATE TABLE `FileLink` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8";
 			$query[] = "ALTER TABLE TagStorage MODIFY COLUMN target_realm enum('file','ipv4net','ipv4rspool','ipv4vs','object','rack','user') NOT NULL default 'object'";
 
-			// add network security as an object type
+			$query[] = "INSERT INTO `Dictionary` (`chapter_id`, `dict_key`, `dict_value`) VALUES (1,798,'Network security')";
+			$query[] = "INSERT INTO `Dictionary` (`chapter_id`, `dict_key`, `dict_value`) VALUES (1,965,'Wireless')";
 			$query[] = "INSERT INTO `Chapter` (`id`, `sticky`, `name`) VALUES (24,'no','network security models')";
+			$query[] = "INSERT INTO `Chapter` (`id`, `sticky`, `name`) VALUES (25,'no','wireless models')";
 			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`, `attr_id`, `chapter_id`) VALUES (798,1,0)";
 			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`, `attr_id`, `chapter_id`) VALUES (798,2,24)";
 			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`, `attr_id`, `chapter_id`) VALUES (798,3,0)";
@@ -161,6 +163,9 @@ CREATE TABLE `FileLink` (
 			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`, `attr_id`, `chapter_id`) VALUES (798,21,0)";
 			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`, `attr_id`, `chapter_id`) VALUES (798,22,0)";
 			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`, `attr_id`, `chapter_id`) VALUES (798,24,0)";
+			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`, `attr_id`, `chapter_id`) VALUES (965,1,0)";
+			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`, `attr_id`, `chapter_id`) VALUES (965,3,0)";
+			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`, `attr_id`, `chapter_id`) VALUES (965,2,25)";
 			$query[] = "UPDATE Dictionary SET dict_value = 'Network switch' WHERE dict_key = 8";
 			$query[] = 'alter table IPBonds rename to IPv4Allocation';
 			$query[] = 'alter table PortForwarding rename to IPv4NAT';
@@ -181,18 +186,18 @@ CREATE TABLE `FileLink` (
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('PREVIEW_TEXT_COLS','80','uint','yes','no','Columns for text file preview')";
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('PREVIEW_IMAGE_MAXPXS','320','uint','yes','no','Max pixels per axis for image file preview')";
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('VENDOR_SIEVE','','string','yes','no','Vendor sieve configuration')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('IPV4LB_LISTSRC','{$typeid_4}','string','yes','no','List source: IPv4 load balancers')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('IPV4OBJ_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8} or {$typeid_12} or {$typeid_445} or {$typeid_447}','string','yes','no','List source: IPv4-enabled objects')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('IPV4NAT_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}','string','yes','no','List source: IPv4 NAT performers')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('ASSETWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}','string','yes','no','List source: object, for which asset tag should be set')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('NAMEWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}','string','yes','no','List source: object, for which common name should be set')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('IPV4LB_LISTSRC','{\$typeid_4}','string','yes','no','List source: IPv4 load balancers')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('IPV4OBJ_LISTSRC','{\$typeid_4} or {\$typeid_7} or {\$typeid_8} or {\$typeid_12} or {\$typeid_445} or {\$typeid_447}','string','yes','no','List source: IPv4-enabled objects')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('IPV4NAT_LISTSRC','{\$typeid_4} or {\$typeid_7} or {\$typeid_8}','string','yes','no','List source: IPv4 NAT performers')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('ASSETWARN_LISTSRC','{\$typeid_4} or {\$typeid_7} or {\$typeid_8}','string','yes','no','List source: object, for which asset tag should be set')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('NAMEWARN_LISTSRC','{\$typeid_4} or {\$typeid_7} or {\$typeid_8}','string','yes','no','List source: object, for which common name should be set')";
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('RACKS_PER_ROW','12','unit','yes','no','Racks per row')";
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_PREDICATE_SIEVE','','string','yes','no','Predicate sieve regex(7)')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_DEFAULT_ANDOR','or','string','no','no','Default list filter boolean operation (or/and)')')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_SUGGEST_ANDOR','yes','string','no','no','Suggest and/or selector in list filter')')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_SUGGEST_TAGS','yes','string','no','no','Suggest tags in list filter')')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_SUGGEST_PREDICATES','yes','string','no','no','Suggest predicates in list filter')')";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_SUGGEST_EXTRA','no','string','no','no','Suggest extra expression in list filter')')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_DEFAULT_ANDOR','or','string','no','no','Default list filter boolean operation (or/and)')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_SUGGEST_ANDOR','yes','string','no','no','Suggest and/or selector in list filter')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_SUGGEST_TAGS','yes','string','no','no','Suggest tags in list filter')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_SUGGEST_PREDICATES','yes','string','no','no','Suggest predicates in list filter')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, description) VALUES ('FILTER_SUGGEST_EXTRA','no','string','no','no','Suggest extra expression in list filter')";
 			$query[] = "delete from Config where varname = 'USER_AUTH_SRC'";
 			$query[] = "delete from Config where varname = 'COOKIE_TTL'";
 			$query[] = "delete from Config where varname = 'rtwidth_0'";
@@ -460,6 +465,11 @@ require_once 'inc/database.php';
 require_once 'inc/revdatabase.php';
 if (file_exists ('local/secret.php'))
 	require_once 'local/secret.php';
+elseif (file_exists ('inc/secret.php')) // 0.16.x -> 0.17.x upgrade
+{
+	require_once 'inc/secret.php';
+	$user_auth_src = getConfigVar ('USER_AUTH_SRC');
+}
 else
 	die ("Database connection parameters are read from local/secret.php file, " .
 		"which cannot be found.\nCopy provided config/secret-sample.php to " .
