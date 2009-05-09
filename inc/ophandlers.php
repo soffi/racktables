@@ -708,8 +708,6 @@ $msgcode['updateObject']['OK'] = 16;
 $msgcode['updateObject']['ERR'] = 121;
 function updateObject ()
 {
-	if (!isset($_REQUEST['num_attrs']))
-		$_REQUEST['num_attrs'] = 0;
 	assertUIntArg ('num_attrs', __FUNCTION__, TRUE);
 	assertUIntArg ('object_id', __FUNCTION__);
 	assertUIntArg ('object_type_id', __FUNCTION__);
@@ -737,7 +735,8 @@ function updateObject ()
 	// Update optional attributes
 	$oldvalues = getAttrValues ($_REQUEST['object_id']);
 	$result = array();
-	for ($i = 0; $i < $_REQUEST['num_attrs']; $i++)
+	$num_attrs = isset ($_REQUEST['num_attrs']) ? $_REQUEST['num_attrs'] : 0;
+	for ($i = 0; $i < $num_attrs; $i++)
 	{
 		assertUIntArg ("${i}_attr_id", __FUNCTION__);
 		$attr_id = $_REQUEST["${i}_attr_id"];
