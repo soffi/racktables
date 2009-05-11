@@ -1238,7 +1238,8 @@ function updateRSInService ()
 {
 	assertUIntArg ('rscount', __FUNCTION__);
 	$pool_id = $_REQUEST['pool_id'];
-	$orig = getRSPoolInfo ($pool_id);
+	$orig = spotEntity ('ipv4rspool', $pool_id);
+	amplifyCell ($orig);
 	$nbad = $ngood = 0;
 	for ($i = 1; $i <= $_REQUEST['rscount']; $i++)
 	{
