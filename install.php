@@ -283,7 +283,7 @@ function init_database_static ()
 	echo '<table border=1>';
 	echo "<tr><th>file</th><th>queries</th><th>errors</th></tr>";
 	$errlist = array();
-	foreach (array ('procedures', 'structure', 'dictbase', 'dictvendors') as $part)
+	foreach (array ('structure', 'dictbase', 'dictvendors', 'procedures') as $part)
 	{
 		$filename = "install/init-${part}.sql";
 		echo "<tr><td>${filename}</td>";
@@ -318,8 +318,9 @@ function init_database_static ()
 		}
 		fclose ($f);
 		$nq = $nerrs = 0;
-		foreach (explode (";\n", $longq) as $query)
+		foreach (preg_split ("/;\s*\n/", $longq) as $query)
 		{
+			$query = trim($query);
 			if (empty ($query))
 				continue;
 			$nq++;
