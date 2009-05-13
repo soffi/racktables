@@ -281,7 +281,7 @@ function listCells ($realm, $parent_id = 0)
 	foreach ($SQLinfo['ordcolumns'] as $oc)
 		$query .= "${SQLinfo['table']}.${oc}, ";
 	$query .= " tag_id";
-	$result = Database::query ($query, __FUNCTION__);
+	$result = Database::query ($query);
 	$ret = array();
 	global $taglist;
 	// Index returned result by the value of key column.
@@ -348,7 +348,7 @@ function spotEntity ($realm, $id)
 	$query .= " FROM ${SQLinfo['table']} LEFT JOIN TagStorage on entity_realm = '${realm}' and entity_id = ${SQLinfo['table']}.${SQLinfo['keycolumn']}";
 	$query .= " WHERE ${SQLinfo['table']}.${SQLinfo['keycolumn']} = ${id}";
 	$query .= " ORDER BY tag_id";
-	$result = Database::query ($query, __FUNCTION__);
+	$result = Database::query ($query);
 	$ret = array();
 	global $taglist;
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
@@ -413,7 +413,7 @@ function amplifyCell (&$record, $dummy = NULL)
 		$query = "select object_id, vs_id, lb.vsconfig, lb.rsconfig from " .
 			"IPv4LB as lb inner join IPv4VS as vs on lb.vs_id = vs.id " .
 			"where rspool_id = ${record['id']} order by object_id, vip, vport";
-		$result = Database::query ($query, __FUNCTION__);
+		$result = Database::query ($query);
 		while ($row = $result->fetch (PDO::FETCH_ASSOC))
 			$record['lblist'][$row['object_id']][$row['vs_id']] = array
 			(
@@ -425,7 +425,7 @@ function amplifyCell (&$record, $dummy = NULL)
 		$record['rslist'] = array();
 		$query = "select id, inservice, inet_ntoa(rsip) as rsip, rsport, rsconfig from " .
 			"IPv4RS where rspool_id = ${record['id']} order by IPv4RS.rsip, rsport";
-		$result = Database::query ($query, __FUNCTION__);
+		$result = Database::query ($query);
 		while ($row = $result->fetch (PDO::FETCH_ASSOC))
 			$record['rslist'][$row['id']] = array
 			(
@@ -446,7 +446,7 @@ function amplifyCell (&$record, $dummy = NULL)
 			"lb.vsconfig as lb_vsconfig, lb.rsconfig as lb_rsconfig from " .
 			"IPv4RSPool as pool left join IPv4LB as lb on pool.id = lb.rspool_id " .
 			"where vs_id = ${record['id']} order by pool.name, object_id";
-		$result = Database::query ($query, __FUNCTION__);
+		$result = Database::query ($query);
 		while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		{
 			if (!isset ($record['rspool'][$row['id']]))
@@ -3536,7 +3536,7 @@ function discardLDAPCache ($maxage = 0)
 function getUserIDByUsername ($username)
 {
 	$query = "select user_id from UserAccount where user_name = '${username}'";
-	if (($result = Database::query ($query, __FUNCTION__)) == NULL) 
+	if (($result = Database::query ($query)) == NULL) 
 	{
 		showError ('SQL query failed', __FUNCTION__);
 		die;
@@ -3549,7 +3549,7 @@ function getUserIDByUsername ($username)
 function getUserInfo ($user_id)
 {
 	$query = "select 'user' as realm, user_id, user_name, user_password_hash, user_realname from UserAccount where user_id = ${user_id}";
-	if (($result = Database::query ($query, __FUNCTION__)) == NULL)
+	if (($result = Database::query ($query)) == NULL)
 	{
 		showError ('SQL query failed', __FUNCTION__);
 		die;

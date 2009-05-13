@@ -1100,6 +1100,8 @@ class Database {
 				error_log($query);
 			try {
 				$q = self::$dbxlink->prepare($query);
+				if (!is_array($bindParams))
+					throw new Exception ("bindParams must be an array");
 				foreach($bindParams as $param => $value)
 					$q->bindValue($param, $value);
 				$t1 = microtime(true);
