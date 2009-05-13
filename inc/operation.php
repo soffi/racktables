@@ -3,7 +3,7 @@ class Operation {
 
 	private static $maxop;
 	private static $headRev;
-	private static $user_id = 0;
+	private static $user_id = '';
 
 	public function init()
 	{
@@ -24,7 +24,7 @@ class Operation {
 
 	public function getOperationsSince($rev)
 	{
-		$q = Database::getDBLink()->prepare("select operation.id as id, operation.rev as rev, unix_timestamp(revision.timestamp) as timestamp, UserAccount.user_name as user_name from operation join revision on operation.rev = revision.id left join UserAccount on operation.user_id = UserAccount.user_id where operation.rev > ?");
+		$q = Database::getDBLink()->prepare("select operation.id as id, operation.rev as rev, unix_timestamp(revision.timestamp) as timestamp, operation.user_name as user_name from operation join revision on operation.rev = revision.id where operation.rev > ?");
 		$q->bindValue(1, $rev);
 		$q->execute();
 		$result = $q->fetchAll();
@@ -59,7 +59,7 @@ class Operation {
 
 	public function getOperation($op)
 	{
-		$result = Database::getDBLink()->query("select id, rev, user_id from operation where id = $op");
+		$result = Database::getDBLink()->query("select id, rev, user_name from operation where id = $op");
 		if ($row = $result->fetch())
 		{
 			$result->closeCursor();
@@ -110,7 +110,7 @@ class Operation {
 		$lastOp = 0;
 		$operations = array();
 		$output = array();
-		$q = Database::getDBLink()->prepare("select id, rev, user_id from operation where rev >= ? and rev< ? or rev = (select min(rev) from operation where rev >= ?) order by rev");
+		$q = Database::getDBLink()->prepare("select id, rev, user_name from operation where rev >= ? and rev< ? or rev = (select min(rev) from operation where rev >= ?) order by rev");
 		$q->bindValue(1, $firstRev);
 		$q->bindValue(2, $lastRev);
 		$q->bindValue(3, $lastRev);
@@ -171,7 +171,7 @@ class Operation {
 		$newRev = Database::getHeadRevision();
 		if ($newRev != self::$headRev)
 		{
-			$q = Database::getDBLink()->prepare("insert into operation set id = ?, rev = ?, user_id = ?");
+			$q = Database::getDBLink()->prepare("insert into operation set id = ?, rev = ?, user_name = ?");
 			$q->bindValue(1, self::$maxop + 1);
 			$q->bindValue(2, $newRev);
 			$q->bindValue(3, self::$user_id);

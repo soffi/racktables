@@ -1,3 +1,9 @@
+<?php
+
+ob_start();
+
+?>
+
 alter database character set utf8;
 set names 'utf8';
 
@@ -14,6 +20,7 @@ CREATE TABLE `Config` (
 CREATE TABLE `PortCompat` (
   `type1` int(10) unsigned NOT NULL,
   `type2` int(10) unsigned NOT NULL,
+  UNIQUE KEY `type1_2` (`type1`,`type2`),
   KEY `type1` (`type1`),
   KEY `type2` (`type2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
@@ -27,7 +34,7 @@ CREATE TABLE `Script` (
 CREATE TABLE `UserAccount` (
   `user_id` int(10) unsigned NOT NULL auto_increment,
   `user_name` char(64) NOT NULL,
-  `user_password_hash` char(128) default NULL,
+  `user_password_hash` char(40) default NULL,
   `user_realname` char(64) default NULL,
   PRIMARY KEY  (`user_id`),
   UNIQUE KEY `user_name` (`user_name`)
@@ -36,20 +43,20 @@ CREATE TABLE `UserAccount` (
 CREATE TABLE `revision` (
   `id` bigint(20) unsigned NOT NULL,
   `timestamp` datetime NOT NULL,
-  `user_id` int(10) unsigned NOT NULL
+  `user_name` char(64) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `milestone` (
   `id` int(10) unsigned NOT NULL,
   `rev` bigint(20) unsigned NOT NULL,
-  `user_id` int(10) unsigned NOT NULL,
+  `user_name` char(64) NOT NULL,
   `comment` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `operation` (
   `id` int(10) unsigned NOT NULL,
   `rev` bigint(20) unsigned NOT NULL,
-  `user_id` int(10) unsigned NOT NULL
+  `user_name` char(64) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `Registry` (
@@ -67,7 +74,7 @@ CREATE TABLE `LDAPCache` (
   `memberof` text, 
   UNIQUE KEY `presented_username` (`presented_username`), 
   KEY `scanidx` (`presented_username`,`successful_hash`) 
-) ENGINE=InnoDB; 
+) ENGINE=InnoDB DEFAULT CHARSET=utf8; 
 
 <?php
 
@@ -114,10 +121,15 @@ foreach($database_meta as $tname => $tvalue)
 	$queryProc .= $queryDropLegacy . $queryCreateLegacy;
 
 }
+$out = ob_get_clean();
+file_put_contents('init-structure.sql', $out);
+
+ob_start();
+
 $queryProc .= "END\n";
-echo "\n\ndelimiter //\n";
-echo "$queryProc//\n";
-echo "\n\ndelimiter ;\n\n";
-echo "CALL init_legacy_tables();";
-	
+echo "$queryProc\n";
+
+$out = ob_get_clean();
+file_put_contents('init-procedures.sql', $out);
+
 ?>

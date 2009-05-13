@@ -2,7 +2,7 @@
 
 class Milestone {
 
-	private static $user_id = 0;
+	private static $user_id = '';
 
 	public function setUser($u)
 	{
@@ -65,7 +65,7 @@ class Milestone {
 		Database::closeCursor($result);
 		if ($rev > $row[1])
 		{
-			$q = Database::getDBLink()->prepare("insert into milestone set id = ? , rev = ? , comment = ? , user_id = ? ");
+			$q = Database::getDBLink()->prepare("insert into milestone set id = ? , rev = ? , comment = ? , user_name = ? ");
 			$q->bindValue(1, $row[0]+1);
 			$q->bindValue(2, $rev);
 			$q->bindValue(3, $comment);
@@ -83,7 +83,7 @@ class Milestone {
 
 	public function getMilestonesSince($rev)
 	{
-		$q = Database::getDBLink()->prepare("select milestone.id as id, milestone.rev as rev, milestone.comment as comment, unix_timestamp(revision.timestamp) as timestamp, UserAccount.user_name as user_name from milestone join revision on milestone.rev = revision.id left join UserAccount on milestone.user_id = UserAccount.user_id where milestone.rev > ?");
+		$q = Database::getDBLink()->prepare("select milestone.id as id, milestone.rev as rev, milestone.comment as comment, unix_timestamp(revision.timestamp) as timestamp, milestone.user_name as user_name from milestone join revision on milestone.rev = revision.id left where milestone.rev > ?");
 		$q->bindValue(1, $rev);
 		$q->execute();
 		$result = $q->fetchAll();

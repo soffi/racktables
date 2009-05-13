@@ -1,3 +1,4 @@
+
 alter database character set utf8;
 set names 'utf8';
 
@@ -15,6 +16,7 @@ CREATE TABLE `PortCompat` (
   `type1` int(10) unsigned NOT NULL,
   `type2` int(10) unsigned NOT NULL,
   UNIQUE KEY `type1_2` (`type1`,`type2`),
+  KEY `type1` (`type1`),
   KEY `type2` (`type2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
@@ -36,20 +38,20 @@ CREATE TABLE `UserAccount` (
 CREATE TABLE `revision` (
   `id` bigint(20) unsigned NOT NULL,
   `timestamp` datetime NOT NULL,
-  `user_id` int(10) unsigned NOT NULL
+  `user_name` char(64) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `milestone` (
   `id` int(10) unsigned NOT NULL,
   `rev` bigint(20) unsigned NOT NULL,
-  `user_id` int(10) unsigned NOT NULL,
+  `user_name` char(64) NOT NULL,
   `comment` text NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `operation` (
   `id` int(10) unsigned NOT NULL,
   `rev` bigint(20) unsigned NOT NULL,
-  `user_id` int(10) unsigned NOT NULL
+  `user_name` char(64) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE `Registry` (
@@ -58,7 +60,7 @@ CREATE TABLE `Registry` (
   PRIMARY KEY  (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE `LDAPCache` (
+CREATE TABLE `LDAPCache` ( 
   `presented_username` char(64) NOT NULL, 
   `successful_hash` char(40) NOT NULL, 
   `first_success` timestamp NOT NULL default CURRENT_TIMESTAMP, 
@@ -67,7 +69,7 @@ CREATE TABLE `LDAPCache` (
   `memberof` text, 
   UNIQUE KEY `presented_username` (`presented_username`), 
   KEY `scanidx` (`presented_username`,`successful_hash`) 
-) ENGINE=InnoDB;  
+) ENGINE=InnoDB DEFAULT CHARSET=utf8; 
 
 CREATE TABLE RackSpace__s (
 	id int unsigned not null,
@@ -437,3 +439,4 @@ CREATE TABLE File__r (
 	comment text ,
 	key(id), key(rev), key(rev_terminal), unique id_rev(id, rev)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+

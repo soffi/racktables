@@ -151,11 +151,11 @@ $auto_tags = array();
 // Initial chain for the current user.
 $user_given_tags = array();
 
-Database::setUser($accounts[$remote_username]['user_id']);
 
 if (!isset ($script_mode) or $script_mode !== TRUE)
 {
 	authenticate(); // this call always generates autotags and somethimes --- given tags
+	Database::setUser($remote_username);
 	// Authentication passed.
 	// Note that we don't perform autorization here, so each 1st level page
 	// has to do it in its way, e.g. by calling authorize() after fixContext().

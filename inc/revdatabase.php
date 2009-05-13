@@ -348,7 +348,7 @@ class Database {
 	private static $transactionStarted = false;
 
 	private static $currentRevision = 'head';
-	private static $userId = 0;
+	private static $userId = '';
 
 	private static $lastInsertId = NULL;
 
@@ -574,7 +574,7 @@ class Database {
 					$q->execute();
 					self::closeCursor($q);
 
-					$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_id = ?");
+					$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_name = ?");
 					$q->bindValue(1, $next_revision);
 					$q->bindValue(2, self::$userId);
 					$q->execute();
@@ -720,7 +720,7 @@ class Database {
 			$q->execute();
 			self::closeCursor($q);
 
-			$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_id = ?");
+			$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_name = ?");
 			$q->bindValue(1, $next_revision);
 			$q->bindValue(2, self::$userId);
 			$q->execute();
@@ -928,7 +928,7 @@ class Database {
 						$q->execute();
 						self::closeCursor($q);
 
-						$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_id = ?");
+						$q = self::$dbxlink->prepare("insert into revision set id = ?, timestamp = now(), user_name = ?");
 						$q->bindValue(1, $next_revision);
 						$q->bindValue(2, self::$userId);
 						$q->execute();
@@ -977,8 +977,7 @@ class Database {
 				'rev', 
 				'rev_terminal',
 				'unix_timestamp(revision.timestamp) as timestamp',
-				'UserAccount.user_id as user_id', 
-				'UserAccount.user_name as user_name'
+				'user_name'
 			);
 			foreach(self::$database_meta[$table]['fields'] as $fname => $fvalue)
 				if ($fvalue['revisioned'])
@@ -1007,7 +1006,6 @@ class Database {
 				implode(', ', $fields).
 				" from ${table}__r ".
 				"join revision on ${table}__r.rev = revision.id ".
-				"join UserAccount on revision.user_id = UserAccount.user_id ".
 				"join ${table}__s on ${table}__r.id = ${table}__s.id ".
 				(count($where)>0 ? 'where ' : '').
 				(implode(' and ', $where)).
@@ -1200,9 +1198,8 @@ class Database {
 	{
 		$q = self::$dbxlink->prepare("select revision.id as id, ".
 			"unix_timestamp(revision.timestamp) as timestamp, ".
-			"revision.user_id as user_id, ".
-			"UserAccount.user_name as user_name from revision left join UserAccount ".
-			"on revision.user_id = UserAccount.user_id ".
+			"revision.user_name as user_name ".
+			"from revision ".
 			"where revision.id = ?");
 		$q->bindValue(1, $rev);
 		$q->execute();
