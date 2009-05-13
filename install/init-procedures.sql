@@ -14,6 +14,7 @@ CREATE TABLE RackSpace as
 		JOIN (SELECT id, max(rev) AS rev FROM RackSpace__r GROUP BY id) AS RackSpace__vr ON RackSpace__r.id = RackSpace__vr.id and RackSpace__r.rev = RackSpace__vr.rev 
 		JOIN RackSpace__s ON RackSpace__s.id = RackSpace__r.id 
 	WHERE RackSpace__r.rev_terminal = 0;
+ALTER TABLE RackSpace ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS Rack;
 CREATE TABLE Rack as 
 	SELECT 
@@ -27,6 +28,7 @@ CREATE TABLE Rack as
 		JOIN (SELECT id, max(rev) AS rev FROM Rack__r GROUP BY id) AS Rack__vr ON Rack__r.id = Rack__vr.id and Rack__r.rev = Rack__vr.rev 
 		JOIN Rack__s ON Rack__s.id = Rack__r.id 
 	WHERE Rack__r.rev_terminal = 0;
+ALTER TABLE Rack ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS RackRow;
 CREATE TABLE RackRow as 
 	SELECT 
@@ -37,6 +39,7 @@ CREATE TABLE RackRow as
 		JOIN (SELECT id, max(rev) AS rev FROM RackRow__r GROUP BY id) AS RackRow__vr ON RackRow__r.id = RackRow__vr.id and RackRow__r.rev = RackRow__vr.rev 
 		JOIN RackRow__s ON RackRow__s.id = RackRow__r.id 
 	WHERE RackRow__r.rev_terminal = 0;
+ALTER TABLE RackRow ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS RackObject;
 CREATE TABLE RackObject as 
 	SELECT 
@@ -53,6 +56,7 @@ CREATE TABLE RackObject as
 		JOIN (SELECT id, max(rev) AS rev FROM RackObject__r GROUP BY id) AS RackObject__vr ON RackObject__r.id = RackObject__vr.id and RackObject__r.rev = RackObject__vr.rev 
 		JOIN RackObject__s ON RackObject__s.id = RackObject__r.id 
 	WHERE RackObject__r.rev_terminal = 0;
+ALTER TABLE RackObject ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS Port;
 CREATE TABLE Port as 
 	SELECT 
@@ -68,6 +72,7 @@ CREATE TABLE Port as
 		JOIN (SELECT id, max(rev) AS rev FROM Port__r GROUP BY id) AS Port__vr ON Port__r.id = Port__vr.id and Port__r.rev = Port__vr.rev 
 		JOIN Port__s ON Port__s.id = Port__r.id 
 	WHERE Port__r.rev_terminal = 0;
+ALTER TABLE Port ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS Link;
 CREATE TABLE Link as 
 	SELECT 
@@ -82,6 +87,7 @@ CREATE TABLE Link as
 		JOIN (SELECT id, max(rev) AS rev FROM Link__r GROUP BY id) AS Link__vr ON Link__r.id = Link__vr.id and Link__r.rev = Link__vr.rev 
 		JOIN Link__s ON Link__s.id = Link__r.id 
 	WHERE Link__r.rev_terminal = 0;
+ALTER TABLE Link ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS IPv4Address;
 CREATE TABLE IPv4Address as 
 	SELECT 
@@ -94,6 +100,7 @@ CREATE TABLE IPv4Address as
 		JOIN (SELECT id, max(rev) AS rev FROM IPv4Address__r GROUP BY id) AS IPv4Address__vr ON IPv4Address__r.id = IPv4Address__vr.id and IPv4Address__r.rev = IPv4Address__vr.rev 
 		JOIN IPv4Address__s ON IPv4Address__s.id = IPv4Address__r.id 
 	WHERE IPv4Address__r.rev_terminal = 0;
+ALTER TABLE IPv4Address ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS IPv4Allocation;
 CREATE TABLE IPv4Allocation as 
 	SELECT 
@@ -107,6 +114,7 @@ CREATE TABLE IPv4Allocation as
 		JOIN (SELECT id, max(rev) AS rev FROM IPv4Allocation__r GROUP BY id) AS IPv4Allocation__vr ON IPv4Allocation__r.id = IPv4Allocation__vr.id and IPv4Allocation__r.rev = IPv4Allocation__vr.rev 
 		JOIN IPv4Allocation__s ON IPv4Allocation__s.id = IPv4Allocation__r.id 
 	WHERE IPv4Allocation__r.rev_terminal = 0;
+ALTER TABLE IPv4Allocation ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS IPv4NAT;
 CREATE TABLE IPv4NAT as 
 	SELECT 
@@ -123,6 +131,7 @@ CREATE TABLE IPv4NAT as
 		JOIN (SELECT id, max(rev) AS rev FROM IPv4NAT__r GROUP BY id) AS IPv4NAT__vr ON IPv4NAT__r.id = IPv4NAT__vr.id and IPv4NAT__r.rev = IPv4NAT__vr.rev 
 		JOIN IPv4NAT__s ON IPv4NAT__s.id = IPv4NAT__r.id 
 	WHERE IPv4NAT__r.rev_terminal = 0;
+ALTER TABLE IPv4NAT ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS IPv4Network;
 CREATE TABLE IPv4Network as 
 	SELECT 
@@ -135,6 +144,7 @@ CREATE TABLE IPv4Network as
 		JOIN (SELECT id, max(rev) AS rev FROM IPv4Network__r GROUP BY id) AS IPv4Network__vr ON IPv4Network__r.id = IPv4Network__vr.id and IPv4Network__r.rev = IPv4Network__vr.rev 
 		JOIN IPv4Network__s ON IPv4Network__s.id = IPv4Network__r.id 
 	WHERE IPv4Network__r.rev_terminal = 0;
+ALTER TABLE IPv4Network ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS Attribute;
 CREATE TABLE Attribute as 
 	SELECT 
@@ -146,6 +156,7 @@ CREATE TABLE Attribute as
 		JOIN (SELECT id, max(rev) AS rev FROM Attribute__r GROUP BY id) AS Attribute__vr ON Attribute__r.id = Attribute__vr.id and Attribute__r.rev = Attribute__vr.rev 
 		JOIN Attribute__s ON Attribute__s.id = Attribute__r.id 
 	WHERE Attribute__r.rev_terminal = 0;
+ALTER TABLE Attribute ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS AttributeMap;
 CREATE TABLE AttributeMap as 
 	SELECT 
@@ -158,6 +169,7 @@ CREATE TABLE AttributeMap as
 		JOIN (SELECT id, max(rev) AS rev FROM AttributeMap__r GROUP BY id) AS AttributeMap__vr ON AttributeMap__r.id = AttributeMap__vr.id and AttributeMap__r.rev = AttributeMap__vr.rev 
 		JOIN AttributeMap__s ON AttributeMap__s.id = AttributeMap__r.id 
 	WHERE AttributeMap__r.rev_terminal = 0;
+ALTER TABLE AttributeMap ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS AttributeValue;
 CREATE TABLE AttributeValue as 
 	SELECT 
@@ -172,6 +184,7 @@ CREATE TABLE AttributeValue as
 		JOIN (SELECT id, max(rev) AS rev FROM AttributeValue__r GROUP BY id) AS AttributeValue__vr ON AttributeValue__r.id = AttributeValue__vr.id and AttributeValue__r.rev = AttributeValue__vr.rev 
 		JOIN AttributeValue__s ON AttributeValue__s.id = AttributeValue__r.id 
 	WHERE AttributeValue__r.rev_terminal = 0;
+ALTER TABLE AttributeValue ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS Dictionary;
 CREATE TABLE Dictionary as 
 	SELECT 
@@ -183,6 +196,7 @@ CREATE TABLE Dictionary as
 		JOIN (SELECT id, max(rev) AS rev FROM Dictionary__r GROUP BY id) AS Dictionary__vr ON Dictionary__r.id = Dictionary__vr.id and Dictionary__r.rev = Dictionary__vr.rev 
 		JOIN Dictionary__s ON Dictionary__s.id = Dictionary__r.id 
 	WHERE Dictionary__r.rev_terminal = 0;
+ALTER TABLE Dictionary ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS Chapter;
 CREATE TABLE Chapter as 
 	SELECT 
@@ -194,6 +208,7 @@ CREATE TABLE Chapter as
 		JOIN (SELECT id, max(rev) AS rev FROM Chapter__r GROUP BY id) AS Chapter__vr ON Chapter__r.id = Chapter__vr.id and Chapter__r.rev = Chapter__vr.rev 
 		JOIN Chapter__s ON Chapter__s.id = Chapter__r.id 
 	WHERE Chapter__r.rev_terminal = 0;
+ALTER TABLE Chapter ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS IPv4LB;
 CREATE TABLE IPv4LB as 
 	SELECT 
@@ -208,6 +223,7 @@ CREATE TABLE IPv4LB as
 		JOIN (SELECT id, max(rev) AS rev FROM IPv4LB__r GROUP BY id) AS IPv4LB__vr ON IPv4LB__r.id = IPv4LB__vr.id and IPv4LB__r.rev = IPv4LB__vr.rev 
 		JOIN IPv4LB__s ON IPv4LB__s.id = IPv4LB__r.id 
 	WHERE IPv4LB__r.rev_terminal = 0;
+ALTER TABLE IPv4LB ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS IPv4RS;
 CREATE TABLE IPv4RS as 
 	SELECT 
@@ -222,6 +238,7 @@ CREATE TABLE IPv4RS as
 		JOIN (SELECT id, max(rev) AS rev FROM IPv4RS__r GROUP BY id) AS IPv4RS__vr ON IPv4RS__r.id = IPv4RS__vr.id and IPv4RS__r.rev = IPv4RS__vr.rev 
 		JOIN IPv4RS__s ON IPv4RS__s.id = IPv4RS__r.id 
 	WHERE IPv4RS__r.rev_terminal = 0;
+ALTER TABLE IPv4RS ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS IPv4RSPool;
 CREATE TABLE IPv4RSPool as 
 	SELECT 
@@ -234,6 +251,7 @@ CREATE TABLE IPv4RSPool as
 		JOIN (SELECT id, max(rev) AS rev FROM IPv4RSPool__r GROUP BY id) AS IPv4RSPool__vr ON IPv4RSPool__r.id = IPv4RSPool__vr.id and IPv4RSPool__r.rev = IPv4RSPool__vr.rev 
 		JOIN IPv4RSPool__s ON IPv4RSPool__s.id = IPv4RSPool__r.id 
 	WHERE IPv4RSPool__r.rev_terminal = 0;
+ALTER TABLE IPv4RSPool ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS IPv4VS;
 CREATE TABLE IPv4VS as 
 	SELECT 
@@ -249,6 +267,7 @@ CREATE TABLE IPv4VS as
 		JOIN (SELECT id, max(rev) AS rev FROM IPv4VS__r GROUP BY id) AS IPv4VS__vr ON IPv4VS__r.id = IPv4VS__vr.id and IPv4VS__r.rev = IPv4VS__vr.rev 
 		JOIN IPv4VS__s ON IPv4VS__s.id = IPv4VS__r.id 
 	WHERE IPv4VS__r.rev_terminal = 0;
+ALTER TABLE IPv4VS ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS TagStorage;
 CREATE TABLE TagStorage as 
 	SELECT 
@@ -261,6 +280,7 @@ CREATE TABLE TagStorage as
 		JOIN (SELECT id, max(rev) AS rev FROM TagStorage__r GROUP BY id) AS TagStorage__vr ON TagStorage__r.id = TagStorage__vr.id and TagStorage__r.rev = TagStorage__vr.rev 
 		JOIN TagStorage__s ON TagStorage__s.id = TagStorage__r.id 
 	WHERE TagStorage__r.rev_terminal = 0;
+ALTER TABLE TagStorage ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS TagTree;
 CREATE TABLE TagTree as 
 	SELECT 
@@ -273,6 +293,7 @@ CREATE TABLE TagTree as
 		JOIN (SELECT id, max(rev) AS rev FROM TagTree__r GROUP BY id) AS TagTree__vr ON TagTree__r.id = TagTree__vr.id and TagTree__r.rev = TagTree__vr.rev 
 		JOIN TagTree__s ON TagTree__s.id = TagTree__r.id 
 	WHERE TagTree__r.rev_terminal = 0;
+ALTER TABLE TagTree ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS FileLink;
 CREATE TABLE FileLink as 
 	SELECT 
@@ -285,6 +306,7 @@ CREATE TABLE FileLink as
 		JOIN (SELECT id, max(rev) AS rev FROM FileLink__r GROUP BY id) AS FileLink__vr ON FileLink__r.id = FileLink__vr.id and FileLink__r.rev = FileLink__vr.rev 
 		JOIN FileLink__s ON FileLink__s.id = FileLink__r.id 
 	WHERE FileLink__r.rev_terminal = 0;
+ALTER TABLE FileLink ADD PRIMARY KEY(id);
 DROP TABLE IF EXISTS File;
 CREATE TABLE File as 
 	SELECT 
@@ -300,4 +322,6 @@ CREATE TABLE File as
 		JOIN (SELECT id, max(rev) AS rev FROM File__r GROUP BY id) AS File__vr ON File__r.id = File__vr.id and File__r.rev = File__vr.rev 
 		JOIN File__s ON File__s.id = File__r.id 
 	WHERE File__r.rev_terminal = 0;
+ALTER TABLE File ADD PRIMARY KEY(id);
 END
+
