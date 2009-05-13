@@ -6335,7 +6335,11 @@ function showPathAndSearch ($pageno)
 				'params' => array()
 			);
 		else
-			$title = dynamic_title_decoder ($no);
+			try {
+				$title = dynamic_title_decoder ($no);
+			} catch (OutOfRevisionRangeException $e) {
+				$title = array('name'=>'', 'params'=>NULL);
+			}
 		echo ": <a href='${root}?page=${no}&tab=default";
 		foreach ($title['params'] as $param_name => $param_value)
 			echo "&${param_name}=${param_value}";
@@ -6355,8 +6359,12 @@ function getTitle ($pageno)
 	global $page;
 	if (isset ($page[$pageno]['title']))
 		return $page[$pageno]['title'];
-	$tmp = dynamic_title_decoder ($pageno);
-	return $tmp['name'];
+	try {
+		$tmp = dynamic_title_decoder ($pageno);
+		return $tmp['name'];
+	} catch (OutOfRevisionRangeException $e) {
+		return '';
+	}
 }
 
 function showTabs ($pageno, $tabno)

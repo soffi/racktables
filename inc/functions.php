@@ -999,7 +999,7 @@ function generateEntityAutoTags ($entity_realm = '', $bypass_value = '')
 				if (!count (getResidentRacksData ($bypass_value, FALSE)))
 					$ret[] = array ('tag' => '$unmounted');
 			} catch (OutOfRevisionRangeException $e) {
-				$ret[] = array ('tag' => '$id_' . $object_id);
+				$ret[] = array ('tag' => '$id_' . $bypass_value);
 				$ret[] = array ('tag' => '$any_object');
 			}
 			break;

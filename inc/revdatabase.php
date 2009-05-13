@@ -729,7 +729,7 @@ class Database {
 			self::autoCommit();
 			self::$lastInsertId = $next_id;
 
-			//here we update either legacy $table
+			//here we update legacy $table
 
 			$q = self::$dbxlink->prepare("insert into ${table} set id = ?".(count($staticParams)>0?',':'')." ".implode(', ', $staticParams).(count($revisionedParams)>0?',':'')." ".implode(', ', $revisionedParams));
 			$q->bindValue(1, $next_id);

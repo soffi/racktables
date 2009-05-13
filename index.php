@@ -133,7 +133,13 @@ else
 
 	<tr>
 <?php
-	showTabs ($pageno, $tabno);
+	try {
+		ob_start();
+		showTabs ($pageno, $tabno);
+		ob_end_flush();
+	} catch (OutOfRevisionRangeException $e) {
+		ob_end_clean();
+	}
 ?>
 	</tr>
 
