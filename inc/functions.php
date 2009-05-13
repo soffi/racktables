@@ -1913,6 +1913,7 @@ function makeHrefForAjax ($params = array())
 		$params['page'] = $pageno;
 	if (!isset($params['tab']))
 		$params['tab'] = $tabno;
+	$ret = '';
 	foreach($params as $key=>$value)
 		$ret .= '&'.urlencode($key).'='.urlencode($value);
 	return $ret;
