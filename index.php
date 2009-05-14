@@ -31,13 +31,15 @@ foreach (array ('F', 'A', 'U', 'T', 'Th', 'Tw', 'Thw') as $statecode)
 }
 ?>
 	</style>
-	<script language='javascript' type='text/javascript' src='js/racktables.js'></script>
 	<script language='javascript' type='text/javascript' src='js/jquery-1.3.1.min.js'></script>
 	<script language='javascript' type='text/javascript' src='js/jquery/jquery.smartmodal_minimized.js'></script>
+	<script language='javascript' type='text/javascript' src='js/jquery/jquery.cookie.js'></script>
 	<script language='javascript' type='text/javascript' src='js/live_validation.js'></script>
 	<script language='javascript' type='text/javascript' src='js/codepress/codepress.js'></script>
+	<script language='javascript' type='text/javascript' src='js/racktables.js'></script>
 	</head>
 <body>
+<div id="HistoryBarHandle"></div>
  <table border=0 cellpadding=0 cellspacing=0 width='100%' height='100%' class=maintable>
  <tr class=mainheader>
   <td colspan=2>
@@ -60,7 +62,7 @@ foreach (array ('F', 'A', 'U', 'T', 'Th', 'Tw', 'Thw') as $statecode)
   </td>
  </tr>
 
-<tr>
+<tr id="HistoryBarRow">
 <td id="historyBar">
 <?php
 
@@ -84,7 +86,7 @@ if ($prev_op['rev'] >= 0)
 else
 	printImageHREF('previousop-disabled', 'Previous operation');
 if ($numeric_revision == $head_revision)
-        echo '<input type="text" id="revisionInput" value="'.$this_op.'" disabled="disabled" class="headed"> ';
+        echo '<input type="text" id="revisionInput" value="'.$this_op.'" class="headed"> ';
 else
         echo '<input type="text" id="revisionInput" value="'.$this_op.'" disabled="disabled"> ';
 echo '<input type="text" id="mileInput" value="'.$this_milestone.'" disabled="disabled">';
@@ -120,6 +122,7 @@ else
 	else
 	{
 		echo "<button onclick=\"document.location.href='".makeHref(array_merge($_GET, array('r'=>$head_op_rev)))."'\">Jump to HEAD</button>";
+		echo '<script type="text/javascript">alwaysShowHistoryBar = true;</script>';
 	}
         echo '</span>';
 

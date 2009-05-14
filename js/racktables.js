@@ -35,3 +35,41 @@ function toggleColumnOfAtoms (rackId, columnId, numRows) {
 		}
 	}
 }
+
+var alwaysShowHistoryBar = false;
+
+function onClickHistoryBarHandle()
+{
+	if ($.cookie("showHistoryBar") == "show")
+	{
+		$.cookie("showHistoryBar", "hide", {path: '/', expires: 365});
+	}
+	else
+	{
+		$.cookie("showHistoryBar", "show", {path: '/', expires: 365});
+	}
+	renderHistoryBar();
+}
+
+function renderHistoryBar()
+{
+	if (alwaysShowHistoryBar == true) return;
+	if ($.cookie("showHistoryBar") == "show")
+	{
+		$('#HistoryBarHandle')[0].className="show";
+		$('#HistoryBarHandle')[0].innerHTML="Show history bar";
+		$('#HistoryBarRow')[0].className="hide";
+	}
+	else
+	{
+		$('#HistoryBarHandle')[0].className="hide";
+		$('#HistoryBarHandle')[0].innerHTML="Hide history bar";
+		$('#HistoryBarRow')[0].className="show";
+	}
+	$.cookie("showHistoryBar", $.cookie("showHistoryBar"), {path: '/', expires: 365});
+}
+$(document).ready(function(){
+	renderHistoryBar();
+	$('#HistoryBarHandle').click(onClickHistoryBarHandle);
+});
+
