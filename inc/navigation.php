@@ -10,7 +10,6 @@ $tab = array();
 $trigger = array();
 $ophandler = array();
 $tabhandler = array();
-$tabextraclass = array();
 $delayauth = array();
 $tabrev = array(); //tabs to show when not in head revision
 
@@ -116,8 +115,6 @@ $tabhandler['object']['tags'] = 'renderEntityTags';
 $tabhandler['object']['files'] = 'renderFilesForEntity';
 $tabhandler['object']['editrspvs'] = 'renderObjectSLB';
 $tabhandler['object']['history'] = 'renderHistoryForAnything';
-$tabextraclass['object']['snmpportfinder'] = 'attn';
-$tabextraclass['object']['autoports'] = 'attn';
 $trigger['object']['ipv4'] = 'trigger_ipv4';
 $trigger['object']['nat4'] = 'trigger_natv4';
 $trigger['object']['livevlans'] = 'trigger_livevlans';

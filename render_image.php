@@ -71,36 +71,38 @@ function colorFromHex ($image, $hex)
 function renderRackThumb ($rack_id = 0)
 {
 	global $revision;
-	if ($revision == 'head')
+	if ($revision != 'head')
 	{
-		// Don't call DB extra times, hence we are most probably not the
-		// only script wishing to acces the same data now.
-		header("Content-type: image/png");
-		$thumbcache = loadThumbCache ($rack_id);
-		if ($thumbcache !== NULL)
-			echo $thumbcache;
-		else
-		{
-			ob_start();
-			generateMiniRack ($rack_id);
-			$capture = ob_get_contents();
-			ob_end_flush();
-			saveThumbCache ($rack_id, $capture);
-		}
-	}
-	else
 		generateMiniRack ($rack_id);
-
-}
-
-// Output a binary string containing the PNG minirack.
-function generateMiniRack ($rack_id = 0)
-{
-	if (($rackData = getRackData ($rack_id, TRUE)) == NULL)
-	{
-		renderError();
 		return;
 	}
+	// Don't call DB extra times, hence we are most probably not the
+	// only script wishing to acces the same data now.
+	if (NULL !== ($thumbcache = loadThumbCache ($rack_id)))
+	{
+		header("Content-type: image/png");
+		echo $thumbcache;
+		return;
+	}
+	ob_start();
+	if (FALSE !== generateMiniRack ($rack_id))
+	{
+		$capture = ob_get_clean();
+		header("Content-type: image/png");
+		echo $capture;
+		saveThumbCache ($rack_id, $capture);
+		return;
+	}
+	// error text in the buffer
+	ob_end_flush();
+}
+
+// Output a binary string containing the PNG minirack. Indicate error with return code.
+function generateMiniRack ($rack_id)
+{
+	if (NULL === ($rackData = spotEntity ('rack', $rack_id)))
+		return FALSE;
+	amplifyCell ($rackData);
 	markupObjectProblems ($rackData);
 	global $rtwidth;
 	$rtdepth = 9;
@@ -140,6 +142,7 @@ function generateMiniRack ($rack_id = 0)
 	}
 	imagepng ($img);
 	imagedestroy ($img);
+	return TRUE;
 }
 
 function renderProgressBarImage ($done)

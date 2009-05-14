@@ -468,63 +468,32 @@ function amplifyCell (&$record, $dummy = NULL)
 		Database::closeCursor();
 		unset ($result);
 		break;
+	case 'rack':
+		$record['mountedObjects'] = array();
+		// start with default rackspace
+		for ($i = $record['height']; $i > 0; $i--)
+			for ($locidx = 0; $locidx < 3; $locidx++)
+				$record[$i][$locidx]['state'] = 'F';
+		// load difference
+		$query =
+			"select unit_no, atom, state, object_id " .
+			"from RackSpace where rack_id = ${record['id']} and " .
+			"unit_no between 1 and " . $record['height'] . " order by unit_no";
+		$result = Database::query ($query);
+		global $loclist;
+		$mounted_objects = array();
+		while ($row = $result->fetch (PDO::FETCH_ASSOC))
+		{
+			$record[$row['unit_no']][$loclist[$row['atom']]]['state'] = $row['state'];
+			$record[$row['unit_no']][$loclist[$row['atom']]]['object_id'] = $row['object_id'];
+			if ($row['state'] == 'T' and $row['object_id'] != NULL)
+				$mounted_objects[$row['object_id']] = TRUE;
+		}
+		$record['mountedObjects'] = array_keys ($mounted_objects);
+		unset ($result);
+		break;
 	default:
 	}
-}
-
-// This is a popular helper for getting information about
-// a particular rack and its rackspace at once.
-function getRackData ($rack_id = 0, $silent = FALSE)
-{
-	if ($rack_id == 0)
-		throw new Exception ('Invalid rack_id $rack_id');
-	Database::inLifetime('Rack', $rack_id);
-	$query =
-		"select Rack.id, Rack.name, row_id, height, Rack.comment, RackRow.name as row_name from " .
-		"Rack left join RackRow on Rack.row_id = RackRow.id  " .
-		"where  Rack.id='${rack_id}'";
-	$result = Database::query ($query);
-	$row = $result->fetch (PDO::FETCH_ASSOC);
-	// load metadata
-	$clist = array
-	(
-		'id',
-		'name',
-		'height',
-		'comment',
-		'row_id',
-		'row_name'
-	);
-	foreach ($clist as $cname)
-		$rack[$cname] = $row[$cname];
-	Database::closeCursor($result);
-
-	// start with default rackspace
-	for ($i = $rack['height']; $i > 0; $i--)
-		for ($locidx = 0; $locidx < 3; $locidx++)
-			$rack[$i][$locidx]['state'] = 'F';
-
-	// load difference
-	$query =
-		"select unit_no, atom, state, object_id " .
-		"from RackSpace where rack_id = ${rack_id} and " .
-		"unit_no between 1 and " . $rack['height'] . " order by unit_no";
-	$result = Database::query ($query);
-	global $loclist;
-	$mounted_objects = array();
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		$rack[$row['unit_no']][$loclist[$row['atom']]]['state'] = $row['state'];
-		$rack[$row['unit_no']][$loclist[$row['atom']]]['object_id'] = $row['object_id'];
-		if ($row['state'] == 'T' and $row['object_id']!=NULL)
-			$mounted_objects[$row['object_id']] = TRUE;
-		//We need to mark atoms as free, if their state is T, but object id is null
-		if ($rack[$row['unit_no']][$loclist[$row['atom']]]['state'] == 'T' and $rack[$row['unit_no']][$loclist[$row['atom']]]['object_id'] === NULL)
-			$rack[$row['unit_no']][$loclist[$row['atom']]]['state'] = 'F';
-	}
-	$rack['mountedObjects'] = array_keys($mounted_objects);
-	Database::closeCursor($result);
-	return $rack;
 }
 
 // This is a popular helper.
@@ -602,13 +571,8 @@ function getPortTypes ()
 	return readChapter ('PortType');
 }
 
-function getObjectPortsAndLinks ($object_id = 0)
+function getObjectPortsAndLinks ($object_id)
 {
-	if ($object_id == 0)
-	{
-		showError ('Invalid object_id', __FUNCTION__);
-		return;
-	}
 	// prepare decoder
 	$ptd = readChapter ('PortType');
 	$query = "select id, name, label, l2address, type as type_id, reservation_comment from Port where object_id = ${object_id}";
@@ -627,6 +591,7 @@ function getObjectPortsAndLinks ($object_id = 0)
 	}
 	unset ($result);
 	// now find and decode remote ends for all locally terminated connections
+	// FIXME: can't this data be extracted in one pass with sub-queries?
 	foreach (array_keys ($ret) as $tmpkey)
 	{
 		$portid = $ret[$tmpkey]['id'];
@@ -799,7 +764,7 @@ function commitUpdateRack ($rack_id, $new_name, $new_height, $new_row_id, $new_c
 	return TRUE;
 }
 
-// This function accepts rack data returned by getRackData(), validates and applies changes
+// This function accepts rack data returned by amplifyCell(), validates and applies changes
 // supplied in $_REQUEST and returns resulting array. Only those changes are examined, which
 // correspond to current rack ID.
 // 1st arg is rackdata, 2nd arg is unchecked state, 3rd arg is checked state.
@@ -1014,7 +979,7 @@ function getResidentRacksData ($object_id = 0, $fetch_rackdata = TRUE)
 	$query = "select distinct rack_id from RackSpace where object_id = ${object_id} order by rack_id";
 	$result = Database::query ($query);
 	$rows = $result->fetchAll (PDO::FETCH_NUM);
-	Database::closeCursor($result);
+	unset ($result);
 	$ret = array();
 	foreach ($rows as $row)
 	{
@@ -1023,10 +988,14 @@ function getResidentRacksData ($object_id = 0, $fetch_rackdata = TRUE)
 			$ret[$row[0]] = $row[0];
 			continue;
 		}
-		$rackData = getRackData ($row[0]);
+		if (NULL == ($rackData = spotEntity ('rack', $row[0])))
+		{
+			showError ('Rack not found', __FUNCTION__);
+			return NULL;
+		}
+		amplifyCell ($rackData);
 		$ret[$row[0]] = $rackData;
 	}
-	Database::closeCursor($result);
 	return $ret;
 }
 
@@ -2982,27 +2951,6 @@ function saveScript ($name, $text)
 	return '';
 }
 
-function saveUserPassword ($user_id, $newp)
-{
-	$newhash = sha1 ($newp);
-	$q = Database::getDBLink()->prepare("update UserAccount set user_password_hash = ? where user_id = ?");
-	$q->bindValue(1, $newhash);
-	$q->bindValue(2, $user_id);
-	$q->execute();
-}
-
-function objectIsPortless ($id = 0)
-{
-	if ($id <= 0)
-		throw new Exception ('Invalid argument');
-	$result = Database::query ("select count(id) from Port where object_id = ${id}"); 
-	$row = $result->fetch (PDO::FETCH_NUM);
-	$count = $row[0];
-	Database::closeCursor($result);
-	unset ($result);
-	return $count === '0';
-}
-
 function newPortForwarding ($object_id, $localip, $localport, $remoteip, $remoteport, $proto, $description)
 {
 	if (NULL === getIPv4AddressNetworkId ($localip))
@@ -3293,7 +3241,7 @@ function getFileLinks ($file_id = 0)
 			case 'rack':
 				$page = 'rack';
 				$id_name = 'rack_id';
-				$parent = getRackData($row['entity_id']);
+				$parent = spotEntity ($row['entity_type'], $row['entity_id']);
 				$name = $parent['name'];
 				break;
 			case 'user':
@@ -3509,20 +3457,22 @@ function touchLDAPCacheRecord ($form_username)
 function replaceLDAPCacheRecord ($form_username, $password_hash, $dname, $memberof)
 {
 	deleteLDAPCacheRecord ($form_username);
-	useInsertBlade ('LDAPCache',
+	Database::insert
+	(
 		array
 		(
-			'presented_username' => "'${form_username}'",
-			'successful_hash' => "'${password_hash}'",
-			'displayed_name' => "'${dname}'",
-			'memberof' => "'" . base64_encode (serialize ($memberof)) . "'"
-		)
+			'presented_username' => $form_username,
+			'successful_hash' => $password_hash,
+			'displayed_name' => $dname,
+			'memberof' => base64_encode (serialize ($memberof)),
+		),
+		'LDAPCache'
 	);
 }
 
 function deleteLDAPCacheRecord ($form_username)
 {
-	return useDeleteBlade ('LDAPCache', 'presented_username', "'${form_username}'");
+	Database::deleteWhere ('LDAPCache', array ('presented_username' => $form_username));
 }
 
 // Age all records older, than cache_expiry seconds, and all records made in future.
