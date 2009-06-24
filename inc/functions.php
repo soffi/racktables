@@ -34,7 +34,6 @@ $etype_by_pageno = array
 	'rack' => 'rack',
 	'user' => 'user',
 	'file' => 'file',
-	'ipaddress' => 'ipaddress',
 );
 
 // Objects of some types should be explicitly shown as
@@ -44,10 +43,21 @@ function displayedName ($objectData)
 {
 	if ($objectData['name'] != '')
 		return $objectData['name'];
-	elseif (considerConfiguredConstraint ('object', $objectData['id'], 'NAMEWARN_LISTSRC'))
-		return "ANONYMOUS " . $objectData['objtype_name'];
+	// handle transition of argument type
+	if (isset ($objectData['realm']))
+	{
+		if (considerConfiguredConstraint ($objectData, 'NAMEWARN_LISTSRC'))
+			return "ANONYMOUS " . $objectData['objtype_name'];
+		else
+			return "[${objectData['objtype_name']}]";
+	}
 	else
-		return "[${objectData['objtype_name']}]";
+	{
+		if (considerConfiguredConstraint (spotEntity ('object', $objectData['id']), 'NAMEWARN_LISTSRC'))
+			return "ANONYMOUS " . $objectData['objtype_name'];
+		else
+			return "[${objectData['objtype_name']}]";
+	}
 }
 
 // This function finds height of solid rectangle of atoms, which are all
@@ -210,22 +220,6 @@ function applyRackProblemMask (&$rackData)
 				case 'F':
 				case 'U':
 					$rackData[$unit_no][$locidx]['enabled'] = TRUE;
-					break;
-				default:
-					$rackData[$unit_no][$locidx]['enabled'] = FALSE;
-			}
-}
-
-// This mask should allow toggling 'T' and 'W' on object's rackspace.
-function applyObjectProblemMask (&$rackData)
-{
-	for ($unit_no = $rackData['height']; $unit_no > 0; $unit_no--)
-		for ($locidx = 0; $locidx < 3; $locidx++)
-			switch ($rackData[$unit_no][$locidx]['state'])
-			{
-				case 'T':
-				case 'W':
-					$rackData[$unit_no][$locidx]['enabled'] = ($rackData[$unit_no][$locidx]['object_id'] == $object_id);
 					break;
 				default:
 					$rackData[$unit_no][$locidx]['enabled'] = FALSE;
@@ -632,6 +626,8 @@ function parseWikiLink ($line, $which, $strip_optgroup = FALSE)
 		return $o_value;
 }
 
+// FIXME: only renderIPv4Address() is using this function, consider
+// phasing it out.
 function buildVServiceName ($vsinfo = NULL)
 {
 	if ($vsinfo == NULL)
@@ -963,7 +959,6 @@ function complementByKids ($idlist, $tree = NULL, $getall = FALSE)
 }
 
 // Universal autotags generator, a complementing function for loadEntityTags().
-// An important extension is that 'ipaddress' quasi-realm is also handled.
 // Bypass key isn't strictly typed, but interpreted depending on the realm.
 function generateEntityAutoTags ($entity_realm = '', $bypass_value = '')
 {
@@ -974,31 +969,19 @@ function generateEntityAutoTags ($entity_realm = '', $bypass_value = '')
 			$ret[] = array ('tag' => '$rackid_' . $bypass_value);
 			$ret[] = array ('tag' => '$any_rack');
 			break;
-		case 'object':
-			try {
-				$oinfo = getObjectInfo ($bypass_value, FALSE);
-				$ret[] = array ('tag' => '$id_' . $bypass_value);
-				$ret[] = array ('tag' => '$typeid_' . $oinfo['objtype_id']);
-				$ret[] = array ('tag' => '$any_object');
-				if (validTagName ('$cn_' . $oinfo['name']))
-					$ret[] = array ('tag' => '$cn_' . $oinfo['name']);
-				if (!count (getResidentRacksData ($bypass_value, FALSE)))
-					$ret[] = array ('tag' => '$unmounted');
-			} catch (OutOfRevisionRangeException $e) {
-				$ret[] = array ('tag' => '$id_' . $bypass_value);
-				$ret[] = array ('tag' => '$any_object');
-			}
+		case 'object': // during transition bypass is already the whole structure
+			$oinfo = $bypass_value;
+			$ret[] = array ('tag' => '$id_' . $oinfo['id']);
+			$ret[] = array ('tag' => '$typeid_' . $oinfo['objtype_id']);
+			$ret[] = array ('tag' => '$any_object');
+			if (validTagName ('$cn_' . $oinfo['name']))
+				$ret[] = array ('tag' => '$cn_' . $oinfo['name']);
+			if (!strlen ($oinfo['rack_id']))
+				$ret[] = array ('tag' => '$unmounted');
 			break;
-		case 'ipv4net':
-			$netinfo = getIPv4NetworkInfo ($bypass_value);
-			$ret[] = array ('tag' => '$ip4netid_' . $bypass_value);
-			$ret[] = array ('tag' => '$ip4net-' . str_replace ('.', '-', $netinfo['ip']) . '-' . $netinfo['mask']);
-			$ret[] = array ('tag' => '$any_ip4net');
-			$ret[] = array ('tag' => '$any_net');
-			break;
-		case 'ipaddress':
-			$netinfo = getIPv4NetworkInfo (getIPv4AddressNetworkId ($bypass_value));
-			$ret[] = array ('tag' => '$ip4net-' . str_replace ('.', '-', $bypass_value) . '-32');
+		case 'ipv4net': // during transition bypass is already the whole structure
+			$netinfo = $bypass_value;
+			$ret[] = array ('tag' => '$ip4netid_' . $netinfo['id']);
 			$ret[] = array ('tag' => '$ip4net-' . str_replace ('.', '-', $netinfo['ip']) . '-' . $netinfo['mask']);
 			$ret[] = array ('tag' => '$any_ip4net');
 			$ret[] = array ('tag' => '$any_net');
@@ -1113,26 +1096,18 @@ function fixContext ()
 	if (isset ($tmap[$pageno][$tabno]))
 		redirectUser ($pageno, $tmap[$pageno][$tabno]);
 
-	// Don't reset autochain, because auth procedures could push stuff there in.
-	// Another important point is to ignore 'user' realm, so we don't infuse effective
-	// context with autotags of the displayed account and don't try using uint
-	// bypass, where string is expected.
-	if
-	(
-		$pageno != 'user' and
-		isset ($etype_by_pageno[$pageno]) and
-		isset ($page[$pageno]['bypass']) and
-		isset ($_REQUEST[$page[$pageno]['bypass']])
-	)
-		$auto_tags = array_merge ($auto_tags, generateEntityAutoTags ($etype_by_pageno[$pageno], $_REQUEST[$page[$pageno]['bypass']]));
-	if
-	(
-		isset ($page[$pageno]['bypass']) and
-		isset ($page[$pageno]['bypass_type']) and
-		$page[$pageno]['bypass_type'] == 'uint' and
-		isset ($_REQUEST[$page[$pageno]['bypass']])
-	)
-		$target_given_tags = loadEntityTags ($pageno, $_REQUEST[$page[$pageno]['bypass']]);
+	if (isset ($etype_by_pageno[$pageno]))
+	{
+		// Each page listed in the map above requires one uint argument.
+		assertUIntArg ($page[$pageno]['bypass'], __FUNCTION__);
+		$target = spotEntity ($etype_by_pageno[$pageno], $_REQUEST[$page[$pageno]['bypass']]);
+		$target_given_tags = $target['etags'];
+		// Don't reset autochain, because auth procedures could push stuff there in.
+		// Another important point is to ignore 'user' realm, so we don't infuse effective
+		// context with autotags of the displayed account.
+		if ($pageno != 'user')
+			$auto_tags = array_merge ($auto_tags, $target['atags']);
+	}
 	// Explicit and implicit chains should be normally empty at this point, so
 	// overwrite the contents anyway.
 	$expl_tags = mergeTagChains ($user_given_tags, $target_given_tags);
@@ -1980,19 +1955,6 @@ function buildPredicateTable ($parsetree)
 // Take a list of records and filter against given RackCode expression. Return
 // the original list intact, if there was no filter requested, but return an
 // empty list, if there was an error.
-function filterEntityList ($list_in, $realm, $expression = array())
-{
-	if ($expression === NULL)
-		return array();
-	if (!count ($expression))
-		return $list_in;
-	$list_out = array();
-	foreach ($list_in as $item_key => $item_value)
-		if (TRUE === judgeEntity ($realm, $item_key, $expression))
-			$list_out[$item_key] = $item_value;
-	return $list_out;
-}
-
 function filterCellList ($list_in, $expression = array())
 {
 	if ($expression === NULL)
@@ -2006,26 +1968,7 @@ function filterCellList ($list_in, $expression = array())
 	return $list_out;
 }
 
-// Tell, if the given expression is true for the given entity.
-function judgeEntity ($realm, $id, $expression)
-{
-	$item_explicit_tags = loadEntityTags ($realm, $id);
-	global $pTable;
-	return eval_expression
-	(
-		$expression,
-		array_merge
-		(
-			$item_explicit_tags,
-			getImplicitTags ($item_explicit_tags),
-			generateEntityAutoTags ($realm, $id)
-		),
-		$pTable,
-		TRUE
-	);
-}
-
-// Idem, but use complete record instead of key.
+// Tell, if the given expression is true for the given entity. Take complete record on input.
 function judgeCell ($cell, $expression)
 {
 	global $pTable;
@@ -2043,21 +1986,8 @@ function judgeCell ($cell, $expression)
 	);
 }
 
-// If the requested predicate exists, return its [last] definition.
-// Otherwise return NULL (to signal filterEntityList() about error).
-// Also detect "not set" option selected.
-function interpretPredicate ($pname)
-{
-	if ($pname == '_')
-		return array();
-	global $pTable;
-	if (isset ($pTable[$pname]))
-		return $pTable[$pname];
-	return NULL;
-}
-
 // Tell, if a constraint from config option permits given record.
-function considerConfiguredConstraint ($entity_realm, $entity_id, $varname)
+function considerConfiguredConstraint ($cell, $varname)
 {
 	if (!strlen (getConfigVar ($varname)))
 		return TRUE; // no restriction
@@ -2068,7 +1998,7 @@ function considerConfiguredConstraint ($entity_realm, $entity_id, $varname)
 		$parseCache[$varname] = spotPayload (getConfigVar ($varname), 'SYNT_EXPR');
 	if ($parseCache[$varname]['result'] != 'ACK')
 		return FALSE; // constraint set, but cannot be used due to compilation error
-	return judgeEntity ($entity_realm, $entity_id, $parseCache[$varname]['load']);
+	return judgeCell ($cell, $parseCache[$varname]['load']);
 }
 
 // Return list of records in the given realm, which conform to

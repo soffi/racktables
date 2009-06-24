@@ -852,7 +852,8 @@ function renderRackObject ($object_id)
 	echo "<table border=0 cellspacing=0 cellpadding=3 width='100%'>\n";
 	if (!empty ($info['name']))
 		echo "<tr><th width='50%' class=tdright>Common name:</th><td class=tdleft>${info['name']}</td></tr>\n";
-	elseif (considerConfiguredConstraint ('object', $object_id, 'NAMEWARN_LISTSRC'))
+	// FIXME: don't call spotEntity() each time, do it once in the beginning.
+	elseif (considerConfiguredConstraint (spotEntity ('object', $object_id), 'NAMEWARN_LISTSRC'))
 		echo "<tr><td colspan=2 class=msg_error>Common name is missing.</td></tr>\n";
 	echo "<tr><th width='50%' class=tdright>Object type:</th><td class=tdleft><a href='";
 	echo makeHref (array (
@@ -863,7 +864,8 @@ function renderRackObject ($object_id)
 	echo "'>${info['objtype_name']}</a></td></tr>\n";
 	if (!empty ($info['asset_no']))
 		echo "<tr><th width='50%' class=tdright>Asset tag:</th><td class=tdleft>${info['asset_no']}</td></tr>\n";
-	elseif (considerConfiguredConstraint ('object', $object_id, 'ASSETWARN_LISTSRC'))
+	// FIXME: ditto
+	elseif (considerConfiguredConstraint (spotEntity ('object', $object_id), 'ASSETWARN_LISTSRC'))
 		echo "<tr><td colspan=2 class=msg_error>Asset tag is missing.</td></tr>\n";
 	if (!empty ($info['label']))
 		echo "<tr><th width='50%' class=tdright>Visible label:</th><td class=tdleft>${info['label']}</td></tr>\n";
@@ -985,7 +987,7 @@ function renderRackObject ($object_id)
 				else
 				{
 					echo "<td class='${secondclass}'>";
-					renderIPv4NetCell ($netinfo);
+					renderCell ($netinfo);
 					echo "</td>";
 					// filter out self-allocation
 					$other_routers = array();
@@ -1086,9 +1088,9 @@ function renderRackObject ($object_id)
 		foreach ($pools as $vs_id => $info)
 		{
  			echo "<tr valign=top class=row_${order}><td class=tdleft>";
- 			renderVSCell ($vs_id);
+ 			renderCell (spotEntity ('ipv4vs', $vs_id));
  			echo "</td><td class=tdleft>";
- 			renderRSPoolCell ($info['pool_id'], $info['pool_name']);
+ 			renderCell (spotEntity ('ipv4rspool', $info['pool_id']));
  			echo '</td><td class=tdleft>' . $info['rscount'] . '</td>';
  			echo "<td class=slbconf>${info['vsconfig']}</td>";
  			echo "<td class=slbconf>${info['rsconfig']}</td>";
@@ -1417,7 +1419,7 @@ function renderIPv4ForObject ($object_id)
 			else
 			{
 				echo '<td>';
-				renderIPv4NetCell ($netinfo);
+				renderCell ($netinfo);
 				echo '</td>';
 				// filter out self-allocation
 				$other_routers = array();
@@ -2194,7 +2196,7 @@ function renderIPv4SLB ()
 		foreach ($summary as $vsid => $vsdata)
 		{
 			echo "<tr class=row_${order}><td class=tdleft>";
-			renderVSCell ($vsid);
+			renderCell (spotEntity ('ipv4vs', $vsid));
 			echo "</td>";
 			foreach ($lblist as $lb_object_id)
 			{
@@ -2406,12 +2408,12 @@ function renderIPv4Network ($id)
 				echo '&uarr;';
 			$arrows--;
 			echo "</th><td class=tdleft>";
-			renderIPv4NetCell ($ainfo);
+			renderCell ($ainfo);
 			echo "</td></tr>";
 		}
 		echo "<tr><th width='50%' class=tdright>&rarr;</th>";
 		echo "<td class=tdleft>";
-		renderIPv4NetCell ($range);
+		renderCell ($range);
 		echo "</td></tr>";
 		// FIXME: get and display nested networks
 		// $theitem = pickLeaf ($ipv4tree, $id);
@@ -3093,6 +3095,13 @@ function renderSearchResults ()
 			$lasthit = 'file';
 			$summary['file'] = $tmp;
 		}
+		$tmp = getRackSearchResult ($terms);
+		if (count ($tmp))
+		{
+			$nhits += count ($tmp);
+			$lasthit = 'rack';
+			$summary['rack'] = $tmp;
+		}
 	}
 	if ($nhits == 0)
 		echo "<center><h2>Nothing found for '${terms}'</h2></center>";
@@ -3140,6 +3149,9 @@ function renderSearchResults ()
 			case 'file':
 				echo "<script language='Javascript'>document.location='${root}?page=file&file_id=${record['id']}';//</script>";
 				break;
+			case 'rack':
+				echo "<script language='Javascript'>document.location='${root}?page=rack&rack_id=${record['id']}';//</script>";
+				break;
 		}
 		return;
 	}
@@ -3172,10 +3184,10 @@ function renderSearchResults ()
 				case 'ipv4network':
 					startPortlet ("<a href='${root}?page=ipv4space'>IPv4 networks</a>");
 					echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
-					foreach ($what as $netinfo)
+					foreach ($what as $cell)
 					{
 						echo "<tr class=row_${order} valign=top><td>";
-						renderIPv4NetCell ($netinfo);
+						renderCell ($cell);
 						echo "</td></tr>\n";
 						$order = $nextorder[$order];
 					}
@@ -3204,10 +3216,10 @@ function renderSearchResults ()
 				case 'ipv4rspool':
 					startPortlet ("<a href='${root}?page=ipv4rsplist'>RS pools</a>");
 					echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
-					foreach ($what as $rspool)
+					foreach ($what as $cell)
 					{
 						echo "<tr class=row_${order}><td class=tdleft>";
-						renderRSPoolCell ($rspool['pool_id'], $rspool['name']);
+						renderCell ($cell);
 						echo "</td></tr>";
 						$order = $nextorder[$order];
 					}
@@ -3217,10 +3229,10 @@ function renderSearchResults ()
 				case 'ipv4vs':
 					startPortlet ("<a href='${root}?page=ipv4vslist'>Virtual services</a>");
 					echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
-					foreach ($what as $vsinfo)
+					foreach ($what as $cell)
 					{
 						echo "<tr class=row_${order}><td class=tdleft>";
-						renderIPv4VSCell ($vsinfo);
+						renderCell ($cell);
 						echo "</td></tr>";
 						$order = $nextorder[$order];
 					}
@@ -3243,10 +3255,23 @@ function renderSearchResults ()
 				case 'file':
 					startPortlet ("<a href='${root}?page=files'>Files</a>");
 					echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
-					foreach ($what as $item)
+					foreach ($what as $cell)
 					{
 						echo "<tr class=row_${order}><td class=tdleft>";
-						renderFileCell ($item);
+						renderCell ($cell);
+						echo "</td></tr>";
+						$order = $nextorder[$order];
+					}
+					echo '</table>';
+					finishPortlet();
+					break;
+				case 'rack':
+					startPortlet ("<a href='${root}?page=rackspace'>Racks</a>");
+					echo '<table border=0 cellpadding=5 cellspacing=0 align=center class=cooltable>';
+					foreach ($what as $cell)
+					{
+						echo "<tr class=row_${order}><td class=tdleft>";
+						renderCell ($cell);
 						echo "</td></tr>";
 						$order = $nextorder[$order];
 					}
@@ -4175,7 +4200,7 @@ function renderVirtualService ($vsid)
 		// Pool info
 		echo '<table width=100%>';
 		echo "<tr><td colspan=2>";
-		renderRSPoolCell ($pool_id, $poolInfo['name']);
+		renderCell (spotEntity ('ipv4rspool', $pool_id));
 		echo "</td></tr>";
 		if (!empty ($poolInfo['vsconfig']))
 			echo "<tr><th>VS config</th><td class='dashed slbconf'>${poolInfo['vsconfig']}</td></tr>";
@@ -4314,7 +4339,7 @@ function renderRSPoolLBForm ($pool_id)
 				echo "<td class=tdleft>";
 				renderLBCell ($object_id);
 				echo "</td><td class=tdleft>";
-				renderVSCell ($vs_id);
+				renderCell (spotEntity ('ipv4vs', $vs_id));
 				echo "</td><td><textarea name=vsconfig>${configs['vsconfig']}</textarea></td>";
 				echo "<td><textarea name=rsconfig>${configs['rsconfig']}</textarea></td><td>";
 				printImageHREF ('SAVE', 'Save changes', TRUE);
@@ -4362,7 +4387,7 @@ function renderVServiceLBForm ($vs_id)
 				echo "<td class=tdleft>";
 				renderLBCell ($object_id);
 				echo "</td><td class=tdleft>";
-				renderRSPoolCell ($pool_id, $rspinfo['name']);
+				renderCell (spotEntity ('ipv4rspool', $pool_id));
 				echo "</td><td><textarea name=vsconfig>${configs['vsconfig']}</textarea></td>";
 				echo "<td><textarea name=rsconfig>${configs['rsconfig']}</textarea></td><td>";
 				printImageHREF ('SAVE', 'Save changes', TRUE);
@@ -4432,7 +4457,7 @@ function renderRSPool ($pool_id)
 		foreach ($vslist as $vs_id => $configs)
 	{
 		echo "<tr valign=top class=row_${order}><td class=tdleft><a href='".makeHref(array('page'=>'ipv4vs', 'vs_id'=>$vs_id))."'>";
-		renderVSCell ($vs_id);
+		renderCell (spotEntity ('ipv4vs', $vs_id));
 		echo "</td><td>";
 		renderLBCell ($object_id);
 		echo "</td><td class=slbconf>${configs['vsconfig']}</td>";
@@ -5104,7 +5129,6 @@ function renderObjectSLB ($object_id)
 {
 	global $nextorder;
 	// Keep the list in a variable to assist in decoding pool name below.
-	$rsplist = getIPv4RSPoolOptions();
 
 	startPortlet ('Add new');
 	echo "<table cellspacing=0 cellpadding=5 align=center class=widetable>\n";
@@ -5112,7 +5136,7 @@ function renderObjectSLB ($object_id)
 	echo "<tr valign=top><th>VS / RS pool</th><td class=tdleft>";
 	printSelect (getIPv4VSOptions(), 'vs_id', NULL, 1);
 	echo "</td><td>";
-	printSelect ($rsplist, 'pool_id', NULL, 2);
+	printSelect (getIPv4RSPoolOptions(), 'pool_id', NULL, 2);
 	echo "</td><td>";
 	printImageHREF ('add', 'Configure LB', TRUE, 5);
 	echo "</td></tr>\n";
@@ -5135,9 +5159,9 @@ function renderObjectSLB ($object_id)
 			printImageHREF ('delete', 'Unconfigure');
 			echo "</a></td>";
 			echo "</td><td class=tdleft>";
-			renderVSCell ($vs_id);
+			renderCell (spotEntity ('ipv4vs', $vs_id));
 			echo "</td><td class=tdleft>";
-			renderRSPoolCell ($vsinfo['pool_id'], $rsplist[$vsinfo['pool_id']]);
+			renderCell (spotEntity ('ipv4rspool', $vsinfo['pool_id']));
 			echo "</td><td><textarea name=vsconfig>${vsinfo['vsconfig']}</textarea></td>";
 			echo "<td><textarea name=rsconfig>${vsinfo['rsconfig']}</textarea></td><td>";
 			printImageHREF ('SAVE', 'Save changes', TRUE);
@@ -5269,7 +5293,7 @@ ENDJAVASCRIPT;
 function renderUser ($user_id)
 {
 	global $target_given_tags;
-	$userinfo = getUserInfo ($user_id);
+	$userinfo = spotEntity ('user', $user_id);
 
 	startPortlet ('summary');
 	echo '<table border=0 align=center>';
@@ -5421,13 +5445,8 @@ function renderFile ($file_id)
 			switch ($link['entity_type'])
 			{
 				case 'user':
-					if (NULL === ($userinfo = getUserInfo ($link['entity_id'])))
-						echo "Internal error: user id ${link['entity_id']} not found";
-					else
-						renderCell ($userinfo);
-					break;
 				case 'ipv4net':
-					renderIPv4NetCell (spotEntity ($link['entity_type'], $link['entity_id']));
+					renderCell (spotEntity ($link['entity_type'], $link['entity_id']));
 					break;
 				default:
 					echo formatEntityName ($link['entity_type']) . ': ';
@@ -5557,7 +5576,9 @@ function renderFilesPortlet ($entity_type = NULL, $entity_id = 0)
 		foreach ($files as $file)
 		{
 			echo "<tr valign=top><td class=tdleft>";
-			renderFileCell ($file);
+			// That's a bit of overkill and ought to be justified after
+			// getFilesOfEntity() returns a standard cell list.
+			renderCell (spotEntity ('file', $file['id']));
 			echo "</td><td class=tdleft>${file['comment']}</td></tr>";
 			if ('' != ($pcode = getFilePreviewCode ($file)))
 				echo "<tr><td colspan=2>${pcode}</td></tr>\n";
@@ -5610,7 +5631,7 @@ function renderFilesForEntity ($entity_id)
 		foreach ($filelist as $file_id => $file)
 		{
 			echo "<tr valign=top><td class=tdleft>";
-			renderFileCell ($file);
+			renderCell (spotEntity ('file', $file_id));
 			echo "</td><td class=tdleft>${file['comment']}</td><td class=tdcenter>";
 			echo "<a href='".makeHrefProcess(array('op'=>'unlinkFile', 'link_id'=>$file['link_id'], $id_name=>$entity_id))."'>";
 			printImageHREF ('CUT', 'Unlink file');
@@ -5707,64 +5728,106 @@ function printIPv4NetInfoTDs ($netinfo, $tdclass = 'tdleft', $indent = 0, $symbo
 	echo "</td>";
 }
 
-function renderIPv4NetCell ($netinfo)
-{
-	global $root;
-	echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
-	printImageHREF ('NET');
-	echo '</td>';
-	echo "<td><a href='${root}?page=ipv4net&id=${netinfo['id']}'>${netinfo['ip']}/${netinfo['mask']}</a></td></tr>";
-	if (strlen ($netinfo['name']))
-		echo "<tr><td><strong>" . niftyString ($netinfo['name']) . "</strong></td></tr>";
-	else
-		echo "<tr><td class=sparenetwork>no name</td></tr>";
-	echo '<td>';
-	$tags = loadEntityTags ('ipv4net', $netinfo['id']);
-	echo count ($tags) ? ("<small>" . serializeTags ($tags) . "</small>") : '&nbsp;';
-	echo "</td></tr></table>";
-}
-
 function renderCell ($cell)
 {
+	global $root;
 	switch ($cell['realm'])
 	{
 	case 'user':
-		renderUserCell ($cell);
+		echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
+		printImageHREF ('USER');
+		echo '</td>';
+		echo "<td><a href='${root}?page=user&user_id=${cell['user_id']}'>${cell['user_name']}</a></td></tr>";
+		if (strlen ($cell['user_realname']))
+			echo "<tr><td><strong>" . niftyString ($cell['user_realname']) . "</strong></td></tr>";
+		else
+			echo "<tr><td class=sparenetwork>no name</td></tr>";
+		echo '<td>';
+		if (!isset ($cell['etags']))
+			$cell['etags'] = loadEntityTags ('user', $cell['user_id']);
+		echo count ($cell['etags']) ? ("<small>" . serializeTags ($cell['etags']) . "</small>") : '&nbsp;';
+		echo "</td></tr></table>";
 		break;
 	case 'file':
-		renderFileCell ($cell);
+		echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
+		switch ($cell['type'])
+		{
+			case 'text/plain':
+				printImageHREF ('text file');
+				break;
+			case 'image/jpeg':
+			case 'image/png':
+			case 'image/gif':
+				printImageHREF ('image file');
+				break;
+			default:
+				printImageHREF ('empty file');
+				break;
+		}
+		echo "</td><td>";
+		printf ("<a href='${root}?page=file&file_id=%s'><strong>%s</strong></a>", $cell['id'], niftyString ($cell['name']));
+		echo "</td><td rowspan=3 valign=top>";
+		if (isset ($cell['links']) and count ($cell['links']))
+			printf ("<small>%s</small>", serializeFileLinks ($cell['links']));
+		echo "</td></tr><tr><td>";
+		echo count ($cell['etags']) ? ("<small>" . serializeTags ($cell['etags']) . "</small>") : '&nbsp;';
+		echo "</td></tr><tr><td><a href='${root}download.php?file_id=${cell['id']}'>";
+		printImageHREF ('download', 'Download file');
+		echo '</a>&nbsp;';
+		echo formatFileSize ($cell['size']);
+		echo "</td></tr></table>";
 		break;
 	case 'ipv4vs':
-		renderIPv4VSCell ($cell);
+		echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
+		printImageHREF ('VS');
+		echo "</td><td>";
+		echo "<a href='${root}?page=ipv4vs&vs_id=${cell['id']}'>";
+		echo $cell['dname'] . "</a></td></tr><tr><td>";
+		echo $cell['name'] . '</td></tr><tr><td>';
+		echo count ($cell['etags']) ? ("<small>" . serializeTags ($cell['etags']) . "</small>") : '&nbsp;';
+		echo "</td></tr></table>";
 		break;
 	case 'ipv4rspool':
-		renderRSPoolCell ($cell['id'], $cell['name']);
+		echo "<table class=slbcell><tr><td>";
+		echo "<a href='${root}?page=ipv4rspool&pool_id=${cell['id']}'>";
+		echo empty ($cell['name']) ? "ANONYMOUS pool [${cell['id']}]" : niftyString ($cell['name']);
+		echo "</a></td></tr><tr><td>";
+		printImageHREF ('RS pool');
+		echo "</td></tr><tr><td>";
+		echo count ($cell['etags']) ? ("<small>" . serializeTags ($cell['etags']) . "</small>") : '&nbsp;';
+		echo "</td></tr></table>";
 		break;
 	case 'ipv4net':
-		renderIPv4NetCell ($cell);
+		echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
+		printImageHREF ('NET');
+		echo '</td>';
+		echo "<td><a href='${root}?page=ipv4net&id=${cell['id']}'>${cell['ip']}/${cell['mask']}</a></td></tr>";
+		if (strlen ($cell['name']))
+			echo "<tr><td><strong>" . niftyString ($cell['name']) . "</strong></td></tr>";
+		else
+			echo "<tr><td class=sparenetwork>no name</td></tr>";
+		echo '<td>';
+		echo count ($cell['etags']) ? ("<small>" . serializeTags ($cell['etags']) . "</small>") : '&nbsp;';
+		echo "</td></tr></table>";
+		break;
+	case 'rack':
+		echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
+		$thumbwidth = getRackImageWidth();
+		$thumbheight = getRackImageHeight ($cell['height']);
+		echo "<img border=0 width=${thumbwidth} height=${thumbheight} title='${cell['height']} units' ";
+		echo "src='render_image.php?img=minirack&rack_id=${cell['id']}'>";
+		echo "</td><td>";
+		printf ("<a href='${root}?page=rack&rack_id=%s'><strong>%s</strong></a>", $cell['id'], niftyString ($cell['name']));
+		echo "</td></tr><tr><td>";
+		echo count ($cell['etags']) ? ("<small>" . serializeTags ($cell['etags']) . "</small>") : '&nbsp;';
+		echo "</td></tr><tr><td>";
+		echo niftyString ($cell['comment']);
+		echo "</td></tr></table>";
 		break;
 	default:
 		showError ('odd data', __FUNCTION__);
 		break;
 	}
-}
-
-function renderUserCell ($account)
-{
-	global $root;
-	echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
-	printImageHREF ('USER');
-	echo '</td>';
-	echo "<td><a href='${root}?page=user&user_id=${account['user_id']}'>${account['user_name']}</a></td></tr>";
-	if (strlen ($account['user_realname']))
-		echo "<tr><td><strong>" . niftyString ($account['user_realname']) . "</strong></td></tr>";
-	else
-		echo "<tr><td class=sparenetwork>no name</td></tr>";
-	echo '<td>';
-	if (!isset ($account['etags']))
-		$account['etags'] = loadEntityTags ('user', $account['user_id']);
-	echo count ($account['etags']) ? ("<small>" . serializeTags ($account['etags']) . "</small>") : '&nbsp;';
-	echo "</td></tr></table>";
 }
 
 function renderLBCell ($object_id)
@@ -5780,43 +5843,6 @@ function renderLBCell ($object_id)
 	echo "</small></td></tr></table>";
 }
 
-function renderRSPoolCell ($pool_id, $pool_name)
-{
-	global $root;
-	echo "<table class=slbcell><tr><td>";
-	echo "<a href='${root}?page=ipv4rspool&pool_id=${pool_id}'>";
-	echo empty ($pool_name) ? "ANONYMOUS pool [${pool_id}]" : niftyString ($pool_name);
-	echo "</a></td></tr><tr><td>";
-	printImageHREF ('RS pool');
-	echo "</td></tr><tr><td><small>";
-	echo serializeTags (loadEntityTags ('ipv4rspool', $pool_id));
-	echo "</small></td></tr></table>";
-}
-
-// FIXME: migrate to renderIPv4VSCell()
-function renderVSCell ($vs_id)
-{
-	renderIPv4VSCell (spotEntity ('ipv4vs', $vs_id));
-}
-
-function renderIPv4VSCell ($vsinfo)
-{
-	global $root;
-	echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
-	printImageHREF ('VS');
-	echo "</td><td>";
-	echo "<a href='${root}?page=ipv4vs&vs_id=${vsinfo['id']}'>";
-	// FIXME: this is a workaround
-	if (!isset ($vsinfo['dname']))
-		$vsinfo['dname'] = buildVServiceName ($vsinfo);
-	echo $vsinfo['dname'] . "</a></td></tr><tr><td>";
-	echo $vsinfo['name'];
-	echo '</td></tr><tr><td>';
-	$tags = loadEntityTags ('ipv4vs', $vsinfo['id']);
-	echo count ($tags) ? ("<small>" . serializeTags ($tags) . "</small>") : '&nbsp;';
-	echo "</td></tr></table>";
-}
-
 function renderRouterCell ($dottedquad, $ifname, $object_id, $object_dname)
 {
 	global $root;
@@ -5830,40 +5856,6 @@ function renderRouterCell ($dottedquad, $ifname, $object_id, $object_dname)
 	echo "</td></tr><tr><td><small>";
 	echo serializeTags (loadEntityTags ('object', $object_id));
 	echo "</small></td></tr></table>";
-}
-
-function renderFileCell ($fileinfo)
-{
-	global $root;
-	echo "<table class='slbcell vscell'><tr><td rowspan=3 width='5%'>";
-	switch ($fileinfo['type'])
-	{
-		case 'text/plain':
-			printImageHREF ('text file');
-			break;
-		case 'image/jpeg':
-		case 'image/png':
-		case 'image/gif':
-			printImageHREF ('image file');
-			break;
-		default:
-			printImageHREF ('empty file');
-			break;
-	}
-	echo "</td><td>";
-	printf ("<a href='${root}?page=file&file_id=%s'><strong>%s</strong></a>", $fileinfo['id'], niftyString ($fileinfo['name']));
-	echo "</td><td rowspan=3 valign=top>";
-	if (isset ($fileinfo['links']) and count ($fileinfo['links']))
-		printf ("<small>%s</small>", serializeFileLinks ($fileinfo['links']));
-	echo "</td></tr><tr><td>";
-	if (!isset ($fileinfo['etags']))
-		$fileinfo['etags'] = loadEntityTags ('file', $fileinfo['id']);
-	echo count ($fileinfo['etags']) ? ("<small>" . serializeTags ($fileinfo['etags']) . "</small>") : '&nbsp;';
-	echo "</td></tr><tr><td><a href='${root}download.php?file_id=${fileinfo['id']}'>";
-	printImageHREF ('download', 'Download file');
-	echo '</a>&nbsp;';
-	echo formatFileSize ($fileinfo['size']);
-	echo "</td></tr></table>";
 }
 
 // Return HTML code necessary to show a preview of the file give. Return an empty string,
@@ -6415,7 +6407,7 @@ function dynamic_title_decoder ($path_position)
 		);
 	case 'user':
 		assertUIntArg ('user_id', __FUNCTION__);
-		$userinfo = getUserInfo ($_REQUEST['user_id']);
+		$userinfo = spotEntity ('user', $_REQUEST['user_id']);
 		return array
 		(
 			'name' => "Local user '" . $userinfo['user_name'] . "'",

@@ -170,7 +170,7 @@ function getRackRows ()
 	$result = Database::query($query);
 	$rows = array();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-		$rows[$row['id']] = parseWikiLink ($row['name'], 'o');
+		$rows[$row['id']] = $row['name'];
 	Database::closeCursor($result);
 	asort ($rows);
 	return $rows;
@@ -233,20 +233,7 @@ function getTagFilterCondition($tagfilter = array(), $wherepos = 1)
 // option with constraint in RackCode.
 function getNarrowObjectList ($varname = '')
 {
-	$ret = array();
-	$query =
-		"select RackObject.id as id, RackObject.name as name, dict_value as objtype_name, " .
-		"objtype_id from " .
-		"RackObject inner join Dictionary on objtype_id=Dictionary.id join Chapter on Chapter.id = Dictionary.chapter_id " .
-		"where Chapter.name = 'RackObjectType' " .
-		"order by objtype_id, name";
-	$result = Database::query($query);
-	// Fetch everything at once to unblock result buffer and enable
-	// loadEntityTags(), which will be called soon.
-	$buffer = $result->fetchAll (PDO::FETCH_ASSOC);
-	unset ($result);
-	foreach ($buffer as $row)
-		$ret[$row['id']] = displayedName ($row);
+	$wideList = listCells ('object');
 	if (strlen ($varname) and strlen (getConfigVar ($varname)))
 	{
 		global $parseCache;
@@ -254,13 +241,16 @@ function getNarrowObjectList ($varname = '')
 			$parseCache[$varname] = spotPayload (getConfigVar ($varname), 'SYNT_EXPR');
 		if ($parseCache[$varname]['result'] != 'ACK')
 			return array();
-		$ret = filterEntityList ($ret, 'object', $parseCache[$varname]['load']);
+		$wideList = filterCellList ($wideList, $parseCache[$varname]['load']);
 	}
+	$ret = array();
+	foreach ($wideList as $cell)
+		$ret[$cell['id']] = $cell['dname'];
 	return $ret;
 }
 
 // For a given realm return a list of entity records, each with
-// enough information for judgeEntityRecord() to execute.
+// enough information for judgeCell() to execute.
 function listCells ($realm, $parent_id = 0)
 {
 	global $SQLSchema;
@@ -315,8 +305,17 @@ function listCells ($realm, $parent_id = 0)
 	// Add necessary finish to the list before returning it.
 	foreach (array_keys ($ret) as $entity_id)
 	{
+		$ret[$entity_id]['etags'] = getExplicitTagsOnly ($ret[$entity_id]['etags']);
 		$ret[$entity_id]['itags'] = getImplicitTags ($ret[$entity_id]['etags']);
-		$ret[$entity_id]['atags'] = generateEntityAutoTags ($realm, $entity_id);
+		switch ($realm)
+		{
+		case 'ipv4net':
+		case 'object':
+			$ret[$entity_id]['atags'] = generateEntityAutoTags ($realm, $ret[$entity_id]);
+			break;
+		default:
+			$ret[$entity_id]['atags'] = generateEntityAutoTags ($realm, $entity_id);
+		}
 		switch ($realm)
 		{
 		case 'object':
@@ -383,8 +382,17 @@ function spotEntity ($realm, $id)
 	unset ($result);
 	if (!isset ($ret['realm'])) // no rows were returned
 		return NULL;
+	$ret['etags'] = getExplicitTagsOnly ($ret['etags']);
 	$ret['itags'] = getImplicitTags ($ret['etags']);
-	$ret['atags'] = generateEntityAutoTags ($realm, $id);
+	switch ($realm)
+	{
+	case 'ipv4net':
+	case 'object':
+		$ret['atags'] = generateEntityAutoTags ($realm, $ret);
+		break;
+	default:
+		$ret['atags'] = generateEntityAutoTags ($realm, $id);
+	}
 	switch ($realm)
 	{
 	case 'object':
@@ -1385,26 +1393,6 @@ function scanIPv4Space ($pairlist)
 	return $ret;
 }
 
-// Return summary data about an IPv4 prefix, if it exists, or NULL otherwise.
-function getIPv4NetworkInfo ($id = 0)
-{
-	if ($id <= 0)
-		throw new Exception ('Invalid arg');
-	Database::inLifetime('IPv4Network', $id);
-	$query = "select INET_NTOA(ip) as ip, mask, name ".
-		"from IPv4Network where id = $id";
-	$result = Database::query ($query);
-	$ret = $result->fetch (PDO::FETCH_ASSOC);
-	unset ($result);
-	$ret['id'] = $id;
-	$ret['ip_bin'] = ip2long ($ret['ip']);
-	$ret['mask_bin'] = binMaskFromDec ($ret['mask']);
-	$ret['mask_bin_inv'] = binInvMaskFromDec ($ret['mask']);
-	$ret['db_first'] = sprintf ('%u', 0x00000000 + $ret['ip_bin'] & $ret['mask_bin']);
-	$ret['db_last'] = sprintf ('%u', 0x00000000 + $ret['ip_bin'] | ($ret['mask_bin_inv']));
-	return $ret;
-}
-
 function getIPv4Address ($dottedquad = '')
 {
 	if ($dottedquad == '')
@@ -1551,17 +1539,17 @@ function searchByl2address ($port_l2address)
 
 function getIPv4PrefixSearchResult ($terms)
 {
-	$query = "select id, inet_ntoa(ip) as ip, mask, name from IPv4Network where ";
-	$or = '';
-	foreach (explode (' ', $terms) as $term)
-	{
-		$query .= $or . "name like '%${term}%'";
-		$or = ' or ';
-	}
-	$result = Database::query ($query);
+	$byname = getSearchResultByField
+	(
+		'IPv4Network',
+		array ('id'),
+		'name',
+		$terms,
+		'ip'
+	);
 	$ret = array();
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-		$ret[] = $row;
+	foreach ($byname as $row)
+		$ret[] = spotEntity ('ipv4net', $row['id']);
 	return $ret;
 }
 
@@ -1583,33 +1571,33 @@ function getIPv4AddressSearchResult ($terms)
 
 function getIPv4RSPoolSearchResult ($terms)
 {
-	$query = "select id as pool_id, name from IPv4RSPool where ";
-	$or = '';
-	foreach (explode (' ', $terms) as $term)
-	{
-		$query .= $or . "name like '%${term}%'";
-		$or = ' or ';
-	}
-	$result = Database::query ($query);
+	$byname = getSearchResultByField
+	(
+		'IPv4RSPool',
+		array ('id'),
+		'name',
+		$terms,
+		'name'
+	);
 	$ret = array();
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-		$ret[] = $row;
+	foreach ($byname as $row)
+		$ret[] = spotEntity ('ipv4rspool', $row['id']);
 	return $ret;
 }
 
 function getIPv4VServiceSearchResult ($terms)
 {
-	$query = "select id, inet_ntoa(vip) as vip, vport, proto, name from IPv4VS where ";
-	$or = '';
-	foreach (explode (' ', $terms) as $term)
-	{
-		$query .= $or . "name like '%${term}%'";
-		$or = ' or ';
-	}
-	$result = Database::query ($query);
+	$byname = getSearchResultByField
+	(
+		'IPv4VS',
+		array ('id'),
+		'name',
+		$terms,
+		'vip'
+	);
 	$ret = array();
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-		$ret[] = $row;
+	foreach ($byname as $row)
+		$ret[] = spotEntity ('ipv4vs', $row['id']);
 	return $ret;
 }
 
@@ -1648,10 +1636,10 @@ function getAccountSearchResult ($terms)
 
 function getFileSearchResult ($terms)
 {
-	$byFilename = getSearchResultByField
+	$byName = getSearchResultByField
 	(
 		'File',
-		array ('id', 'name', 'comment', 'type', 'size'),
+		array ('id'),
 		'name',
 		$terms,
 		'name'
@@ -1659,20 +1647,55 @@ function getFileSearchResult ($terms)
 	$byComment = getSearchResultByField
 	(
 		'File',
-		array ('id', 'name', 'comment', 'type', 'size'),
+		array ('id'),
 		'comment',
 		$terms,
 		'name'
 	);
 	// Filter out dupes.
-	foreach ($byFilename as $res1)
+	foreach ($byName as $res1)
 		foreach (array_keys ($byComment) as $key2)
 			if ($res1['id'] == $byComment[$key2]['id'])
 			{
 				unset ($byComment[$key2]);
 				continue 2;
 			}
-	return array_merge ($byFilename, $byComment);
+	$ret = array();
+	foreach (array_merge ($byName, $byComment) as $row)
+		$ret[] = spotEntity ('file', $row['id']);
+	return $ret;
+}
+
+function getRackSearchResult ($terms)
+{
+	$byName = getSearchResultByField
+	(
+		'Rack',
+		array ('id'),
+		'name',
+		$terms,
+		'name'
+	);
+	$byComment = getSearchResultByField
+	(
+		'Rack',
+		array ('id'),
+		'comment',
+		$terms,
+		'name'
+	);
+	// Filter out dupes.
+	foreach ($byName as $res1)
+		foreach (array_keys ($byComment) as $key2)
+			if ($res1['id'] == $byComment[$key2]['id'])
+			{
+				unset ($byComment[$key2]);
+				continue 2;
+			}
+	$ret = array();
+	foreach (array_merge ($byName, $byComment) as $row)
+		$ret[] = spotEntity ('rack', $row['id']);
+	return $ret;
 }
 
 function getSearchResultByField ($tname, $rcolumns, $scolumn, $terms, $ocolumn = '')
@@ -3137,6 +3160,8 @@ function getAllUnlinkedFiles ($entity_type = NULL, $entity_id = 0)
 	return $ret;
 }
 
+// FIXME: return a standard cell list, so upper layer can iterate over
+// it conveniently.
 function getFilesOfEntity ($entity_type = NULL, $entity_id = 0)
 {
 	if ($entity_type == NULL || $entity_id == 0)
@@ -3261,8 +3286,8 @@ function getFileLinks ($file_id = 0)
 			case 'user':
 				$page = 'user';
 				$id_name = 'user_id';
-				$userinfo = getUserInfo ($row['entity_id']);
-				$name = $userinfo['user_name'];
+				$parent = spotEntity ($row['entity_type'], $row['entity_id']);
+				$name = $parent['user_name'];
 				break;
 		}
 
@@ -3507,19 +3532,6 @@ function getUserIDByUsername ($username)
 	}
 	if ($row = $result->fetch (PDO::FETCH_ASSOC))
 		return $row['user_id'];
-	return NULL;
-}
-
-function getUserInfo ($user_id)
-{
-	$query = "select 'user' as realm, user_id, user_name, user_password_hash, user_realname from UserAccount where user_id = ${user_id}";
-	if (($result = Database::query ($query)) == NULL)
-	{
-		showError ('SQL query failed', __FUNCTION__);
-		die;
-	}
-	if ($row = $result->fetch (PDO::FETCH_ASSOC))
-		return $row;
 	return NULL;
 }
 
