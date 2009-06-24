@@ -32,13 +32,18 @@ require_once 'inc/revdatabase.php';
 require_once 'inc/milestone.php';
 require_once 'inc/operation.php';
 require_once 'inc/database.php';
-if (file_exists ('local/secret.php'))
-	require_once 'local/secret.php';
+// Always have default values for these options, so if a user didn't
+// care to set, something would be working anyway.
+$user_auth_src = 'database';
+$require_local_account = TRUE;
+
+if (file_exists ('inc/secret.php'))
+	require_once 'inc/secret.php';
 else
 {
 	showError
 	(
-		"Database connection parameters are read from local/secret.php file, " .
+		"Database connection parameters are read from inc/secret.php file, " .
 		"which cannot be found.\nYou probably need to complete the installation " .
 		"procedure by following <a href='${root}install.php'>this link</a>.",
 		__FILE__
@@ -254,8 +259,8 @@ sortTree ($tagtree, 'taginfoCmp');
 require_once 'inc/ajaxhandlers.php';
 require_once 'inc/triggers.php';
 require_once 'inc/gateways.php';
-if (file_exists ('local/local.php'))
-	require_once 'local/local.php';
+if (file_exists ('inc/local.php'))
+	require_once 'inc/local.php';
 
 // These will be filled in by fixContext()
 $expl_tags = array();

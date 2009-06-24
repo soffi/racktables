@@ -1765,10 +1765,10 @@ function addPortCompat ($type1 = 0, $type2 = 0)
 // to merge it with readChapter().
 function getDict ($parse_links = FALSE)
 {
-	$query1 =
+	$query =
 		"select Chapter.name as chapter_name, Chapter.id as chapter_no, Dictionary.id as dict_key, dict_value, sticky from " .
 		"Chapter left join Dictionary on Chapter.id = Dictionary.chapter_id order by Chapter.name, dict_value";
-	$result = Database::query ($query1);
+	$result = Database::query ($query);
 	$dict = array();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 	{
@@ -1787,21 +1787,35 @@ function getDict ($parse_links = FALSE)
 			$dict[$chapter_no]['refcnt'][$row['dict_key']] = 0;
 		}
 	}
-	Database::closeCursor($result);
 	unset ($result);
-// Find the list of all assigned values of dictionary-addressed attributes, each with
-// chapter/word keyed reference counters. Use the structure to adjust reference counters
-// of the returned disctionary words.
-	$query2 = "select a.id as attr_id, am.chapter_id as chapter_no, uint_value, count(object_id) as refcnt " .
+	// Find the list of all assigned values of dictionary-addressed attributes, each with
+	// chapter/word keyed reference counters. Use the structure to adjust reference counters
+	// of the returned disctionary words.
+	$query = "select a.id as attr_id, am.chapter_id as chapter_no, uint_value, count(object_id) as refcnt " .
 		"from Attribute as a inner join AttributeMap as am on a.id = am.attr_id " .
 		"inner join AttributeValue as av on a.id = av.attr_id " .
 		"inner join Dictionary as d on am.chapter_id = d.chapter_id and av.uint_value = d.id " .
 		"where a.type = 'dict' group by a.id, am.chapter_id, uint_value " .
 		"order by a.id, am.chapter_id, uint_value";
-	$result = Database::query ($query2);
+	$result = Database::query ($query);
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 		$dict[$row['chapter_no']]['refcnt'][$row['uint_value']] = $row['refcnt'];
-	Database::closeCursor($result);
+	unset ($result);
+	// PortType chapter is referenced by PortCompat and Port tables
+	$query = 'select dict_key as uint_value, chapter_id as chapter_no, (select count(*) from PortCompat where type1 = dict_key or type2 = dict_key) + ' .
+		'(select count(*) from Port where type = dict_key) as refcnt ' .
+		'from Dictionary where chapter_id = 2';
+	$result = Database::query ($query);
+	while ($row = $result->fetch (PDO::FETCH_ASSOC))
+		$dict[$row['chapter_no']]['refcnt'][$row['uint_value']] = $row['refcnt'];
+	unset ($result);
+	// RackObjectType chapter is referenced by AttributeMap and RackObject tables
+	$query = 'select dict_key as uint_value, chapter_id as chapter_no, (select count(*) from AttributeMap where objtype_id = dict_key) + ' .
+		'(select count(*) from RackObject where objtype_id = dict_key) as refcnt from Dictionary where chapter_id = 1';
+	$result = Database::query ($query);
+	while ($row = $result->fetch (PDO::FETCH_ASSOC))
+		$dict[$row['chapter_no']]['refcnt'][$row['uint_value']] = $row['refcnt'];
+	unset ($result);
 	return $dict;
 }
 
@@ -2046,41 +2060,43 @@ function readChapter ($chapter_name = '')
 	return $chapter;
 }
 
+// Return a list of all stickers with sticker map applied. Each sticker records will
+// list all its ways on the map with refcnt set.
 function getAttrMap ()
 {
 	$query =
-		"select a.id as attr_id, a.type as attr_type, a.name as attr_name, am.objtype_id, " .
-		"d.dict_value as objtype_name, am.chapter_id, c2.name as chapter_name from " .
-		"Attribute as a left join AttributeMap as am on a.id = am.attr_id " .
-		"left join Dictionary as d on am.objtype_id = d.id " .
-		"left join Chapter as c1 on d.chapter_id = c1.id " .
-		"left join Chapter as c2 on am.chapter_id = c2.id " .
-		"where c1.name = 'RackObjectType' or c1.name is null " .
-		"order by a.name";
+		'SELECT id, type, name, chapter_id, (SELECT name FROM Chapter WHERE id = chapter_id) ' .
+		'AS chapter_name, objtype_id, (SELECT dict_value FROM Dictionary WHERE dict_key = objtype_id) ' .
+		'AS objtype_name, (SELECT COUNT(object_id) FROM AttributeValue AS av INNER JOIN RackObject AS ro ' .
+		'ON av.object_id = ro.id WHERE av.attr_id = Attribute.id AND ro.objtype_id = AttributeMap.objtype_id) ' .
+		'AS refcnt FROM Attribute LEFT JOIN AttributeMap ON id = attr_id ORDER BY Attribute.name, objtype_id';
 	$result = Database::query ($query);
 	$ret = array();
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 	{
-		$attr_id = $row['attr_id'];
-		if (!isset ($ret[$attr_id]))
-		{
-			$ret[$attr_id]['id'] = $attr_id;
-			$ret[$attr_id]['type'] = $row['attr_type'];
-			$ret[$attr_id]['name'] = $row['attr_name'];
-			$ret[$attr_id]['application'] = array();
-		}
+		if (!isset ($ret[$row['id']]))
+			$ret[$row['id']] = array
+			(
+				'id' => $row['id'],
+				'type' => $row['type'],
+				'name' => $row['name'],
+				'application' => array(),
+			);
 		if ($row['objtype_id'] == '')
 			continue;
-		$application['objtype_id'] = $row['objtype_id'];
-		$application['objtype_name'] = $row['objtype_name'];
-		if ($row['attr_type'] == 'dict')
+		$application = array
+		(
+			'objtype_id' => $row['objtype_id'],
+			'objtype_name' => $row['objtype_name'],
+			'refcnt' => $row['refcnt'],
+		);
+		if ($row['type'] == 'dict')
 		{
 			$application['chapter_no'] = $row['chapter_id'];
 			$application['chapter_name'] = $row['chapter_name'];
 		}
-		$ret[$attr_id]['application'][] = $application;
+		$ret[$row['id']]['application'][] = $application;
 	}
-	Database::closeCursor($result);
 	return $ret;
 }
 

@@ -3,10 +3,10 @@
 require_once 'inc/orm.php';
 $relnotes = array
 (
-	'0.17.0' => "This release requires changes to the configuration file. " .
-		"Move inc/secret.php to local/secret.php and add the following to the file:<br><br>" .
-		"\$user_auth_src = 'database';<br>\$require_local_account = TRUE;<br><br>" .
-		"(and adjust to your needs, if necessary)<br>" .
+	'0.17.0' => "LDAP options have been moved to LDAP_options array. This means, that if you were<br>" .
+		"using LDAP authentication for users in version 0.16.x, it will break right after<br>" .
+		"upgrade to 0.17.0. To get things working again, adjust existing secret.php file<br>" .
+		"according to secret-sample.php file provided with 0.17.0 release.<br><br>" .
 		"Another change is the addition of support for file uploads.  Files are stored<br>" .
 		"in the database.  There are several settings in php.ini which you may need to modify:<br>" .
 		"<ul><li>file_uploads        - needs to be On</li>" .
@@ -474,17 +474,17 @@ require_once 'inc/interface.php';
 require_once 'inc/config.php';
 require_once 'inc/database.php';
 require_once 'inc/revdatabase.php';
-if (file_exists ('local/secret.php'))
-	require_once 'local/secret.php';
+if (file_exists ('inc/secret.php'))
+	require_once 'inc/secret.php';
 elseif (file_exists ('inc/secret.php')) // 0.16.x -> 0.17.x upgrade
 {
 	require_once 'inc/secret.php';
 	$user_auth_src = getConfigVar ('USER_AUTH_SRC');
 }
 else
-	die ("Database connection parameters are read from local/secret.php file, " .
-		"which cannot be found.\nCopy provided config/secret-sample.php to " .
-		"local/secret.php and modify to your setup.\n\nThen reload the page.");
+	die ("Database connection parameters are read from inc/secret.php file, " .
+		"which cannot be found.\nCopy provided inc/secret-sample.php to " .
+		"inc/secret.php and modify to your setup.\n\nThen reload the page.");
 
 try
 {
