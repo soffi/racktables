@@ -24,6 +24,7 @@ $SQLSchema = array
 			'Row_name' => '(select name from RackRow where id = row_id)',
 			'objtype_name' => '(select dict_value from Dictionary where id = objtype_id)',
 			'has_problems' => 'has_problems',
+			'comment' => 'comment',
 		),
 		'keycolumn' => 'id',
 		'ordcolumns' => array ('name'),
@@ -316,15 +317,7 @@ function listCells ($realm, $parent_id = 0)
 	{
 		$ret[$entity_id]['etags'] = getExplicitTagsOnly ($ret[$entity_id]['etags']);
 		$ret[$entity_id]['itags'] = getImplicitTags ($ret[$entity_id]['etags']);
-		switch ($realm)
-		{
-		case 'ipv4net':
-		case 'object':
-			$ret[$entity_id]['atags'] = generateEntityAutoTags ($realm, $ret[$entity_id]);
-			break;
-		default:
-			$ret[$entity_id]['atags'] = generateEntityAutoTags ($realm, $entity_id);
-		}
+		$ret[$entity_id]['atags'] = generateEntityAutoTags ($ret[$entity_id]);
 		switch ($realm)
 		{
 		case 'object':
@@ -403,15 +396,7 @@ function spotEntity ($realm, $id)
 		return NULL;
 	$ret['etags'] = getExplicitTagsOnly ($ret['etags']);
 	$ret['itags'] = getImplicitTags ($ret['etags']);
-	switch ($realm)
-	{
-	case 'ipv4net':
-	case 'object':
-		$ret['atags'] = generateEntityAutoTags ($realm, $ret);
-		break;
-	default:
-		$ret['atags'] = generateEntityAutoTags ($realm, $id);
-	}
+	$ret['atags'] = generateEntityAutoTags ($ret);
 	switch ($realm)
 	{
 	case 'object':
@@ -681,6 +666,14 @@ function commitUpdateObject ($object_id = 0, $new_name = '', $new_label = '', $n
 	return TRUE;
 }
 
+// Remove file links related to the entity, but leave the entity and file(s) intact.
+function releaseFiles ($entity_realm, $entity_id)
+{
+	Database::deleteWhere ('FileLink', array(
+		'entity_type' => $entity_realm,
+		'entity_id' => $entity_id));
+}
+
 // There are times when you want to delete all traces of an object
 function commitDeleteObject ($object_id = 0)
 {
@@ -689,6 +682,7 @@ function commitDeleteObject ($object_id = 0)
 		showError ('Invalid args', __FUNCTION__);
 		die;
 	}
+	releaseFiles ('object', $object_id);
 	Database::deleteWhere('AttributeValue', array('object_id'=>$object_id));
 	$result = Database::query('SELECT file_id FROM FileLink WHERE entity_id = \'object\' AND entity_id = ?', array(1=>$object_id));
 	while ($row = $result->fetch(PDO::FETCH_NUM))
@@ -706,6 +700,7 @@ function commitDeleteObject ($object_id = 0)
 
 function commitDeleteRack($rack_id)
 {
+	releaseFiles ('rack', $rack_id);
 	Database::deleteWhere('RackSpace', array('rack_id'=>$rack_id));
 	Database::deleteWhere('TagStorage', array('entity_realm'=>'rack', 'entity_id'=>$rack_id));
 	Database::delete('Rack', $rack_id);
@@ -2428,6 +2423,7 @@ function commitDeleteVS ($id = 0)
 {
 	if ($id <= 0)
 		return FALSE;
+	releaseFiles ('ipv4vs', $id);
 	Database::delete('IPv4VS', $id);
 	return destroyTagsForEntity ('ipv4vs', $id);
 }
@@ -2576,6 +2572,7 @@ function commitDeleteRSPool ($pool_id = 0)
 {
 	if ($pool_id <= 0)
 		return FALSE;
+	releaseFiles ('ipv4rspool', $pool_id);
 	Database::delete('IPv4RSPool', $pool_id);
 	return destroyTagsForEntity ('ipv4rspool', $pool_id);
 }
@@ -2909,6 +2906,7 @@ function destroyIPv4Prefix ($id = 0)
 {
 	if ($id <= 0)
 		return __FUNCTION__ . ': Invalid IPv4 prefix ID';
+	releaseFiles ('ipv4net', $id);
 	Database::delete('IPv4Network', $id);
 	if (!destroyTagsForEntity ('ipv4net', $id))
 		return __FUNCTION__ . ': SQL query #2 failed';
