@@ -891,7 +891,7 @@ $msgcode['deleteObject']['ERR'] = 100;
 function deleteObject ()
 {
 	assertUIntArg ('object_id', __FUNCTION__);
-	if (NULL === ($oinfo = getObjectInfo ($_REQUEST['object_id'])))
+	if (NULL === ($oinfo = spotEntity ('object', $_REQUEST['object_id'])))
 		return buildRedirectURL (__FUNCTION__, 'ERR', array ('object not found'));
 
 	$racklist = getResidentRacksData ($_REQUEST['object_id'], FALSE);
@@ -1343,7 +1343,7 @@ function generateAutoPorts ()
 {
 	global $pageno;
 	assertUIntArg ('object_id', __FUNCTION__);
-	$info = getObjectInfo ($_REQUEST['object_id'], FALSE);
+	$info = spotEntity ('object', $_REQUEST['object_id']);
 	// Navigate away in case of success, stay at the place otherwise.
 	if (executeAutoPorts ($_REQUEST['object_id'], $info['objtype_id']))
 		return buildRedirectURL (__FUNCTION__, 'OK', array(), $pageno, 'ports');
@@ -1783,7 +1783,7 @@ function linkFileToEntity ()
 	$bypass_name = $page[$pageno]['bypass'];
 	assertUIntArg ($bypass_name, __FUNCTION__);
 
-	$fi = getFileInfo ($_REQUEST['file_id']);
+	$fi = spotEntity ('file', $_REQUEST['file_id']);
 	if ($fi === NULL)
 		return buildRedirectURL (__FUNCTION__, 'ERR1'); // file not found
 	$error = commitLinkFile ($_REQUEST['file_id'], $entity_type, $_REQUEST[$bypass_name]);
@@ -1804,7 +1804,7 @@ function replaceFile ()
 	// Make sure the file can be uploaded
 	if (get_cfg_var('file_uploads') != 1)
 		return buildRedirectURL (__FUNCTION__, 'ERR1');
-	$shortInfo = getFileInfo ($_REQUEST['file_id']);
+	$shortInfo = spotEntity ('file', $sic['file_id']);
 
 	$fp = fopen($_FILES['file']['tmp_name'], 'rb');
 	if ($fp === FALSE)
@@ -1850,7 +1850,7 @@ $msgcode['deleteFile']['ERR'] = 100;
 function deleteFile ()
 {
 	assertUIntArg ('file_id', __FUNCTION__);
-	$shortInfo = getFileInfo ($_REQUEST['file_id']);
+	$shortInfo = spotEntity ('file', $_REQUEST['file_id']);
 	$error = commitDeleteFile ($_REQUEST['file_id']);
 
 	if ($error != '')
@@ -1867,7 +1867,7 @@ function updateFileText ()
 	assertUIntArg ('file_id', __FUNCTION__);
 	assertStringArg ('mtime_copy', __FUNCTION__);
 	assertStringArg ('file_text', __FUNCTION__, TRUE); // it's Ok to save empty
-	$shortInfo = getFileInfo ($_REQUEST['file_id']);
+	$shortInfo = spotEntity ('file', $_REQUEST['file_id']);
 	if ($shortInfo['mtime'] != $_REQUEST['mtime_copy'])
 		return buildRedirectURL (__FUNCTION__, 'ERR1');
 	global $sic;

@@ -23,6 +23,7 @@ $SQLSchema = array
 			'row_id' => '(select row_id from Rack where id = rack_id)',
 			'Row_name' => '(select name from RackRow where id = row_id)',
 			'objtype_name' => '(select dict_value from Dictionary where id = objtype_id)',
+			'has_problems' => 'has_problems',
 		),
 		'keycolumn' => 'id',
 		'ordcolumns' => array ('name'),
@@ -253,6 +254,12 @@ function getNarrowObjectList ($varname = '')
 // enough information for judgeCell() to execute.
 function listCells ($realm, $parent_id = 0)
 {
+	if (!$parent_id)
+	{
+		global $entityCache;
+		if (isset ($entityCache['complete'][$realm]))
+			return $entityCache['complete'][$realm];
+	}
 	global $SQLSchema;
 	if (!isset ($SQLSchema[$realm]))
 	{
@@ -302,7 +309,9 @@ function listCells ($realm, $parent_id = 0)
 				'parent_id' => $taglist[$row['tag_id']]['parent_id'],
 			);
 	}
-	// Add necessary finish to the list before returning it.
+	// Add necessary finish to the list before returning it. Maintain caches.
+	if (!$parent_id)
+		unset ($entityCache['partial'][$realm]);
 	foreach (array_keys ($ret) as $entity_id)
 	{
 		$ret[$entity_id]['etags'] = getExplicitTagsOnly ($ret[$entity_id]['etags']);
@@ -331,6 +340,10 @@ function listCells ($realm, $parent_id = 0)
 		default:
 			break;
 		}
+		if (!$parent_id)
+			$entityCache['complete'][$realm][$entity_id] = $ret[$entity_id];
+		else
+			$entityCache['partial'][$realm][$entity_id] = $ret[$entity_id];
 	}
 	return $ret;
 }
@@ -339,6 +352,12 @@ function listCells ($realm, $parent_id = 0)
 // if it does not exist).
 function spotEntity ($realm, $id)
 {
+	global $entityCache;
+	if (isset ($entityCache['complete'][$realm]))
+	// Emphasize the absence of record, if listCells() has already been called.
+		return (isset ($entityCache['complete'][$realm][$id])) ? $entityCache['complete'][$realm][$id] : NULL;
+	elseif (isset ($entityCache['partial'][$realm][$id]))
+		return $entityCache['partial'][$realm][$id];
 	global $SQLSchema;
 	if (!isset ($SQLSchema[$realm]))
 	{
@@ -408,6 +427,7 @@ function spotEntity ($realm, $id)
 	default:
 		break;
 	}
+	$entityCache['partial'][$realm][$id] = $ret;
 	return $ret;
 }
 
@@ -518,76 +538,6 @@ function amplifyCell (&$record, $dummy = NULL)
 	}
 }
 
-// This is a popular helper.
-function getObjectInfo ($object_id = 0, $set_dname = TRUE)
-{
-	if ($object_id == 0)
-		throw new Exception ('Invalid object_id');
-	Database::inLifetime('RackObject', $object_id);
-	$query =
-		"select RackObject.id as id, RackObject.name as name, label, barcode, dict_value as objtype_name, asset_no, Dictionary.id as objtype_id, has_problems, comment from " .
-		"RackObject inner join Dictionary on objtype_id = Dictionary.id " .
-		"where RackObject.id = ? ";
-	$result = Database::query($query, array(1=>$object_id));
-	$row = $result->fetch (PDO::FETCH_ASSOC);
-	$ret['id'] = $row['id'];
-	$ret['name'] = $row['name'];
-	$ret['label'] = $row['label'];
-	$ret['barcode'] = $row['barcode'];
-	$ret['objtype_name'] = $row['objtype_name'];
-	$ret['objtype_id'] = $row['objtype_id'];
-	$ret['has_problems'] = $row['has_problems'];
-	$ret['asset_no'] = $row['asset_no'];
-	$ret['dname'] = displayedName ($ret);
-	$ret['comment'] = $row['comment'];
-	Database::closeCursor($result);
-	return $ret;
-}
-
-function getArrayObjectInfo ($objects = array())
-{
-	$ret = array();
-	if (count($objects) == 0)
-		return $ret;
-	$query =
-		'select RackObject.id as id, RackObject.name as name, label, barcode, dict_value as objtype_name, asset_no, Dictionary.id as objtype_id, has_problems, comment from ' .
-		'RackObject inner join Dictionary on objtype_id = Dictionary.id ' .
-		'where RackObject.id in ( ';
-
-	$first = true;
-	$bindPos = 1;
-	$bindValues = array();
-	foreach($objects as $object_id)
-	{
-		Database::inLifetime('RackObject', $object_id);
-		if (!$first)
-			$query .= ', ';
-		$first = false;
-		$query .= ' ? ';
-		$bindValues[$bindPos++] = $object_id;
-	};
-	$query .= ')';
-	$result = Database::query($query, $bindValues);
-	while ($row = $result->fetch (PDO::FETCH_ASSOC))
-	{
-		$id = $row['id'];
-		$ret[$id]['id'] = $row['id'];
-		$ret[$id]['name'] = $row['name'];
-		$ret[$id]['label'] = $row['label'];
-		$ret[$id]['barcode'] = $row['barcode'];
-		$ret[$id]['objtype_name'] = $row['objtype_name'];
-		$ret[$id]['objtype_id'] = $row['objtype_id'];
-		$ret[$id]['has_problems'] = $row['has_problems'];
-		$ret[$id]['asset_no'] = $row['asset_no'];
-		$ret[$id]['dname'] = displayedName ($row);
-		$ret[$id]['comment'] = $row['comment'];
-	}
-	Database::closeCursor($result);
-	return $ret;
-}
-
-
-
 function getPortTypes ()
 {
 	return readChapter ('PortType');
@@ -645,7 +595,7 @@ function getObjectPortsAndLinks ($object_id)
 			// only call displayedName() when necessary
 			if (empty ($ret[$tmpkey]['remote_object_name']) and !empty ($ret[$tmpkey]['remote_object_id']))
 			{
-				$oi = getObjectInfo ($ret[$tmpkey]['remote_object_id']);
+				$oi = spotEntity ('object', $ret[$tmpkey]['remote_object_id']);
 				$ret[$tmpkey]['remote_object_name'] = $oi['dname'];
 			}
 		}
@@ -772,6 +722,7 @@ function commitUpdateRack ($rack_id, $new_name, $new_height, $new_row_id, $new_c
 	$check_sql = "SELECT COUNT(*) AS count FROM RackSpace WHERE rack_id = '${rack_id}' AND unit_no > '{$new_height}'";
 	$check_result = Database::query($check_sql);
 	$check_row = $check_result->fetch (PDO::FETCH_ASSOC);
+	unset ($check_result);
 	if ($check_row['count'] > 0) {
 		throw new Exception('Cannot shrink rack, objects are still mounted there');
 	}
@@ -3218,28 +3169,6 @@ function getFile ($file_id = 0)
 	return $ret;
 }
 
-function getFileInfo ($file_id = 0)
-{
-	if ($file_id == 0)
-		throw new Exception ('Invalid file_id');
-	Database::inLifetime('File', $file_id);
-	$query = Database::query('SELECT id, name, type, size, atime, comment FROM File WHERE id = ?', array(1=>$file_id));
-	$row = $query->fetch (PDO::FETCH_ASSOC);
-	$ret = array();
-	$ret['id'] = $row['id'];
-	$ret['name'] = $row['name'];
-	$ret['type'] = $row['type'];
-	$ret['size'] = $row['size'];
-	$head = Database::getRevisionById(Database::getHeadRevisionForObject('File', $row['id']));
-	$tail = Database::getRevisionById(Database::getTailRevisionForObject('File', $row['id']));
-	$ret['ctime'] = strftime('%F %T', $tail['timestamp']);
-	$ret['mtime'] = strftime('%F %T', $head['timestamp']);
-	$ret['atime'] = $row['atime'];
-	$ret['comment'] = $row['comment'];
-	Database::closeCursor($query);
-	return $ret;
-}
-
 function getFileLinks ($file_id = 0)
 {
 	if ($file_id <= 0)
@@ -3274,7 +3203,7 @@ function getFileLinks ($file_id = 0)
 			case 'object':
 				$page = 'object';
 				$id_name = 'object_id';
-				$parent = getObjectInfo($row['entity_id']);
+				$parent = spotEntity ($row['entity_type'], $row['entity_id']);
 				$name = $parent['dname'];
 				break;
 			case 'rack':

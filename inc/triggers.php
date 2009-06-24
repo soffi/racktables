@@ -19,7 +19,7 @@ function trigger_livevlans ()
 {
 	assertUIntArg ('object_id', __FUNCTION__);
 	$object_id = $_REQUEST['object_id'];
-	$object = getObjectInfo ($object_id, FALSE);
+	$object = spotEntity ('object', $object_id, FALSE);
 	if ($object['objtype_id'] != 8)
 		return '';
 	$values = getAttrValues ($object_id);
@@ -109,7 +109,7 @@ function trigger_localreports ()
 function trigger_file_editText ()
 {
 	assertUIntArg ('file_id', __FUNCTION__);
-	$fileInfo = getFileInfo ($_REQUEST['file_id']);
+	$fileInfo = spotEntity ('file', $_REQUEST['file_id']);
 	return ($fileInfo['type'] == 'text/plain') ? 'std' : '';
 }
 

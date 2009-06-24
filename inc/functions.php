@@ -364,12 +364,12 @@ function binInvMaskFromDec ($maskL)
 // the function is also used for thumb creation.
 function markupObjectProblems (&$rackData)
 {
-	$objects = getArrayObjectInfo($rackData['mountedObjects']);
 	for ($i = $rackData['height']; $i > 0; $i--)
 		for ($locidx = 0; $locidx < 3; $locidx++)
 			if ($rackData[$i][$locidx]['state'] == 'T')
 			{
-				if ($objects[$rackData[$i][$locidx]['object_id']]['has_problems'] == 'yes')
+				$object = spotEntity ('object', $rackData[$i][$locidx]['object_id']);
+				if ($object['has_problems'] == 'yes')
 				{
 					// Object can be already highlighted.
 					if (isset ($rackData[$i][$locidx]['hl']))
@@ -1366,7 +1366,7 @@ function buildLVSConfig ($object_id = 0)
 		showError ('Invalid argument', __FUNCTION__);
 		return;
 	}
-	$oInfo = getObjectInfo ($object_id, FALSE);
+	$oInfo = spotEntity ('object', $object_id);
 	$lbconfig = getSLBConfig ($object_id);
 	if ($lbconfig === NULL)
 	{
