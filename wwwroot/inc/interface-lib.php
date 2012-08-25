@@ -267,6 +267,9 @@ $image['COPY']['height'] = 32;
 $image['html']['path'] = 'pix/tango-text-html.png';
 $image['html']['width'] = 16;
 $image['html']['height'] = 16;
+$image['pencil']['path'] = 'pix/pencil-icon.png';
+$image['pencil']['width'] = 12;
+$image['pencil']['height'] = 12;
 
 $page_by_realm = array();
 $page_by_realm['object'] = 'depot';
@@ -787,7 +790,7 @@ function finishPortlet ()
 function getPageName ($page_code)
 {
 	global $page;
-	$title = isset ($page[$page_code]['title']) ? $page[$page_code]['title'] : dynamic_title_decoder ($page_code);
+	$title = isset ($page[$page_code]['title']) ? $page[$page_code]['title'] : callHook ('dynamic_title_decoder' ,$page_code);
 	if (is_array ($title))
 		$title = $title['name'];
 	return $title;
@@ -812,6 +815,12 @@ function printTagTRs ($cell, $baseurl = '')
 	}
 }
 
+// stub function to override it by chain-connected hooks
+function modifyEntitySummary ($cell, $summary)
+{
+	return $summary;
+}
+
 // renders 'summary' portlet, which persist on default tab of every realm page.
 // $values is a tricky array.
 // if its value is a string, it is treated as right td inner html, and the key is treated as left th text, colon appends there automatically.
@@ -822,8 +831,7 @@ function renderEntitySummary ($cell, $title, $values = array())
 {
 	global $page_by_realm;
 	// allow plugins to override summary table
-	if ($new_values = callHook ('modifyEntitySummary', $cell, $values))
-		$values = $new_values;
+	$values = callHook ('modifyEntitySummary', $cell, $values);
 
 	startPortlet ($title);
 	echo "<table border=0 cellspacing=0 cellpadding=3 width='100%'>\n";
@@ -926,6 +934,13 @@ function renderNetVLAN ($cell)
 		echo implode (', ', $links);
 		echo '</strong></div>';
 	}
+}
+
+function includeJQueryUI ($do_css = TRUE)
+{
+	addJS ('js/jquery-ui-1.8.21.min.js');
+	if ($do_css)
+		addCSS ('css/jquery-ui-1.8.22.redmond.css');
 }
 
 ?>

@@ -555,28 +555,6 @@ function editPortForObject ()
 	return showFuncMessage (__FUNCTION__, 'OK', array ($_REQUEST['name']));
 }
 
-$msgcode['linkPortForObject']['OK'] = 8;
-function linkPortForObject ()
-{
-	assertUIntArg ('port_id');
-	assertUIntArg ('remote_port_id');
-	assertStringArg ('cable', TRUE);
-
-	// FIXME: ensure, that at least one of these ports belongs to the current object
-	linkPorts ($_REQUEST['port_id'], $_REQUEST['remote_port_id'], $_REQUEST['cable']);
-	$port_info = getPortInfo ($_REQUEST['port_id']);
-	return showFuncMessage
-	(
-		__FUNCTION__,
-		'OK',
-		array
-		(
-			formatPortLink ($port_info['id'], $port_info['name'], NULL, NULL),
-			formatLinkedPort ($port_info),
-		)
-	);
-}
-
 $msgcode['addMultiPorts']['OK'] = 10;
 function addMultiPorts ()
 {
@@ -826,7 +804,7 @@ function editAddress ()
 	assertStringArg ('name', TRUE);
 	assertStringArg ('comment', TRUE);
 	$ip_bin = assertIPArg ('ip');
-	updateAddress ($ip_bin, $_REQUEST['name'], $_REQUEST['comment'], isCheckSet ('reserved', 'yesno'));
+	updateAddress ($ip_bin, $_REQUEST['name'], isCheckSet ('reserved', 'yesno'), $_REQUEST['comment']);
 	return showFuncMessage (__FUNCTION__, 'OK');
 }
 
@@ -1364,6 +1342,7 @@ function resetUIConfig()
 	setConfigVar ('VIRTUAL_OBJ_LISTSRC', '1504,1505,1506,1507');
 	setConfigVar ('DATETIME_ZONE', 'UTC');
 	setConfigVar ('DATETIME_FORMAT', 'm/d/Y');
+	setConfigVar ('SEARCH_DOMAINS', '');
 	return showFuncMessage (__FUNCTION__, 'OK');
 }
 

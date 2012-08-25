@@ -23,14 +23,17 @@ read-only.
 $page = array();
 $tab = array();
 $trigger = array();
+
 $ophandler = array();
 $tabhandler = array();
+$hook = array();
 $ophandlers_stack = array();
 $tabhandlers_stack = array();
+$hooks_stack = array();
+
 $delayauth = array();
 $svghandler = array();
 $ajaxhandler = array();
-$hook = array();
 
 $indexlayout = array
 (
@@ -203,7 +206,6 @@ $ophandler['object']['edit']['unlinkEntities'] = 'unlinkEntities';
 $ophandler['object']['rackspace']['updateObjectAllocation'] = 'updateObjectAllocation';
 $ophandler['object']['ports']['addPort'] = 'addPortForObject';
 $ophandler['object']['ports']['editPort'] = 'editPortForObject';
-$ophandler['object']['ports']['linkPort'] = 'linkPortForObject';
 $ophandler['object']['ports']['addMultiPorts'] = 'addMultiPorts';
 $ophandler['object']['ports']['addBulkPorts'] = 'addBulkPorts';
 $ophandler['object']['ports']['useup'] = 'useupPort';

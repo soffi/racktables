@@ -1791,7 +1791,8 @@ function buildRedirectURL ($nextpage = NULL, $nexttab = NULL, $moreArgs = array(
 	return $url;
 }
 
-function redirectUser ($url)
+// store the accumulated message list into he $SESSION array to display them later
+function backupLogMessages()
 {
 	global $log_messages;
 	if (! empty ($log_messages))
@@ -1799,6 +1800,11 @@ function redirectUser ($url)
 		@session_start();
 		$_SESSION['log'] = $log_messages;
 	}
+}
+
+function redirectUser ($url)
+{
+	backupLogMessages();
 	header ("Location: " . $url);
 	die;
 }
@@ -2179,7 +2185,7 @@ function ip6_checkparse ($ip)
 
 function ip4_int2bin ($ip_int)
 {
-	return pack ('N', $ip_int);
+	return pack ('N', $ip_int + 0);
 }
 
 function ip4_bin2int ($ip_bin)
@@ -3156,6 +3162,7 @@ function ios12ShortenIfName ($ifname)
 	$ifname = preg_replace ('@^TenGigabitEthernet(.+)$@', 'te\\1', $ifname);
 	$ifname = preg_replace ('@^port-channel(.+)$@i', 'po\\1', $ifname);
 	$ifname = preg_replace ('@^(?:XGigabitEthernet|XGE)(.+)$@', 'xg\\1', $ifname);
+	$ifname = preg_replace ('@^LongReachEthernet(.+)$@', 'lo\\1', $ifname);
 	$ifname = preg_replace ('@^Management(.+)$@', 'ma\\1', $ifname);
 	$ifname = preg_replace ('@^Et(\d.*)$@', 'e\\1', $ifname);
 	$ifname = strtolower ($ifname);
@@ -4640,28 +4647,48 @@ function searchEntitiesByText ($terms)
 		if (NULL !== ($net_id = getIPv6AddressNetworkId ($ip_bin, $matches[2] + 1)))
 			$summary['ipv6network'][$net_id] = spotEntity('ipv6net', $net_id);
 	}
-	elseif ($found_id = searchByMgmtHostname ($terms))
-	{
-		$summary['object'][$found_id] = array
-		(
-			'id' => $found_id,
-			'method' => 'fqdn',
-		);
-	}
 	else
 	// Search for objects, addresses, networks, virtual services and RS pools by their description.
 	{
-		$summary['object'] = getObjectSearchResults ($terms);
-		$summary['ipv4addressbydescr'] = getIPv4AddressSearchResult ($terms);
-		$summary['ipv6addressbydescr'] = getIPv6AddressSearchResult ($terms);
-		$summary['ipv4network'] = getIPv4PrefixSearchResult ($terms);
-		$summary['ipv6network'] = getIPv6PrefixSearchResult ($terms);
-		$summary['ipv4rspool'] = getIPv4RSPoolSearchResult ($terms);
-		$summary['ipv4vs'] = getIPv4VServiceSearchResult ($terms);
-		$summary['user'] = getAccountSearchResult ($terms);
-		$summary['file'] = getFileSearchResult ($terms);
-		$summary['rack'] = getRackSearchResult ($terms);
-		$summary['vlan'] = getVLANSearchResult ($terms);
+		// search by FQDN has special treatment - if single object found, do not search by other fields
+		$object_id_by_fqdn = NULL;
+		$domains = preg_split ('/\s*,\s*/', strtolower (getConfigVar ('SEARCH_DOMAINS')));
+		if (! empty ($domains) and $object_id = searchByMgmtHostname ($terms))
+		{
+			// get FQDN
+			$attrs = getAttrValues ($object_id);
+			$fqdn = '';
+			if (isset ($attrs[3]['value']))
+				$fqdn = strtolower (trim ($attrs[3]['value']));
+			foreach ($domains as $domain)
+				if ('.' . $domain === substr ($fqdn, -strlen ($domain) - 1))
+				{
+					$object_id_by_fqdn = $object_id;
+					break;
+				}
+		}
+		if ($object_id_by_fqdn)
+		{
+			$summary['object'][$object_id_by_fqdn] = array
+			(
+				'id' => $object_id_by_fqdn,
+				'method' => 'fqdn',
+			);
+		}
+		else
+		{
+			$summary['object'] = getObjectSearchResults ($terms);
+			$summary['ipv4addressbydescr'] = getIPv4AddressSearchResult ($terms);
+			$summary['ipv6addressbydescr'] = getIPv6AddressSearchResult ($terms);
+			$summary['ipv4network'] = getIPv4PrefixSearchResult ($terms);
+			$summary['ipv6network'] = getIPv6PrefixSearchResult ($terms);
+			$summary['ipv4rspool'] = getIPv4RSPoolSearchResult ($terms);
+			$summary['ipv4vs'] = getIPv4VServiceSearchResult ($terms);
+			$summary['user'] = getAccountSearchResult ($terms);
+			$summary['file'] = getFileSearchResult ($terms);
+			$summary['rack'] = getRackSearchResult ($terms);
+			$summary['vlan'] = getVLANSearchResult ($terms);
+		}
 	}
 	# Filter search results in a way in some realms to omit records, which the
 	# user would not be able to browse anyway.
@@ -5132,15 +5159,17 @@ function getOutputOf ($func_name)
 }
 
 // calls function which can be overriden in $hook array. Takes any number of additional parameters
-function callHook ($func_name)
+function callHook ($hook_name)
 {
 	global $hook;
-	if (isset ($hook[$func_name]))
-		$func_name = $hook[$func_name];
+	$callback = $hook_name;
+	if (isset ($hook[$hook_name]))
+		$callback = $hook[$hook_name];
 	$params = func_get_args();
-	array_shift($params);
-	if (is_callable ($func_name))
-		return call_user_func_array ($func_name, $params); 
+	if ($callback !== 'universalHookHandler')
+		array_shift ($params);
+	if (is_callable ($callback))
+		return call_user_func_array ($callback, $params);
 }
 
 // function to parse text table header, aligned by left side
@@ -5280,6 +5309,7 @@ function fillIPNetsCorrelation (&$nets)
 		$stack[] = &$net;
 	}
 	// final stack spin
+	$last = NULL;
 	while (count ($stack))
 	{
 		$top = &$stack[count ($stack) - 1];
@@ -5503,6 +5533,72 @@ function universalTabHandler($bypass = NULL)
 	}
 	echo $tabhandler_output;
 	return $ret;
+}
+
+// $method could be 'before', 'after', 'chain'
+function registerHook ($hook_name, $callback, $method = 'after')
+{
+	global $hooks_stack, $hook;
+
+	if (! isset ($hooks_stack[$hook_name]))
+		$hooks_stack[$hook_name] = array();
+
+	if (isset ($hook[$hook_name]) && $hook[$hook_name] != 'universalHookHandler')
+		array_push ($hooks_stack[$hook_name], $hook[$hook_name]);
+	$hook[$hook_name] = 'universalHookHandler';
+
+	if ($method == 'before')
+		array_unshift ($hooks_stack[$hook_name], $callback);
+	elseif ($method == 'after')
+		array_push ($hooks_stack[$hook_name], $callback);
+	elseif ($method == 'chain')
+	{
+		// if we are trying to chain on the built-in function, push it to the stack
+		if (empty ($hooks_stack[$hook_name]))
+			array_push ($hooks_stack[$hook_name], $hook_name);
+
+		array_push ($hooks_stack[$hook_name], '!' . $callback);
+	}
+	else
+		throw new InvalidRequestArgException ('method', $method, "Invalid hook method");
+}
+
+// hook handlers dispatcher. registerHook leaves 'universalHookHandler' in $hook
+function universalHookHandler()
+{
+	global $hook_propagation_stop;
+	$hook_propagation_stop = FALSE;
+	global $hooks_stack;
+	$ret = NULL;
+	$bk_params = func_get_args();
+	$hook_name = array_shift ($bk_params);
+	if (! array_key_exists ($hook_name, $hooks_stack) || ! is_array ($hooks_stack[$hook_name]))
+		throw new InvalidRequestArgException ('$hooks_stack["' . $hook_name . '"]', $hooks_stack[$hook_name]);
+
+	foreach ($hooks_stack[$hook_name] as $callback)
+	{
+		$params = $bk_params;
+		if ('!' === substr ($callback, 0, 1))
+		{
+			$callback = substr ($callback, 1);
+			array_unshift ($params, $ret);
+		}
+		if (is_callable ($callback))
+			$ret = call_user_func_array ($callback, $params);
+		else
+			throw new RackTablesError ("Call of non-existant callback '$callback'", RackTablesError::INTERNAL);
+		if ($hook_propagation_stop)
+			break;
+	}
+	return $ret;
+}
+
+// call this from custom hook registered by registerHook
+// to prevent the rest of the hooks to run
+function stopHookPropagation()
+{
+	global $hook_propagation_stop;
+	$hook_propagation_stop = TRUE;
 }
 
 function arePortTypesCompatible ($oif1, $oif2)

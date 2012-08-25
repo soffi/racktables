@@ -159,6 +159,7 @@ function getDBUpgradePath ($v1, $v2)
 		'0.19.11',
 		'0.19.12',
 		'0.19.13',
+		'0.19.14',
 		'0.20.0',
 	);
 	if (!in_array ($v1, $versionhistory) or !in_array ($v2, $versionhistory))
@@ -1274,6 +1275,12 @@ CREATE TABLE `CactiGraph` (
 
 			$query[] = "UPDATE Config SET varvalue = '0.19.13' WHERE varname = 'DB_VERSION'";
 			break;
+		case '0.19.14':
+			$query[] = "ALTER TABLE AttributeValue CHANGE COLUMN `object_id` `object_id` INT(10) UNSIGNED NOT NULL";
+			$query[] = "ALTER TABLE AttributeValue CHANGE COLUMN `attr_id` `attr_id` INT(10) UNSIGNED NOT NULL";
+			$query[] = "ALTER TABLE AttributeValue ADD PRIMARY KEY (`object_id`, `attr_id`), DROP INDEX `object_id`";
+			$query[] = "UPDATE Config SET varvalue = '0.19.14' WHERE varname = 'DB_VERSION'";
+			break;
 		case '0.20.0':
 			if (!isInnoDBSupported ())
 			{
@@ -1440,6 +1447,8 @@ CREATE VIEW `RackObject` AS SELECT id, name, label, objtype_id, asset_no, has_pr
 			// do not allow NULL allocation type
 			$query[] = "ALTER TABLE `IPv4Allocation` MODIFY `type` enum('regular','shared','virtual','router') NOT NULL DEFAULT 'regular'";
 			$query[] = "ALTER TABLE `IPv6Allocation` MODIFY `type` enum('regular','shared','virtual','router') NOT NULL DEFAULT 'regular'";
+
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, is_userdefined, description) VALUES ('SEARCH_DOMAINS','','string','yes','no','yes','DNS domain list (comma-separated) to search in FQDN attributes')";
 
 			// allow one-to-many port links
 			$query[] = "ALTER TABLE `Link` DROP FOREIGN KEY `Link-FK-a`, DROP FOREIGN KEY `Link-FK-b`";

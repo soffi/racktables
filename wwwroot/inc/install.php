@@ -447,15 +447,15 @@ CREATE TABLE `AttributeMap` (
 ) ENGINE=InnoDB;
 
 CREATE TABLE `AttributeValue` (
-  `object_id` int(10) unsigned default NULL,
+  `object_id` int(10) unsigned NOT NULL,
   -- Default value intentionally breaks the constraint, this blocks
   -- any insertion, which doesn't have 'object_tid' on the column list.
   `object_tid` int(10) unsigned NOT NULL default '0',
-  `attr_id` int(10) unsigned default NULL,
+  `attr_id` int(10) unsigned NOT NULL,
   `string_value` char(255) default NULL,
   `uint_value` int(10) unsigned default NULL,
   `float_value` float default NULL,
-  UNIQUE KEY `object_id` (`object_id`,`attr_id`),
+  PRIMARY KEY (`object_id`,`attr_id`),
   KEY `attr_id-uint_value` (`attr_id`,`uint_value`),
   KEY `attr_id-string_value` (`attr_id`,`string_value`(12)),
   KEY `id-tid` (`object_id`,`object_tid`),
@@ -1644,6 +1644,7 @@ INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, is_userdef
 ('VIRTUAL_OBJ_LISTSRC','1504,1505,1506,1507','string','no','no','no','List source: virtual objects'),
 ('DATETIME_ZONE','UTC','string','yes','no','yes','Timezone to use for displaying/calculating dates'),
 ('DATETIME_FORMAT','m/d/Y','string','no','no','yes','PHP date() format to use for date output'),
+('SEARCH_DOMAINS','','string','yes','no','yes','DNS domain list (comma-separated) to search in FQDN attributes'),
 ('DB_VERSION','${db_version}','string','no','yes','no','Database version.');
 
 INSERT INTO `Script` VALUES ('RackCode','allow {\$userid_1}');
