@@ -102,9 +102,15 @@ should be sufficient:
 
 *** Upgrading to 0.20.0 ***
 
+Database triggers are used for some data consistency measures.  
+The database user account must have the 'TRIGGER' privilege, which was introduced in MySQL 5.1.7.
+
 Racks and Rows are now stored in the database as Objects.  The RackObject table 
 was renamed to Object.  SQL views were created to ease the migration of custom 
 reports and scripts.
+
+Cable paths can be traced and displayed in a graphical format. This requires the Image_GraphViz 
+PEAR module (http://pear.php.net/package/Image_GraphViz).
 
 New plugins engine instead of local.php file. To make your own code stored in local.php work,
 you must move the local.php file into the plugins/ directory. The name of this file does not
