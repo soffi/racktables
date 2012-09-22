@@ -53,6 +53,41 @@ $msgcode = array();
 global $opspec_list;
 $opspec_list = array();
 
+$opspec_list['object-edit-linkEntities'] = array
+(
+	'table' => 'EntityLink',
+	'action' => 'INSERT',
+	'arglist' => array
+	(
+		array ('url_argname' => 'parent_entity_type', 'assertion' => 'string'), # FIXME enum
+		array ('url_argname' => 'parent_entity_id', 'assertion' => 'uint'),
+		array ('url_argname' => 'child_entity_type', 'assertion' => 'string'), # FIXME enum
+		array ('url_argname' => 'child_entity_id', 'assertion' => 'uint'),
+	),
+);
+$opspec_list['object-edit-unlinkEntities'] = array
+(
+	'table' => 'EntityLink',
+	'action' => 'DELETE',
+	'arglist' => array
+	(
+		array ('url_argname' => 'link_id', 'table_colname' => 'id', 'assertion' => 'uint'),
+	),
+);
+$opspec_list['object-ports-useup'] = array
+(
+	'table' => 'Port',
+	'action' => 'UPDATE',
+	'set_arglist' => array
+	(
+		array ('fix_argname' => 'reservation_comment', 'fix_argvalue' => NULL),
+	),
+	'where_arglist' => array
+	(
+		array ('url_argname' => 'port_id', 'table_colname' => 'id', 'assertion' => 'uint'),
+		array ('url_argname' => 'object_id', 'assertion' => 'uint'), # preserve context
+	),
+);
 $opspec_list['object-ports-delPort'] = array
 (
 	'table' => 'Port',
@@ -141,6 +176,7 @@ $opspec_list['object-cacti-add'] = array
 	'arglist' => array
 	(
 		array ('url_argname' => 'object_id', 'assertion' => 'uint'),
+		array ('url_argname' => 'server_id', 'assertion' => 'uint'),
 		array ('url_argname' => 'graph_id', 'assertion' => 'uint'),
 		array ('url_argname' => 'caption', 'assertion' => 'string0'),
 	),
@@ -152,6 +188,7 @@ $opspec_list['object-cacti-del'] = array
 	'arglist' => array
 	(
 		array ('url_argname' => 'object_id', 'assertion' => 'uint'),
+		array ('url_argname' => 'server_id', 'assertion' => 'uint'),
 		array ('url_argname' => 'graph_id', 'assertion' => 'uint'),
 	),
 );
@@ -344,6 +381,23 @@ $opspec_list['chapter-edit-del'] = array
 		// chapter, which authorization was granted for.
 		array ('url_argname' => 'chapter_no', 'table_colname' => 'chapter_id', 'assertion' => 'uint'),
 		array ('url_argname' => 'dict_key', 'assertion' => 'uint'),
+		array ('fix_argname' => 'dict_sticky', 'fix_argvalue' => 'no'), # protect system rows
+	),
+);
+$opspec_list['chapter-edit-upd'] = array
+(
+	'table' => 'Dictionary',
+	'action' => 'UPDATE',
+	'set_arglist' => array
+	(
+		array ('url_argname' => 'dict_value', 'assertion' => 'string'),
+	),
+	'where_arglist' => array
+	(
+		# same as above for listing chapter_no
+		array ('url_argname' => 'chapter_no', 'table_colname' => 'chapter_id', 'assertion' => 'uint'),
+		array ('url_argname' => 'dict_key', 'assertion' => 'uint'),
+		array ('fix_argname' => 'dict_sticky', 'fix_argvalue' => 'no'), # protect system rows
 	),
 );
 $opspec_list['tagtree-edit-createTag'] = array
@@ -379,6 +433,24 @@ $opspec_list['tagtree-edit-updateTag'] = array
 		array ('url_argname' => 'tag_id', 'table_colname' => 'id', 'assertion' => 'uint'),
 	),
 );
+$opspec_list['8021q-vstlist-add'] = array
+(
+	'table' => 'VLANSwitchTemplate',
+	'action' => 'INSERT',
+	'arglist' => array
+	(
+		array ('url_argname' => 'vst_descr', 'table_colname' => 'description', 'assertion' => 'string'),
+	),
+);
+$opspec_list['8021q-vstlist-del'] = array
+(
+	'table' => 'VLANSwitchTemplate',
+	'action' => 'DELETE',
+	'arglist' => array
+	(
+		array ('url_argname' => 'vst_id', 'table_colname' => 'id', 'assertion' => 'uint'),
+	),
+);
 $opspec_list['8021q-vstlist-upd'] = array
 (
 	'table' => 'VLANSwitchTemplate',
@@ -390,6 +462,15 @@ $opspec_list['8021q-vstlist-upd'] = array
 	'where_arglist' => array
 	(
 		array ('url_argname' => 'vst_id', 'table_colname' => 'id', 'assertion' => 'uint'),
+	),
+);
+$opspec_list['8021q-vdlist-del'] = array
+(
+	'table' => 'VLANDomain',
+	'action' => 'DELETE',
+	'arglist' => array
+	(
+		array ('url_argname' => 'vdom_id', 'table_colname' => 'id', 'assertion' => 'uint'),
 	),
 );
 $opspec_list['8021q-vdlist-upd'] = array
@@ -441,6 +522,65 @@ $opspec_list['vlandomain-vlanlist-upd'] = array
 	(
 		array ('url_argname' => 'vdom_id', 'table_colname' => 'domain_id', 'assertion' => 'uint'),
 		array ('url_argname' => 'vlan_id', 'assertion' => 'vlan'),
+	),
+);
+$opspec_list['dict-chapters-upd'] = array
+(
+	'table' => 'Chapter',
+	'action' => 'UPDATE',
+	'set_arglist' => array
+	(
+		array ('url_argname' => 'chapter_name', 'table_colname' => 'name', 'assertion' => 'string'),
+	),
+	'where_arglist' => array
+	(
+		array ('url_argname' => 'chapter_no', 'table_colname' => 'id', 'assertion' => 'uint'),
+		array ('fix_argname' => 'sticky', 'fix_argvalue' => 'no'), # protect system chapters
+	),
+);
+$opspec_list['dict-chapters-del'] = array
+(
+	'table' => 'Chapter',
+	'action' => 'DELETE',
+	'arglist' => array
+	(
+		array ('url_argname' => 'chapter_no', 'table_colname' => 'id', 'assertion' => 'uint'),
+		array ('fix_argname' => 'sticky', 'fix_argvalue' => 'no'), # protect system chapters
+	),
+);
+$opspec_list['cacti-servers-add'] = array
+(
+	'table' => 'CactiServer',
+	'action' => 'INSERT',
+	'arglist' => array
+	(
+		array ('url_argname' => 'base_url', 'assertion' => 'string'),
+		array ('url_argname' => 'username', 'assertion' => 'string0'),
+		array ('url_argname' => 'password', 'assertion' => 'string0'),
+	),
+);
+$opspec_list['cacti-servers-del'] = array
+(
+	'table' => 'CactiServer',
+	'action' => 'DELETE',
+	'arglist' => array
+	(
+		array ('url_argname' => 'id', 'assertion' => 'uint'),
+	),
+);
+$opspec_list['cacti-servers-upd'] = array
+(
+	'table' => 'CactiServer',
+	'action' => 'UPDATE',
+	'set_arglist' => array
+	(
+		array ('url_argname' => 'base_url', 'assertion' => 'string'),
+		array ('url_argname' => 'username', 'assertion' => 'string0'),
+		array ('url_argname' => 'password', 'assertion' => 'string0'),
+	),
+	'where_arglist' => array
+	(
+		array ('url_argname' => 'id', 'assertion' => 'uint'),
 	),
 );
 
@@ -839,56 +979,6 @@ function updateUser ()
 	return showFuncMessage (__FUNCTION__, 'OK', array ($username));
 }
 
-$msgcode['updateDictionary']['OK'] = 51;
-function updateDictionary ()
-{
-	global $sic;
-	assertUIntArg ('dict_key');
-	assertStringArg ('dict_value');
-	// this request must be built with chapter_no
-	usePreparedUpdateBlade
-	(
-		'Dictionary',
-		array ('dict_value' => $sic['dict_value']),
-		array
-		(
-			'chapter_id' => getBypassValue(),
-			'dict_key' => $sic['dict_key'],
-		)
-	);
-	return showFuncMessage (__FUNCTION__, 'OK');
-}
-
-$msgcode['updateChapter']['OK'] = 51;
-function updateChapter ()
-{
-	assertUIntArg ('chapter_no');
-	assertStringArg ('chapter_name');
-	global $sic;
-	usePreparedUpdateBlade
-	(
-		'Chapter',
-		array
-		(
-			'name' => $sic['chapter_name'],
-		),
-		array
-		(
-			'id' => $sic['chapter_no'],
-			'sticky' => 'no', // note this constant, it protects system chapters
-		)
-	);
-	return showFuncMessage (__FUNCTION__, 'OK');
-}
-
-$msgcode['delChapter']['OK'] = 49;
-function delChapter ()
-{
-	assertUIntArg ('chapter_no');
-	commitDeleteChapter ($_REQUEST['chapter_no']);
-	return showFuncMessage (__FUNCTION__, 'OK');
-}
-
 $msgcode['supplementAttrMap']['OK'] = 48;
 $msgcode['supplementAttrMap']['ERR1'] = 154;
 function supplementAttrMap ()
@@ -1031,9 +1121,29 @@ function updateObject ()
 		$_REQUEST['object_asset_no'],
 		$_REQUEST['object_comment']
 	);
-	// Update optional attributes
+	updateObjectAttributes ($object_id);
+	$object = spotEntity ('object', $object_id);
+	if ($sic['object_type_id'] != $object['objtype_id'])
+	{
+		if (! array_key_exists ($sic['object_type_id'], getObjectTypeChangeOptions ($object_id)))
+			throw new InvalidRequestArgException ('new type_id', $sic['object_type_id'], 'incompatible with requested attribute values');
+		usePreparedUpdateBlade ('Object', array ('objtype_id' => $sic['object_type_id']), array ('id' => $object_id));
+	}
+	// Invalidate thumb cache of all racks objects could occupy.
+	foreach (getResidentRacksData ($object_id, FALSE) as $rack_id)
+		usePreparedDeleteBlade ('RackThumbnail', array ('rack_id' => $rack_id));
+	$dbxlink->commit();
+	return showFuncMessage (__FUNCTION__, 'OK');
+}
+
+// Used when updating an object, location or rack
+function updateObjectAttributes ($object_id)
+{
+	global $dbxlink;
+    $type_id = getObjectType ($object_id);
 	$oldvalues = getAttrValues ($object_id);
-	for ($i = 0; $i < $_REQUEST['num_attrs']; $i++)
+	$num_attrs = isset ($_REQUEST['num_attrs']) ? $_REQUEST['num_attrs'] : 0;
+	for ($i = 0; $i < $num_attrs; $i++)
 	{
 		genericAssertion ("${i}_attr_id", 'uint');
 		$attr_id = $_REQUEST["${i}_attr_id"];
@@ -1041,14 +1151,19 @@ function updateObject ()
 			throw new InvalidRequestArgException ('attr_id', $attr_id, 'malformed request');
 		$value = $_REQUEST["${i}_value"];
 
+		// If the object is a rack, skip certain attributes as they are handled elsewhere
+		// (height, sort_order)
+		if ($type_id == 1560 and ($attr_id == 27 or $attr_id == 29))
+			continue;
+
 		if ('date' == $oldvalues[$attr_id]['type']) {
 			assertDateArg ("${i}_value", TRUE);
 			if ($value != '')
 				$value = strtotime ($value);
 		}
 
-		# Delete attribute and move on, when the field is empty or if the field
-		# type is a dictionary and it is the "--NOT SET--" value of 0.
+		// Delete attribute and move on, when the field is empty or if the field
+		// type is a dictionary and it is the "--NOT SET--" value of 0.
 		if ($value == '' || ($oldvalues[$attr_id]['type'] == 'dict' && $value == 0))
 		{
 			if (permitted (NULL, NULL, NULL, array (array ('tag' => '$attr_' . $attr_id))))
@@ -1081,18 +1196,6 @@ function updateObject ()
 		else
 			showError ('Permission denied, "' . $oldvalues[$attr_id]['name'] . '" left unchanged');
 	}
-	$object = spotEntity ('object', $object_id);
-	if ($sic['object_type_id'] != $object['objtype_id'])
-	{
-		if (! array_key_exists ($sic['object_type_id'], getObjectTypeChangeOptions ($object_id)))
-			throw new InvalidRequestArgException ('new type_id', $sic['object_type_id'], 'incompatible with requested attribute values');
-		usePreparedUpdateBlade ('RackObject', array ('objtype_id' => $sic['object_type_id']), array ('id' => $object_id));
-	}
-	// Invalidate thumb cache of all racks objects could occupy.
-	foreach (getResidentRacksData ($object_id, FALSE) as $rack_id)
-		usePreparedDeleteBlade ('RackThumbnail', array ('rack_id' => $rack_id));
-	$dbxlink->commit();
-	return showFuncMessage (__FUNCTION__, 'OK');
 }
 
 function addMultipleObjects()
@@ -1203,14 +1306,6 @@ function resetObject ()
 	return showFuncMessage (__FUNCTION__, 'OK');
 }
 
-$msgcode['useupPort']['OK'] = 49;
-function useupPort ()
-{
-	assertUIntArg ('port_id');
-	commitUpdatePortComment ($_REQUEST['port_id'], '');
-	return showFuncMessage (__FUNCTION__, 'OK');
-}
-
 $msgcode['updateUI']['OK'] = 51;
 function updateUI ()
 {
@@ -1280,25 +1375,25 @@ function resetUIConfig()
 	setConfigVar ('SHOW_AUTOMATIC_TAGS','no');
 	setConfigVar ('DEFAULT_OBJECT_TYPE','4');
 	setConfigVar ('IPV4_AUTO_RELEASE','1');
-	setConfigVar ('SHOW_LAST_TAB', 'no');
+	setConfigVar ('SHOW_LAST_TAB', 'yes');
 	setConfigVar ('EXT_IPV4_VIEW', 'yes');
 	setConfigVar ('TREE_THRESHOLD', '25');
 	setConfigVar ('IPV4_JAYWALK', 'no');
 	setConfigVar ('ADDNEW_AT_TOP', 'yes');
-	setConfigVar ('IPV4_TREE_SHOW_USAGE', 'yes');
+	setConfigVar ('IPV4_TREE_SHOW_USAGE', 'no');
 	setConfigVar ('PREVIEW_TEXT_MAXCHARS', '10240');
 	setConfigVar ('PREVIEW_TEXT_ROWS', '25');
 	setConfigVar ('PREVIEW_TEXT_COLS', '80');
 	setConfigVar ('PREVIEW_IMAGE_MAXPXS', '320');
 	setConfigVar ('VENDOR_SIEVE', '');
-	setConfigVar ('IPV4LB_LISTSRC', '{$typeid_4}');
-	setConfigVar ('IPV4OBJ_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8} or {$typeid_12} or {$typeid_445} or {$typeid_447} or {$typeid_798} or {$typeid_1504}');
+	setConfigVar ('IPV4LB_LISTSRC', 'false');
+	setConfigVar ('IPV4OBJ_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8} or {$typeid_12} or {$typeid_445} or {$typeid_447} or {$typeid_798} or {$typeid_1504} or {\$typeid_1507} or {\$typeid_1788}');
 	setConfigVar ('IPV4NAT_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8} or {$typeid_798}');
 	setConfigVar ('ASSETWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}');
 	setConfigVar ('NAMEWARN_LISTSRC','{$typeid_4} or {$typeid_7} or {$typeid_8}');
 	setConfigVar ('RACKS_PER_ROW','12');
 	setConfigVar ('FILTER_PREDICATE_SIEVE','');
-	setConfigVar ('FILTER_DEFAULT_ANDOR','or');
+	setConfigVar ('FILTER_DEFAULT_ANDOR','and');
 	setConfigVar ('FILTER_SUGGEST_ANDOR','yes');
 	setConfigVar ('FILTER_SUGGEST_TAGS','yes');
 	setConfigVar ('FILTER_SUGGEST_PREDICATES','yes');
@@ -1311,7 +1406,7 @@ function resetUIConfig()
 	setConfigVar ('ENABLE_MULTIPORT_FORM', 'no');
 	setConfigVar ('DEFAULT_PORT_IIF_ID', '1');
 	setConfigVar ('DEFAULT_PORT_OIF_IDS', '1=24; 3=1078; 4=1077; 5=1079; 6=1080; 8=1082; 9=1084; 10=1588; 11=1668');
-	setConfigVar ('IPV4_TREE_RTR_AS_CELL', 'yes');
+	setConfigVar ('IPV4_TREE_RTR_AS_CELL', 'no');
 	setConfigVar ('PROXIMITY_RANGE', 0);
 	setConfigVar ('IPV4_TREE_SHOW_VLAN', 'yes');
 	setConfigVar ('VLANSWITCH_LISTSRC', '');
@@ -1331,18 +1426,16 @@ function resetUIConfig()
 	setConfigVar ('SYNCDOMAIN_MAX_PROCESSES', '0');
 	setConfigVar ('PORT_EXCLUSION_LISTSRC', '{$typeid_3} or {$typeid_10} or {$typeid_11} or {$typeid_1505} or {$typeid_1506}');
 	setConfigVar ('FILTER_RACKLIST_BY_TAGS', 'yes');
-	setConfigVar ('SSH_OBJS_LISTSRC', 'none');
-	setConfigVar ('TELNET_OBJS_LISTSRC', 'none');
+	setConfigVar ('SSH_OBJS_LISTSRC', 'false');
+	setConfigVar ('TELNET_OBJS_LISTSRC', 'false');
 	setConfigVar ('SYNC_802Q_LISTSRC', '');
-	setConfigVar ('QUICK_LINK_PAGES', '');
+	setConfigVar ('QUICK_LINK_PAGES', 'depot,ipv4space,rackspace');
 	setConfigVar ('CACTI_LISTSRC', 'false');
-	setConfigVar ('CACTI_URL', '');
-	setConfigVar ('CACTI_USERNAME', '');
-	setConfigVar ('CACTI_USERPASS', '');
 	setConfigVar ('VIRTUAL_OBJ_LISTSRC', '1504,1505,1506,1507');
 	setConfigVar ('DATETIME_ZONE', 'UTC');
 	setConfigVar ('DATETIME_FORMAT', 'm/d/Y');
 	setConfigVar ('SEARCH_DOMAINS', '');
+	setConfigVar ('8021Q_EXTSYNC_LISTSRC', 'false');
 	return showFuncMessage (__FUNCTION__, 'OK');
 }
 
@@ -1579,6 +1672,7 @@ $msgcode['importPTRData']['ERR'] = 141;
 function importPTRData ()
 {
 	assertUIntArg ('addrcount');
+	assertUIntArg ('pg');
 	$nbad = $ngood = 0;
 	for ($i = 1; $i <= $_REQUEST['addrcount']; $i++)
 	{
@@ -1598,9 +1692,10 @@ function importPTRData ()
 			$nbad++;
 	}
 	if (!$nbad)
-		return showFuncMessage (__FUNCTION__, 'OK', array ($ngood));
+		showFuncMessage (__FUNCTION__, 'OK', array ($ngood));
 	else
-		return showFuncMessage (__FUNCTION__, 'ERR', array ($nbad, $ngood));
+		showFuncMessage (__FUNCTION__, 'ERR', array ($nbad, $ngood));
+	return buildRedirectURL (NULL, NULL, array ('pg' => $_REQUEST['pg']));
 }
 
 $msgcode['generateAutoPorts']['OK'] = 21;
@@ -1774,19 +1869,22 @@ function addLocation ()
 }
 
 $msgcode['updateLocation']['OK'] = 6;
+// This function is used by two forms:
+//  - renderEditLocationForm - all attributes may be modified
+//  - renderRackspaceLocationEditor - only the name and parent may be modified
 function updateLocation ()
 {
 	global $pageno;
 	assertUIntArg ('location_id');
 	assertUIntArg ('parent_id', TRUE);
 	assertStringArg ('name');
-	
-	if ($pageno != 'rackspace')
+
+	if ($pageno == 'location')
 	{
 		$has_problems = (isset ($_REQUEST['has_problems']) and $_REQUEST['has_problems'] == 'on') ? 'yes' : 'no';
 		assertStringArg ('comment', TRUE);
-	
 		commitUpdateObject ($_REQUEST['location_id'], $_REQUEST['name'], NULL, $has_problems, NULL, $_REQUEST['comment']);
+		updateObjectAttributes ($_REQUEST['location_id']);
 	}
 	else
 		commitRenameObject ($_REQUEST['location_id'], $_REQUEST['name']);
@@ -1962,47 +2060,7 @@ function updateRack ()
 		$_REQUEST['asset_no'],
 		$_REQUEST['comment']
 	);
-
-	// Update optional attributes
-	$oldvalues = getAttrValues ($rack_id);
-	$num_attrs = isset ($_REQUEST['num_attrs']) ? $_REQUEST['num_attrs'] : 0;
-	for ($i = 0; $i < $num_attrs; $i++)
-	{
-		assertUIntArg ("${i}_attr_id");
-		$attr_id = $_REQUEST["${i}_attr_id"];
-
-		// Skip the 'height' attribute as it's already handled by commitUpdateRack
-		// Also skip 'sort_order'
-		if ($attr_id == 27 or $attr_id == 29)
-			continue;
-
-		// Field is empty, delete attribute and move on. OR if the field type is a dictionary and it is the --NOT SET-- value of 0
-		if (!strlen ($_REQUEST["${i}_value"]) || ($oldvalues[$attr_id]['type']=='dict' && $_REQUEST["${i}_value"] == 0))
-		{
-			commitUpdateAttrValue ($rack_id, $attr_id);
-			continue;
-		}
-
-		// The value could be uint/float, but we don't know ATM. Let SQL
-		// server check this and complain.
-		assertStringArg ("${i}_value");
-		$value = $_REQUEST["${i}_value"];
-		switch ($oldvalues[$attr_id]['type'])
-		{
-			case 'uint':
-			case 'float':
-			case 'string':
-				$oldvalue = $oldvalues[$attr_id]['value'];
-				break;
-			case 'dict':
-				$oldvalue = $oldvalues[$attr_id]['key'];
-				break;
-			default:
-		}
-		if ($value === $oldvalue) // ('' == 0), but ('' !== 0)
-			continue;
-		commitUpdateAttrValue ($rack_id, $attr_id, $value);
-	}
+	updateObjectAttributes ($rack_id);
 	return showFuncMessage (__FUNCTION__, 'OK', array ($_REQUEST['name']));
 }
 
@@ -2076,35 +2134,6 @@ function querySNMPData ()
 	}
 	$snmpsetup['version'] = $_REQUEST['ver'];
 	doSNMPmining (getBypassValue(), $snmpsetup); // shows message by itself
-}
-
-$msgcode['linkEntities']['OK'] = 51;
-function linkEntities ()
-{
-	assertStringArg ('parent_entity_type');
-	assertUIntArg ('parent_entity_id');
-	assertStringArg ('child_entity_type');
-	assertUIntArg ('child_entity_id');
-	usePreparedInsertBlade
-	(
-		'EntityLink',
-		array
-		(
-			'parent_entity_type' => $_REQUEST['parent_entity_type'],
-			'parent_entity_id' => $_REQUEST['parent_entity_id'],
-			'child_entity_type' => $_REQUEST['child_entity_type'],
-			'child_entity_id' => $_REQUEST['child_entity_id'],
-		)
-	);
-	return showFuncMessage (__FUNCTION__, 'OK');
-}
-
-$msgcode['unlinkEntities']['OK'] = 49;
-function unlinkEntities ()
-{
-	assertUIntArg ('link_id');
-	commitUnlinkEntitiesByLinkID ($_REQUEST['link_id']);
-	return showFuncMessage (__FUNCTION__,  'OK');
 }
 
 $msgcode['addFileWithoutLink']['OK'] = 5;
@@ -2376,15 +2405,6 @@ function createVLANDomain ()
 	return showFuncMessage (__FUNCTION__, 'OK');
 }
 
-$msgcode['destroyVLANDomain']['OK'] = 49;
-function destroyVLANDomain ()
-{
-	assertUIntArg ('vdom_id');
-	global $sic;
-	usePreparedDeleteBlade ('VLANDomain', array ('id' => $sic['vdom_id']));
-	return showFuncMessage (__FUNCTION__, 'OK');
-}
-
 function save8021QPorts ()
 {
 	global $sic;
@@ -2539,7 +2559,7 @@ function resolve8021QConflicts ()
 			$F[$sic["pn_${i}"]] = array
 			(
 				'mode' => $sic["rm_${i}"],
-				'allowed' => $sic["ra_${i}"],
+				'allowed' => array_key_exists ("ra_${i}", $sic) ? $sic["ra_${i}"] : array(),
 				'native' => $sic["rn_${i}"],
 				'decision' => $sic["i_${i}"],
 			);
@@ -2609,29 +2629,28 @@ function resolve8021QConflicts ()
 	return showFuncMessage (__FUNCTION__, 'OK', array ($ndone));
 }
 
-$msgcode['addVLANSwitchTemplate']['OK'] = 48;
-function addVLANSwitchTemplate()
+$msgcode['create8021QPortConfig']['OK'] = 48;
+function create8021QPortConfig()
 {
-	assertStringArg ('vst_descr');
 	global $sic;
-	usePreparedInsertBlade
+	genericAssertion ('portname', 'string');
+	$default_port = array
 	(
-		'VLANSwitchTemplate',
-		array
-		(
-			'description' => $sic['vst_descr'],
-		)
+		'mode' => 'access',
+		'allowed' => array (VLAN_DFL_ID),
+		'native' => VLAN_DFL_ID,
 	);
-	return showFuncMessage (__FUNCTION__, 'OK');
+	add8021QPort (getBypassValue(), $sic['portname'], $default_port);
+	showFuncMessage (__FUNCTION__, 'OK');
 }
 
-$msgcode['delVLANSwitchTemplate']['OK'] = 49;
-function delVLANSwitchTemplate()
+$msgcode['destroy8021QPortConfig']['OK'] = 49;
+function destroy8021QPortConfig()
 {
-	assertUIntArg ('vst_id');
 	global $sic;
-	usePreparedDeleteBlade ('VLANSwitchTemplate', array ('id' => $sic['vst_id']));
-	return showFuncMessage (__FUNCTION__, 'OK');
+	genericAssertion ('portname', 'string');
+	del8021QPort (getBypassValue(), $sic['portname']);
+	showFuncMessage (__FUNCTION__, 'OK');
 }
 
 $msgcode['cloneVST']['OK'] = 48;
@@ -2789,6 +2808,126 @@ function saveQuickLinks()
 	}
 }
 
+$ucsproductmap = array
+(
+	'N20-B6620-1' => 1736, # B200 M1
+	'N20-B6625-1' => 1737, # B200 M2
+	'N20-B6620-2' => 1741, # B250 M1
+	'N20-B6625-2' => 1742, # B250 M2
+	'B230-BASE-M2' => 1740, # B230 M2
+	'N20-B6730-1' => 1739, # B230 M1
+	'B440-BASE-M2' => 1743, # B440 M2
+	'UCSB-B200-M3' => 1738, # B200 M3
+	'N10-S6100' => 1755, # 6120 FI
+	'UCS-FI-6248UP' => 1757, # 6248 FI
+	'UCS-FI-6296UP' => 1758, # 6296 FI
+	'N20-C6508' => 1735, # 5108 chassis
+);
+
+function autoPopulateUCS()
+{
+	global $ucsproductmap;
+	$ucsm_id = getBypassValue();
+	$oinfo = spotEntity ('object', $ucsm_id);
+	$chassis_id = array();
+	$done = 0;
+	# There are three request parameters (use_terminal_settings, ucs_login and
+	# ucs_password) not processed here. These are asserted and used inside
+	# queryTerminal().
+
+	try
+	{
+		$contents = queryDevice ($ucsm_id, 'getinventory');
+	}
+	catch (RTGatewayError $e)
+	{
+		showError ($e->getMessage());
+		return;
+	}
+	foreach ($contents as $item)
+	{
+		$mname = preg_replace ('#^sys/(.+)$#', $oinfo['name'] . '/\\1', $item['DN']);
+		if ($item['type'] == 'NetworkElement')
+		{
+			$new_object_id = commitAddObject ($mname, NULL, 8, NULL);
+			#    Set H/W Type for Network Switch
+			if (array_key_exists ($item['model'], $ucsproductmap))
+				commitUpdateAttrValue ($new_object_id, 2, $ucsproductmap[$item['model']]);
+			#  	 Set Serial#
+			commitUpdateAttrValue ($new_object_id, 1, $item['serial']);
+			commitLinkEntities ('object', $ucsm_id, 'object', $new_object_id);
+			bindIPToObject (ip_parse ($item['OOB']), $new_object_id, 'mgmt0', 'regular');
+			$done++;
+		}
+		elseif ($item['type'] == 'EquipmentChassis')
+		{
+			$chassis_id[$item['DN']] = $new_object_id = commitAddObject ($mname, NULL, 1502, NULL);
+			#    Set H/W Type for Server Chassis
+			if (array_key_exists ($item['model'], $ucsproductmap))
+				commitUpdateAttrValue ($new_object_id, 2, $ucsproductmap[$item['model']]);
+			#  	 Set Serial#
+			commitUpdateAttrValue ($new_object_id, 1, $item['serial']);
+			commitLinkEntities ('object', $ucsm_id, 'object', $new_object_id);
+			$done++;
+		}
+		elseif ($item['type'] == 'ComputeBlade')
+		{
+			if ($item['assigned'] == '')
+				$new_object_id = commitAddObject ($mname, NULL, 4, NULL);
+			else
+			{
+				$spname = preg_replace ('#.+/ls-(.+)#i', '${1}', $item['assigned']) . "(" . $oinfo['name'] . ")";
+				$new_object_id = commitAddObject ($spname, NULL, 4, NULL);
+			}
+			#    Set H/W Type for Blade Server
+			if (array_key_exists ($item['model'], $ucsproductmap))
+				commitUpdateAttrValue ($new_object_id, 2, $ucsproductmap[$item['model']]);
+			#  	 Set Serial#
+			commitUpdateAttrValue ($new_object_id, 1, $item['serial']);
+			#  	 Set Slot#
+			commitUpdateAttrValue ($new_object_id, 28, $item['slot']);
+			$parent_name = preg_replace ('#^([^/]+)/([^/]+)/([^/]+)$#', '${1}/${2}', $item['DN']);
+			if (array_key_exists ($parent_name, $chassis_id))
+				commitLinkEntities ('object', $chassis_id[$parent_name], 'object', $new_object_id);
+			$done++;
+		}
+	} # endfor
+	showSuccess ("Auto-populated UCS Domain '${oinfo['name']}' with ${done} items");
+}
+
+function cleanupUCS()
+{
+	global $ucsproductmap;
+	$oinfo = spotEntity ('object', getBypassValue());
+	$contents = getObjectContentsList ($oinfo['id']);
+
+	$clear = TRUE;
+	foreach ($contents as $item_id)
+	{
+		$o = spotEntity ('object', $item_id);
+		$attrs = getAttrValues ($item_id);
+		# use HW type to decide if the object was produced by autoPopulateUCS()
+		if (! array_key_exists (2, $attrs) or ! in_array ($attrs[2]['key'], $ucsproductmap))
+		{
+			showWarning ('Contained object ' . mkA ($o['dname'], 'object', $item_id) . ' is not an automatic UCS object');
+			$clear = FALSE;
+		}
+	}
+	if (! $clear)
+	{
+		showNotice ('nothing was deleted');
+		return;
+	}
+
+	$done = 0;
+	foreach ($contents as $item_id)
+	{
+		commitDeleteObject ($item_id);
+		$done++;
+	}
+	showSuccess ("Removed ${done} items from UCS Domain '${oinfo['name']}'");
+}
+
 function getOpspec()
 {
 	global $pageno, $tabno, $op, $opspec_list;
@@ -2865,17 +3004,17 @@ function cloneRSPool()
 	return buildRedirectURL ('ipv4rspool', 'default', array ('pool_id' => $new_id));
 }
 
-function tableHandler()
+# validate user input and produce SQL columns per the opspec descriptor
+function buildOpspecColumns ($opspec, $listname)
 {
-	$opspec = getOpspec();
 	global $sic;
 	$columns = array();
-	foreach (array ('arglist', 'set_arglist', 'where_arglist') as $listname)
-	{
-		if (! array_key_exists ($listname, $opspec))
-			continue;
-		foreach ($opspec[$listname] as $argspec)
+	if (! array_key_exists ($listname, $opspec))
+		throw new InvalidArgException ('opspec', '(malformed structure)', "missing '${listname}'");
+	foreach ($opspec[$listname] as $argspec)
+		switch (TRUE)
 		{
+		case array_key_exists ('url_argname', $argspec): # HTTP input
 			genericAssertion ($argspec['url_argname'], $argspec['assertion']);
 			// "table_colname" is normally used for an override, if it is not
 			// set, use the URL argument name
@@ -2898,26 +3037,40 @@ function tableHandler()
 				default:
 					throw new InvalidArgException ('opspec', '(malformed array structure)', '"if_empty" not recognized');
 				}
-			$columns[$listname][$table_colname] = $arg_value;
-		}
-	}
+			$columns[$table_colname] = $arg_value;
+			break;
+		case array_key_exists ('fix_argname', $argspec): # fixed column
+			if (! array_key_exists ('fix_argvalue', $argspec))
+				throw new InvalidArgException ('opspec', '(malformed structure)', 'missing "fix_argvalue"');
+			$columns[$argspec['fix_argname']] = $argspec['fix_argvalue'];
+			break;
+		default:
+			throw new InvalidArgException ('opspec', '(malformed structure)', 'unknown argument source');
+		} // switch (TRUE)
+	return $columns;
+}
+
+# execute a single SQL statement defined by an opspec descriptor
+function tableHandler()
+{
+	$opspec = getOpspec();
 	switch ($opspec['action'])
 	{
 	case 'INSERT':
-		usePreparedInsertBlade ($opspec['table'], $columns['arglist']);
+		usePreparedInsertBlade ($opspec['table'], buildOpspecColumns ($opspec, 'arglist'));
 		$retcode = 48;
 		break;
 	case 'DELETE':
 		$conjunction = array_key_exists ('conjunction', $opspec) ? $opspec['conjunction'] : 'AND';
-		usePreparedDeleteBlade ($opspec['table'], $columns['arglist'], $conjunction);
+		usePreparedDeleteBlade ($opspec['table'], buildOpspecColumns ($opspec, 'arglist'), $conjunction);
 		$retcode = 49;
 		break;
 	case 'UPDATE':
 		usePreparedUpdateBlade
 		(
 			$opspec['table'],
-			$columns['set_arglist'],
-			$columns['where_arglist'],
+			buildOpspecColumns ($opspec, 'set_arglist'),
+			buildOpspecColumns ($opspec, 'where_arglist'),
 			array_key_exists ('conjunction', $opspec) ? $opspec['conjunction'] : 'AND'
 		);
 		$retcode = 51;

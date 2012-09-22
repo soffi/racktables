@@ -401,6 +401,22 @@ function getBypassValue()
 	return $sic[$page[$pageno]['bypass']];
 }
 
+// fills $args array with the bypass values of specified $pageno which are provided in $_REQUEST
+function fillBypassValues ($pageno, &$args)
+{
+	global $page, $sic;
+	if (isset ($page[$pageno]['bypass']))
+	{
+		$param_name = $page[$pageno]['bypass'];
+		if (! array_key_exists ($param_name, $args) && isset ($sic[$param_name]))
+			$args[$param_name] = $sic[$param_name];
+	}
+	if (isset ($page[$pageno]['bypass_tabs']))
+		foreach ($page[$pageno]['bypass_tabs'] as $param_name)
+			if (! array_key_exists ($param_name, $args) && isset ($sic[$param_name]))
+				$args[$param_name] = $sic[$param_name];
+}
+
 // Objects of some types should be explicitly shown as
 // anonymous (labelless). This function is a single place where the
 // decision about displayed name is made.
@@ -1295,6 +1311,22 @@ function getOrphanedTags ()
 	return treeFromList ($taglist, 0, FALSE);
 }
 
+// removes implicit tags from ['etags'] array and fills ['itags'] array
+// Replaces call sequence "getExplicitTagsOnly, getImplicitTags"
+function sortEntityTags (&$cell)
+{
+	global $taglist;
+	if (! is_array ($cell['etags']))
+		throw new InvalidArgException ('$cell[etags]', $cell['etags']);
+	$cell['itags'] = array();
+	foreach ($cell['etags'] as $tag_id => $taginfo)
+		foreach ($taglist[$tag_id]['trace'] as $parent_id)
+		{
+			$cell['itags'][$parent_id] = $taglist[$parent_id];
+			unset ($cell['etags'][$parent_id]);
+		}
+}
+
 // Return the list of missing implicit tags.
 function getImplicitTags ($oldtags)
 {
@@ -1437,10 +1469,7 @@ function fixContext ($target = NULL)
 	elseif (array_key_exists ($pageno, $etype_by_pageno))
 	{
 		// Each page listed in the map above requires one uint argument.
-		$target_realm = $etype_by_pageno[$pageno];
-		assertUIntArg ($page[$pageno]['bypass']);
-		$target_id = $_REQUEST[$page[$pageno]['bypass']];
-		$target = spotEntity ($target_realm, $target_id);
+		$target = spotEntity ($etype_by_pageno[$pageno], getBypassValue());
 		$target_given_tags = $target['etags'];
 		if ($target['realm'] != 'user')
 			$auto_tags = array_merge ($auto_tags, $target['atags']);
@@ -1774,20 +1803,15 @@ function buildRedirectURL ($nextpage = NULL, $nexttab = NULL, $moreArgs = array(
 	if ($nexttab === NULL)
 		$nexttab = $tabno;
 	$url = "index.php?page=${nextpage}&tab=${nexttab}";
-	if (isset ($page[$nextpage]['bypass']))
-		$url .= '&' . $page[$nextpage]['bypass'] . '=' . $_REQUEST[$page[$nextpage]['bypass']];
-	if (isset ($page[$nextpage]['bypass_tabs']))
-		foreach ($page[$nextpage]['bypass_tabs'] as $param_name)
-			if (isset ($_REQUEST[$param_name]))
-				$url .= '&' . urlencode ($param_name) . '=' . urlencode ($_REQUEST[$param_name]);
 
-	if (count ($moreArgs) > 0)
-		foreach ($moreArgs as $arg => $value)
-			if (is_array ($value))
-				foreach ($value as $v)
-					$url .= '&' . urlencode ($arg . '[]') . '=' . urlencode ($v);
-			elseif ($arg != 'module')
-				$url .= '&' . urlencode ($arg) . '=' . urlencode ($value);
+	if ($nextpage === $pageno)
+		fillBypassValues ($nextpage, $moreArgs);
+	foreach ($moreArgs as $arg => $value)
+		if (is_array ($value))
+			foreach ($value as $v)
+				$url .= '&' . urlencode ($arg . '[]') . '=' . urlencode ($v);
+		elseif ($arg != 'module')
+			$url .= '&' . urlencode ($arg) . '=' . urlencode ($value);
 	return $url;
 }
 
@@ -1896,6 +1920,8 @@ function findRouters ($addrlist)
 
 // Compare networks. When sorting a tree, the records on the list will have
 // distinct base IP addresses.
+// valid return values are: 1, 0, -1, -2
+// -2 has special meaning: $netA includes $netB
 // "The comparison function must return an integer less than, equal to, or greater
 // than zero if the first argument is considered to be respectively less than,
 // equal to, or greater than the second." (c) PHP manual
@@ -1904,6 +1930,7 @@ function IPNetworkCmp ($netA, $netB)
 	if (strlen ($netA['ip_bin']) !== strlen ($netB['ip_bin']))
 		return strlen ($netA['ip_bin']) < strlen ($netB['ip_bin']) ? -1 : 1;
 	$ret = strcmp ($netA['ip_bin'], $netB['ip_bin']);
+	$ret = ($ret > 0 ? 1 : ($ret < 0 ? -1 : 0));
 	if ($ret == 0)
 		$ret = $netA['mask'] < $netB['mask'] ? -1 : ($netA['mask'] > $netB['mask'] ? 1 : 0);
 	if ($ret == -1 and $netA['ip_bin'] === ($netB['ip_bin'] & $netA['mask_bin']))
@@ -2247,7 +2274,19 @@ function ip4_range_size ($range)
 
 function ip4_mask_size ($mask)
 {
-	return (0xffffffff >> $mask) + 1;
+	switch (TRUE)
+	{
+		case ($mask > 1 && $mask <= 32):
+			return (0x7fffffff >> ($mask - 1)) + 1;
+		// constants below are not representable in 32-bit PHP's int type,
+		// so they are literally hardcoded and returned as strings on 32-bit architecture.
+		case ($mask == 1):
+			return 2147483648;
+		case ($mask == 0):
+			return 4294967296;
+		default:
+			throw new InvalidArgException ('mask', $mask, 'Invalid IPv4 prefix length');
+	}
 }
 
 // returns array with keys 'ip', 'ip_bin', 'mask', 'mask_bin'
@@ -2385,19 +2424,6 @@ function loadIPAddrList (&$node)
 	}
 	$node['addrc'] = count ($node['addrlist']);
 	$node['own_addrc'] = count ($node['own_addrlist']);
-}
-
-function getIPv4OwnRangeSize ($range)
-{
-	if (empty ($range['spare_ranges']))
-		return ip4_range_size ($range);
-	else
-	{
-		$ret = 0;
-		foreach ($range['spare_ranges'] as $mask => $spare_list)
-			$ret += count ($spare_list) * ip4_mask_size ($mask);
-		return $ret;
-	}
 }
 
 // returns the array of structure described by constructIPAddress
@@ -2653,12 +2679,8 @@ function makeHrefProcess ($params = array())
 		$params['page'] = $pageno;
 	if (! array_key_exists ('tab', $params))
 		$params['tab'] = $tabno;
-	if (isset ($page[$pageno]['bypass']))
-	{
-		$bypass = $page[$pageno]['bypass'];
-		if (! array_key_exists ($bypass, $params) and array_key_exists ($bypass, $_REQUEST))
-			$params[$bypass] = $_REQUEST[$bypass];
-	}
+	if ($params['page'] === $pageno)
+		fillBypassValues ($pageno, $params);
 	foreach ($params as $key => $value)
 		$tmp[] = urlencode ($key) . '=' . urlencode ($value);
 	return '?module=redirect&' . implode ('&', $tmp);
@@ -3169,6 +3191,8 @@ function ios12ShortenIfName ($ifname)
 	return $ifname;
 }
 
+# Produce a list of integers from a string in the following format:
+# A,B,C-D,E-F,G,H,I-J,K ...
 function iosParseVLANString ($string)
 {
 	$ret = array();
@@ -3180,6 +3204,8 @@ function iosParseVLANString ($string)
 			$ret[] = $matches[1];
 		elseif (preg_match ('/^([[:digit:]]+)-([[:digit:]]+)$/', $item, $matches))
 			$ret = array_merge ($ret, range ($matches[1], $matches[2]));
+		else
+			throw new InvalidArgException ('string', $string, 'format mismatch');
 	}
 	return $ret;
 }
@@ -5314,8 +5340,15 @@ function fillIPNetsCorrelation (&$nets)
 	{
 		$top = &$stack[count ($stack) - 1];
 		if (isset ($last))
+		{
 			// possible hole in the end of $top
-			fillIPSpareListBstr ($top, ip_next (ip_last ($last)), ip_last ($top));
+			$last = ip_last ($last);
+			$a = ip_next ($last);
+			// check for crossing 0
+			if (0 > strcmp ($a, $last))
+				break;
+			fillIPSpareListBstr ($top, $a, ip_last ($top));
+		}
 		$last = array_pop ($stack);
 	}
 }
@@ -5352,6 +5385,9 @@ function fillIPSpareListBstr (&$net, $a, $b)
 			{
 				$net['spare_ranges'][$mask][] = $a;
 				$a = ip_next ($last_a);
+				// check for crossing 0
+				if (0 > strcmp ($a, $last_a))
+					break 2;
 				break;
 			}
 		}

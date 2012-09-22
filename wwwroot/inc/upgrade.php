@@ -92,21 +92,65 @@ ENDOFTEXT
 ,
 
 	'0.20.0' => <<<ENDOFTEXT
-Racks and Rows are now stored in the database as Objects.  The RackObject table 
-was renamed to Object.  SQL views were created to ease the migration of custom 
+WARNING: This release have too many internal changes, some of them were waiting more than a year
+to be released. So this release is considered "BETA" and is recommended only to curiuos users,
+who agree to sacrifice the stability to the progress.
+
+Racks and Rows are now stored in the database as Objects.  The RackObject table
+was renamed to Object.  SQL views were created to ease the migration of custom
 reports and scripts.
 
 New plugins engine instead of local.php file. To make your own code stored in local.php work,
 you must move the local.php file into the plugins/ directory. The name of this file does not
 matter any more. You also can store multiple files in that dir, separate your plugins by features,
 share them and try the plugins from other people just placing them into plugins/ dir, no more merging.
-\$path_to_local_php variable has no special meaning any more. 
+\$path_to_local_php variable has no special meaning any more.
 \$racktables_confdir variable is now used only to search for secret.php file.
 \$racktables_plugins_dir is a new overridable special variable pointing to plugins/ directory.
 
-Beginning with this version it is possible to delete IP networks and VLANs from within
-theirs properties tab. So please inspect your permissions rules to assure there are no
-undesired allows for deletion of these objects.
+Beginning with this version it is possible to delete IP prefixes, VLANs, Virtual services
+and RS pools from within theirs properties tab. So please inspect your permissions rules
+to assure there are no undesired allows for deletion of these objects. To ensure this, you could
+try this code in the beginning of permissions script:
+
+	allow {userid_1} and {\$op_del}
+	deny {\$op_del} and ({\$tab_edit} or {\$tab_properties})
+
+Hardware gateways engine was rewritten in this version of RackTables. This means that
+the file gateways/deviceconfig/switch.secrets.php is not used any more. To get information
+about configuring connection properties and credentials in a new way please visit
+http://wiki.racktables.org/index.php/Gateways
+
+This also means that recently added features based on old API (D-Link switches and Linux
+gateway support contributed by Ilya Evseev) are not working any more and waiting to be
+forward-ported to new gateways API. Sorry for that.
+
+Two new config variables appeared in this version:
+  - SEARCH_DOMAINS. Comma-separated list of DNS domains which are considered "base" for your
+    network. If RackTables search engine finds multiple objects based on your search input, but
+    there is only one which FQDN consists of your input and one of these search domains, you will
+    be redirected to this object and other results will be discarded. Such behavior was unconditional
+    since 0.19.3, which caused many objections from users. So welcome this config var.
+  - QUICK_LINK_PAGES. Comma-separated list of RackTables pages to display links to them on top.
+    Each user could have his own list.
+
+Also some of config variables have changed their default values in this version.
+This means that upgrade script will change their values if you have them in previous default state.
+This could be inconvenient, but it is the most effective way to encourage users to use new features.
+If this behavior is not what you want, simply revert these variables' values:
+  - SHOW_LAST_TAB               no => yes
+  - IPV4_TREE_SHOW_USAGE        yes =>no (networks' usage is still available by click)
+  - IPV4LB_LISTSRC              {\$typeid_4} => false
+  - FILTER_DEFAULT_ANDOR        or => and (this implicitly enables the feature of dynamic tree shrinking)
+  - FILTER_SUGGEST_EXTRA        no => yes (yes, we have extra logical filters!)
+  - IPV4_TREE_RTR_AS_CELL       yes => no (display routers as simple text, not cell)
+
+Also please note that variable IPV4_TREE_RTR_AS_CELL now has third special value
+besides 'yes' and 'no': 'none'. Use 'none' value if you are experiencing low performance
+on IP tree page. It will completely disable IP ranges scan for used/spare IPs and the
+speed of IP tree will increase radically. The price is you will not see the routers in
+IP tree at all.
+
 ENDOFTEXT
 
 );
@@ -161,6 +205,7 @@ function getDBUpgradePath ($v1, $v2)
 		'0.19.13',
 		'0.19.14',
 		'0.20.0',
+		'0.20.1',
 	);
 	if (!in_array ($v1, $versionhistory) or !in_array ($v2, $versionhistory))
 		return NULL;
@@ -1279,6 +1324,10 @@ CREATE TABLE `CactiGraph` (
 			$query[] = "ALTER TABLE AttributeValue CHANGE COLUMN `object_id` `object_id` INT(10) UNSIGNED NOT NULL";
 			$query[] = "ALTER TABLE AttributeValue CHANGE COLUMN `attr_id` `attr_id` INT(10) UNSIGNED NOT NULL";
 			$query[] = "ALTER TABLE AttributeValue ADD PRIMARY KEY (`object_id`, `attr_id`), DROP INDEX `object_id`";
+			$query[] = "ALTER TABLE Dictionary ADD COLUMN `dict_sticky` enum('yes','no') DEFAULT 'no' AFTER `dict_key`";
+			$query[] = "UPDATE Dictionary SET dict_sticky = 'yes' WHERE dict_key < 50000";
+			$query[] = "ALTER TABLE Dictionary ADD UNIQUE KEY dict_unique (chapter_id, dict_value, dict_sticky)";
+			$query[] = "ALTER TABLE Dictionary DROP KEY `chap_to_val`";
 			$query[] = "UPDATE Config SET varvalue = '0.19.14' WHERE varname = 'DB_VERSION'";
 			break;
 		case '0.20.0':
@@ -1322,7 +1371,7 @@ CREATE TABLE `IPv6Log` (
 ) ENGINE=InnoDB;
 ";
 			$query[] = "ALTER TABLE `FileLink` MODIFY COLUMN `entity_type` ENUM('ipv4net','ipv4rspool','ipv4vs','ipv6net','location','object','rack','user') NOT NULL DEFAULT 'object'";
-			$query[] = "ALTER TABLE `TagStorage` MODIFY COLUMN `entity_realm` ENUM('file','ipv4net','ipv4vs','ipv4rspool','ipv6net','object','rack','user','vst') NOT NULL default 'object'";
+			$query[] = "ALTER TABLE `TagStorage` MODIFY COLUMN `entity_realm` ENUM('file','ipv4net','ipv4rspool','ipv4vs','ipv6net','location','object','rack','user','vst') NOT NULL default 'object'";
 			$query[] = "ALTER TABLE `TagStorage` ADD COLUMN `user` char(64) DEFAULT NULL, ADD COLUMN `date` datetime DEFAULT NULL";
 
 			// Rename object tables and keys, 'name' no longer needs to be unique
@@ -1435,7 +1484,7 @@ CREATE VIEW `RackObject` AS SELECT id, name, label, objtype_id, asset_no, has_pr
 
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, is_userdefined, description) VALUES ('SYNC_802Q_LISTSRC','','string','yes','no','no','List of VLAN switches sync is enabled on')";
 			$query[] = "UPDATE `Config` SET is_userdefined='yes' WHERE varname='PROXIMITY_RANGE'";
-			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, is_userdefined, description) VALUES ('QUICK_LINK_PAGES','','string','yes','no','yes','List of pages to dislay in quick links')";
+			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, is_userdefined, description) VALUES ('QUICK_LINK_PAGES','depot,ipv4space,rackspace','string','yes','no','yes','List of pages to dislay in quick links')";
 			$query[] = "ALTER TABLE `IPv4LB` MODIFY `prio` varchar(255) DEFAULT NULL";
 
 			$query[] = "ALTER TABLE `IPv4Address` ADD COLUMN `comment` char(255) NOT NULL default '' AFTER `name`";
@@ -1450,6 +1499,69 @@ CREATE VIEW `RackObject` AS SELECT id, name, label, objtype_id, asset_no, has_pr
 
 			$query[] = "INSERT INTO `Config` (varname, varvalue, vartype, emptyok, is_hidden, is_userdefined, description) VALUES ('SEARCH_DOMAINS','','string','yes','no','yes','DNS domain list (comma-separated) to search in FQDN attributes')";
 
+
+			// update some config variables which changed their defaults in this verison
+			replaceConfigVarValue ('SHOW_LAST_TAB', 'yes');
+			replaceConfigVarValue ('IPV4_TREE_SHOW_USAGE','no');
+			replaceConfigVarValue ('IPV4LB_LISTSRC', 'false', '{$typeid_4}');
+			replaceConfigVarValue ('FILTER_DEFAULT_ANDOR', 'and');
+			replaceConfigVarValue ('FILTER_SUGGEST_EXTRA', 'yes');
+			replaceConfigVarValue ('IPV4_TREE_RTR_AS_CELL', 'no');
+			replaceConfigVarValue ('SSH_OBJS_LISTSRC', 'false', 'none');
+			replaceConfigVarValue ('TELNET_OBJS_LISTSRC', 'false', 'none');
+
+			$query[] = "UPDATE Config SET varvalue = '0.20.0' WHERE varname = 'DB_VERSION'";
+			break;
+		case '0.20.1':
+			// some HW types were moved from the 'Network switch' chapter to the 'Network chassis' chapter
+			// change the type of affected objects to 'Network chassis'
+			$query[] = "UPDATE `Object` SET objtype_id = 1503 WHERE id IN (SELECT object_id FROM `AttributeValue` WHERE attr_id = 2 and uint_value IN (888,889,890,891))";
+
+			// new 'management interface' object type
+			$query[] = "INSERT INTO `Chapter` (`id`,`sticky`,`name`) VALUES (38,'no','management interface type')";
+			$query[] = "INSERT INTO `Attribute` (`id`,`type`,`name`) VALUES (30,'dict','Mgmt type')";
+			$query[] = "INSERT INTO `AttributeMap` (`objtype_id`,`attr_id`,`chapter_id`) VALUES (1787,3,NULL),(1787,14,NULL),(1787,30,38)";
+			$query[] = "UPDATE `Config` SET varvalue = CONCAT(varvalue, ' or {\$typeid_1787}') WHERE varname = 'IPV4OBJ_LISTSRC'";
+
+			$query[] = "INSERT INTO Config VALUES ('8021Q_EXTSYNC_LISTSRC','false','string','yes','no','no','List source: objects with extended 802.1Q sync')";
+
+			// constraints to prevent orphan records
+			$query[] = "DELETE A FROM `Atom` A LEFT JOIN `Molecule` M ON A.molecule_id = M.id LEFT JOIN `Object` O ON A.rack_id = O.id WHERE M.id IS NULL OR O.id IS NULL";
+			$query[] = "DELETE FROM `MountOperation` WHERE old_molecule_id NOT IN (SELECT id FROM `Molecule`) OR new_molecule_id NOT IN (SELECT id FROM `Molecule`)";
+			$query[] = "ALTER TABLE `Atom` ADD CONSTRAINT `Atom-FK-molecule_id` FOREIGN KEY (`molecule_id`) REFERENCES `Molecule` (`id`) ON DELETE CASCADE";
+			$query[] = "ALTER TABLE `Atom` ADD CONSTRAINT `Atom-FK-rack_id` FOREIGN KEY (`rack_id`) REFERENCES `Object` (`id`) ON DELETE CASCADE";
+			$query[] = "ALTER TABLE `MountOperation` ADD CONSTRAINT `MountOperation-FK-old_molecule_id` FOREIGN KEY (`old_molecule_id`) REFERENCES `Molecule` (`id`) ON DELETE CASCADE";
+			$query[] = "ALTER TABLE `MountOperation` ADD CONSTRAINT `MountOperation-FK-new_molecule_id` FOREIGN KEY (`new_molecule_id`) REFERENCES `Molecule` (`id`) ON DELETE CASCADE";
+			# multiple Cacti servers
+			$query[] = "
+CREATE TABLE `CactiServer` (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `base_url` char(255) DEFAULT NULL,
+  `username` char(64) DEFAULT NULL,
+  `password` char(64) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB
+";
+			$query[] = "ALTER TABLE CactiGraph ADD COLUMN server_id int(10) unsigned NOT NULL AFTER object_id";
+			$result = $dbxlink->query ('SELECT COUNT(*) AS cnt FROM CactiGraph');
+			$row = $result->fetchAll (PDO::FETCH_ASSOC);
+			unset ($result);
+			if ($row['cnt'] != 0)
+			{
+				$query[] = "INSERT INTO CactiServer (id) VALUES (1)";
+				$query[] = "UPDATE CactiServer SET base_url = (SELECT varvalue FROM Config WHERE varname = 'CACTI_URL') WHERE id = 1";
+				$query[] = "UPDATE CactiServer SET username = (SELECT varvalue FROM Config WHERE varname = 'CACTI_USERNAME') WHERE id = 1";
+				$query[] = "UPDATE CactiServer SET password = (SELECT varvalue FROM Config WHERE varname = 'CACTI_USERPASS') WHERE id = 1";
+				$query[] = "UPDATE CactiGraph SET server_id = 1";
+			}
+			$query[] = "ALTER TABLE CactiGraph DROP PRIMARY KEY";
+			$query[] = "ALTER TABLE CactiGraph ADD PRIMARY KEY (server_id, graph_id)";
+			$query[] = "ALTER TABLE CactiGraph ADD KEY (graph_id)";
+			$query[] = "ALTER TABLE CactiGraph ADD CONSTRAINT `CactiGraph-FK-server_id` FOREIGN KEY (server_id) REFERENCES CactiServer (id)";
+			$query[] = "DELETE FROM Config WHERE varname IN('CACTI_URL', 'CACTI_USERNAME', 'CACTI_USERPASS')";
+			$query[] = "UPDATE Config SET varvalue = '0.20.1' WHERE varname = 'DB_VERSION'";
+			break;
+		case '0.20.2':
 			// allow one-to-many port links
 			$query[] = "ALTER TABLE `Link` DROP FOREIGN KEY `Link-FK-a`, DROP FOREIGN KEY `Link-FK-b`";
 			$query[] = "ALTER TABLE `Link` DROP PRIMARY KEY, DROP KEY `porta`, DROP KEY `portb`";
@@ -1518,8 +1630,7 @@ BEGIN
   END IF;
 END;
 ";
-
-			$query[] = "UPDATE Config SET varvalue = '0.20.0' WHERE varname = 'DB_VERSION'";
+			$query[] = "UPDATE Config SET varvalue = '0.20.2' WHERE varname = 'DB_VERSION'";
 			break;
 		case 'dictionary':
 			$query = reloadDictionary();
@@ -1608,6 +1719,23 @@ function showUpgradeError ($info = '', $location = 'N/A')
 	else
 		echo "Additional information:<br><p>\n<pre>\n${info}\n</pre></p>";
 	echo "Go back or try starting from <a href='index.php'>index page</a>.<br></div>\n";
+}
+
+// changes the value of config variable. If $old_value_filter is set, value is changed only if current value equals to it.
+function replaceConfigVarValue ($varname, $new_value, $old_value_filter = NULL)
+{
+	global $dbxlink;
+	if (isset ($old_value_filter))
+	{
+		$result = $dbxlink->prepare ("SELECT varvalue FROM Config WHERE varname = ?");
+		$result->execute (array ($varname));
+		if ($row = $result->fetch (PDO::FETCH_ASSOC))
+			if ($row['varvalue'] != $old_value_filter)
+				return;
+		unset ($result);
+	}
+	$result = $dbxlink->prepare ("UPDATE Config set varvalue = ? WHERE varname = ?");
+	$result->execute (array ($new_value, $varname));
 }
 
 function renderUpgraderHTML()
@@ -1788,6 +1916,10 @@ END
 	$dbxlink->query ("ALTER TABLE `IPv4LB` ADD CONSTRAINT `IPv4LB-FK-vs_id` FOREIGN KEY (`vs_id`) REFERENCES `IPv4VS` (`id`)");
 
 	$dbxlink->query ("DROP TABLE `IPv4VS_old`, `IPv4RS_old`");
+
+	// re-create foreign key in IPv4RS
+	$dbxlink->query ("ALTER TABLE `IPv4RS` DROP FOREIGN KEY `IPRS-FK`");
+	$dbxlink->query ("ALTER TABLE `IPv4RS` ADD CONSTRAINT `IPv4RS-FK` FOREIGN KEY (`rspool_id`) REFERENCES `IPv4RSPool` (`id`) ON DELETE CASCADE");
 }
 
 // This is a swiss-knife blade to insert a record into a table.

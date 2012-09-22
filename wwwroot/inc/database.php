@@ -254,8 +254,10 @@ function getRowInfo ($row_id)
 {
 	$query =
 		"SELECT Row.id AS id, Row.name AS name, COUNT(Rack.id) AS count, " .
-		"IF(ISNULL(SUM(Rack.height)),0,SUM(Rack.height)) AS sum " .
+		"IF(ISNULL(SUM(Rack.height)),0,SUM(Rack.height)) AS sum, " .
+		"Location.id AS location_id, Location.name AS location " .
 		"FROM Row LEFT JOIN Rack ON Rack.row_id = Row.id " .
+		"LEFT OUTER JOIN Location ON Row.location_id = Location.id " .
 		"WHERE Row.id = ? " .
 		"GROUP BY Row.id";
 	$result = usePreparedSelectBlade ($query, array ($row_id));
@@ -474,12 +476,13 @@ function listCells ($realm, $parent_id = 0)
 	global $taglist;
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 	{
+		$tag_id = $row['tag_id'];
 		if (array_key_exists($row['entity_id'], $ret))
-			$ret[$row['entity_id']]['etags'][] = array
+			$ret[$row['entity_id']]['etags'][$tag_id] = array
 			(
-				'id' => $row['tag_id'],
-				'tag' => $taglist[$row['tag_id']]['tag'],
-				'parent_id' => $taglist[$row['tag_id']]['parent_id'],
+				'id' => $tag_id,
+				'tag' => $taglist[$tag_id]['tag'],
+				'parent_id' => $taglist[$tag_id]['parent_id'],
 				'user' => $row['tag_user'],
 				'time' => $row['tag_time'],
 			);
@@ -492,8 +495,7 @@ function listCells ($realm, $parent_id = 0)
 		cacheAllObjectsAttributes();
 	foreach ($ret as $entity_id => &$entity)
 	{
-		$entity['etags'] = getExplicitTagsOnly ($entity['etags']);
-		$entity['itags'] = getImplicitTags ($entity['etags']);
+		sortEntityTags ($entity); // changes ['etags'] and ['itags']
 		switch ($realm)
 		{
 		case 'object':
@@ -580,7 +582,7 @@ function spotEntity ($realm, $id, $ignore_cache = FALSE)
 			}
 			$ret['etags'] = array();
 			if ($row['tag_id'] != NULL && isset ($taglist[$row['tag_id']]))
-				$ret['etags'][] = array
+				$ret['etags'][$row['tag_id']] = array
 				(
 					'id' => $row['tag_id'],
 					'tag' => $taglist[$row['tag_id']]['tag'],
@@ -590,7 +592,7 @@ function spotEntity ($realm, $id, $ignore_cache = FALSE)
 				);
 		}
 		elseif (isset ($taglist[$row['tag_id']]))
-			$ret['etags'][] = array
+			$ret['etags'][$row['tag_id']] = array
 			(
 				'id' => $row['tag_id'],
 				'tag' => $taglist[$row['tag_id']]['tag'],
@@ -601,8 +603,7 @@ function spotEntity ($realm, $id, $ignore_cache = FALSE)
 	unset ($result);
 	if (!isset ($ret['realm'])) // no rows were returned
 		throw new EntityNotFoundException ($realm, $id);
-	$ret['etags'] = getExplicitTagsOnly ($ret['etags']);
-	$ret['itags'] = getImplicitTags ($ret['etags']);
+	sortEntityTags ($ret); // changes ['etags'] and ['itags']
 	switch ($realm)
 	{
 	case 'object':
@@ -893,8 +894,39 @@ WHERE L.portb = ?";
 	return $neighbors;
 }
 
+// Fetch the object type via SQL.
+// spotEntity cannot be used because it references RackObject, which doesn't suit Racks, Rows, or Locations.
+function getObjectType ($object_id) {
+	$result = usePreparedSelectBlade ('SELECT objtype_id from Object WHERE id = ?', array ($object_id));
+	return $result->fetchColumn ();
+}
+
+// If the given name is used by any object other than the current object,
+// raise an exception.  Validation is bypassed for certain object types
+// where duplicates are acceptable.
+// NOTE: This could be enforced more strictly at the database level using triggers.
+function checkObjectNameUniqueness ($name, $type_id, $object_id = 0)
+{
+	// Some object types do not need unique names
+	// 1560 - Rack
+	// 1561 - Row
+	$dupes_allowed = array (1560, 1561);
+	if (in_array ($type_id, $dupes_allowed))
+		return;
+
+	$result = usePreparedSelectBlade
+	(
+		'SELECT COUNT(*) FROM Object WHERE name = ? AND id != ?',
+		array ($name, $object_id)
+	);
+	$row = $result->fetch (PDO::FETCH_NUM);
+	if ($row[0] != 0)
+		throw new InvalidRequestArgException ('name', $name, 'An object with that name already exists');
+}
+
 function commitAddObject ($new_name, $new_label, $new_type_id, $new_asset_no, $taglist = array())
 {
+	checkObjectNameUniqueness ($new_name, $new_type_id);
 	usePreparedInsertBlade
 	(
 		'Object',
@@ -917,6 +949,8 @@ function commitAddObject ($new_name, $new_label, $new_type_id, $new_asset_no, $t
 
 function commitRenameObject ($object_id, $new_name)
 {
+	$type_id = getObjectType ($object_id);
+	checkObjectNameUniqueness ($new_name, $type_id, $object_id);
 	usePreparedUpdateBlade
 	(
 		'Object',
@@ -934,6 +968,8 @@ function commitRenameObject ($object_id, $new_name)
 
 function commitUpdateObject ($object_id, $new_name, $new_label, $new_has_problems, $new_asset_no, $new_comment)
 {
+	$type_id = getObjectType ($object_id);
+	checkObjectNameUniqueness ($new_name, $type_id, $object_id);
 	usePreparedUpdateBlade
 	(
 		'Object',
@@ -998,7 +1034,7 @@ function getEntityRelatives ($type, $entity_type, $entity_id)
 		}
 
 		// name needs to have some value for hrefs to work
-        if (!strlen ($name))
+		if (!strlen ($name))
 			$name = sprintf("[Unnamed %s]", formatEntityName($row['entity_type']));
 
 		$ret[$row['id']] = array(
@@ -1011,6 +1047,29 @@ function getEntityRelatives ($type, $entity_type, $entity_id)
 	}
 	// sort by name
 	uasort($ret, 'compare_name');
+	return $ret;
+}
+
+# This function is recursive and returns only object IDs.
+function getObjectContentsList ($object_id)
+{
+	$ret = array();
+	$result = usePreparedSelectBlade
+	(
+		'SELECT child_entity_id FROM EntityLink ' .
+		'WHERE parent_entity_type = "object" AND child_entity_type = "object" AND parent_entity_id = ?',
+		array ($object_id)
+	);
+	# Free this result before the called copy builds its one.
+	$rows = $result->fetchAll (PDO::FETCH_ASSOC);
+	unset ($result);
+	foreach ($rows as $row)
+	{
+		if (in_array ($row['child_entity_id'], $ret))
+			throw new RackTablesError ("Cyclic dependency for object ${object_id}", RackTablesError::INTERNAL);
+		$ret[] = $row['child_entity_id'];
+		$ret = array_merge ($ret, call_user_func (__FUNCTION__, $row['child_entity_id']));
+	}
 	return $ret;
 }
 
@@ -1285,7 +1344,6 @@ function commitUpdateRack ($rack_id, $new_row_id, $new_name, $new_height, $new_h
 
 	// Update the rack
 	commitUpdateObject ($rack_id, $new_name, NULL, $new_has_problems, $new_asset_no, $new_comment);
-	recordObjectHistory ($rack_id);
 }
 
 // Used when sort order is manually changed, and when a rack is moved or deleted
@@ -1998,10 +2056,15 @@ function scanIPv4Space ($pairlist)
 	$result = usePreparedSelectBlade ($query, $qparams);
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 	{
-		$ip_bin = ip4_int2bin ($row['remoteip']);
-		if (!isset ($ret[$ip_bin]))
-			$ret[$ip_bin] = constructIPAddress ($ip_bin);
-		$ret[$ip_bin]['inpf'][] = $row;
+		$ip_bin_local = ip4_int2bin ($row['localip']);
+		$ip_bin_remote = ip4_int2bin ($row['remoteip']);
+		$row['localip_bin'] = $ip_bin_local;
+		$row['remoteip_bin'] = $ip_bin_remote;
+		$row['localip'] = ip_format ($ip_bin_local);
+		$row['remoteip'] = ip_format ($ip_bin_remote);
+		if (!isset ($ret[$ip_bin_remote]))
+			$ret[$ip_bin_remote] = constructIPAddress ($ip_bin_remote);
+		$ret[$ip_bin_remote]['inpf'][] = $row;
 	}
 	unset ($result);
 	// 5. add NAT rules, local ip
@@ -2019,10 +2082,15 @@ function scanIPv4Space ($pairlist)
 	$result = usePreparedSelectBlade ($query, $qparams);
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 	{
-		$ip_bin = ip4_int2bin ($row['localip']);
-		if (!isset ($ret[$ip_bin]))
-			$ret[$ip_bin] = constructIPAddress ($ip_bin);
-		$ret[$ip_bin]['outpf'][] = $row;
+		$ip_bin_local = ip4_int2bin ($row['localip']);
+		$ip_bin_remote = ip4_int2bin ($row['remoteip']);
+		$row['localip_bin'] = $ip_bin_local;
+		$row['remoteip_bin'] = $ip_bin_remote;
+		$row['localip'] = ip_format ($ip_bin_local);
+		$row['remoteip'] = ip_format ($ip_bin_remote);
+		if (!isset ($ret[$ip_bin_local]))
+			$ret[$ip_bin_local] = constructIPAddress ($ip_bin_local);
+		$ret[$ip_bin_local]['outpf'][] = $row;
 	}
 	unset ($result);
 	// 6. collect last log message
@@ -3200,6 +3268,7 @@ mysql> select tag_id from TagStorage left join TagTree on tag_id = id where id i
 
 */
 
+# FIXME: this function is not used any more
 function commitDeleteChapter ($chapter_no = 0)
 {
 	usePreparedDeleteBlade ('Chapter', array ('id' => $chapter_no, 'sticky' => 'no'));
@@ -3349,7 +3418,7 @@ function fetchAttrsForObjects ($object_set = array())
 		"left join Chapter as C on AM.chapter_id = C.id";
 	if (count ($object_set))
 		$query .= ' WHERE O.id IN (' . implode (', ', $object_set) . ')';
-	$query .= " order by A.name, A.type";
+	$query .= " ORDER BY A.name, A.type";
 
 	$result = usePreparedSelectBlade ($query);
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
@@ -3436,15 +3505,8 @@ function commitUpdateAttrValue ($object_id, $attr_id, $value = '')
 	usePreparedDeleteBlade ('AttributeValue', array ('object_id' => $object_id, 'attr_id' => $attr_id));
 	if ($value == '')
 		return;
-	// fetch object type via SQL.
-	// We can not use spotEntity here, because commitUpdateAttrValue is called also for racks
-	$result = usePreparedSelectBlade ("SELECT objtype_id from Object WHERE id = ?", array ($object_id));
-	if ($row = $result->fetch(PDO::FETCH_ASSOC))
-		$object_type = $row['objtype_id'];
-	else
-		throw EntityNotFoundException('object', $object_id);
-	unset ($result);
 
+	$type_id = getObjectType ($object_id);
 	usePreparedInsertBlade
 	(
 		'AttributeValue',
@@ -3452,7 +3514,7 @@ function commitUpdateAttrValue ($object_id, $attr_id, $value = '')
 		(
 			$column => $value,
 			'object_id' => $object_id,
-			'object_tid' => $object_type,
+			'object_tid' => $type_id,
 			'attr_id' => $attr_id,
 		)
 	);
@@ -4085,9 +4147,9 @@ function getNATv4ForObject ($object_id)
 	(
 		"select ".
 		"proto, ".
-		"INET_NTOA(localip) as localip, ".
+		"localip, ".
 		"localport, ".
-		"INET_NTOA(remoteip) as remoteip, ".
+		"remoteip, ".
 		"remoteport, ".
 		"ipa1.name as local_addr_name, " .
 		"ipa2.name as remote_addr_name, " .
@@ -4099,12 +4161,13 @@ function getNATv4ForObject ($object_id)
 		"order by localip, localport, proto, remoteip, remoteport",
 		array ($object_id)
 	);
-	$count=0;
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 	{
-		foreach (array ('proto', 'localport', 'localip', 'remoteport', 'remoteip', 'description', 'local_addr_name', 'remote_addr_name') as $cname)
-			$ret['out'][$count][$cname] = $row[$cname];
-		$count++;
+		$row['localip_bin'] = ip4_int2bin ($row['localip']);
+		$row['localip'] = ip_format ($row['localip_bin']);
+		$row['remoteip_bin'] = ip4_int2bin ($row['remoteip']);
+		$row['remoteip'] = ip_format ($row['remoteip_bin']);
+		$ret['out'][] = $row;
 	}
 	unset ($result);
 
@@ -4112,9 +4175,9 @@ function getNATv4ForObject ($object_id)
 	(
 		"select ".
 		"proto, ".
-		"INET_NTOA(localip) as localip, ".
+		"localip, ".
 		"localport, ".
-		"INET_NTOA(remoteip) as remoteip, ".
+		"remoteip, ".
 		"remoteport, ".
 		"IPv4NAT.object_id as object_id, ".
 		"Object.name as object_name, ".
@@ -4124,12 +4187,13 @@ function getNATv4ForObject ($object_id)
 		"order by remoteip, remoteport, proto, localip, localport",
 		array ($object_id)
 	);
-	$count=0;
 	while ($row = $result->fetch (PDO::FETCH_ASSOC))
 	{
-		foreach (array ('proto', 'localport', 'localip', 'remoteport', 'remoteip', 'object_id', 'object_name', 'description') as $cname)
-			$ret['in'][$count][$cname] = $row[$cname];
-		$count++;
+		$row['localip_bin'] = ip4_int2bin ($row['localip']);
+		$row['localip'] = ip_format ($row['localip_bin']);
+		$row['remoteip_bin'] = ip4_int2bin ($row['remoteip']);
+		$row['remoteip'] = ip_format ($row['remoteip_bin']);
+		$ret['in'][] = $row;
 	}
 	return $ret;
 }
@@ -5122,7 +5186,11 @@ function getConfiguredQuickLinks()
 
 function getCactiGraphsForObject ($object_id)
 {
-	$result = usePreparedSelectBlade ('SELECT graph_id, caption FROM CactiGraph WHERE object_id = ? ORDER BY graph_id', array ($object_id));
+	$result = usePreparedSelectBlade
+	(
+		'SELECT server_id, graph_id, caption FROM CactiGraph WHERE object_id = ? ORDER BY server_id, graph_id',
+		array ($object_id)
+	);
 	return reindexById ($result->fetchAll (PDO::FETCH_ASSOC), 'graph_id');
 }
 
@@ -5150,6 +5218,16 @@ function scanAttrRelativeDays ($attr_id, $not_before_days, $not_after_days)
 		array ($attr_id, $not_before_days, $not_after_days)
 	);
 	return $result->fetchAll (PDO::FETCH_ASSOC);
+}
+
+function getCactiServers()
+{
+	$result = usePreparedSelectBlade
+	(
+		'SELECT id, base_url, username, password, COUNT(graph_id) AS num_graphs ' .
+		'FROM CactiServer AS CS LEFT JOIN CactiGraph AS CG ON CS.id = CG.server_id GROUP BY id'
+	);
+	return reindexById ($result->fetchAll (PDO::FETCH_ASSOC));
 }
 
 ?>
