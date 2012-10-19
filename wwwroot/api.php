@@ -1,5 +1,6 @@
 <?php
-
+// this is from: https://github.com/ibettinger/racktables/
+// his repo was 0.20.0 but I was already running a 0.20.1 schema so I grabbed this to work on it
 // TODO: look into using global $sic, which has merged GET and POST parameters, instead of $_REQUEST['blah'].
 //       Apparently it may handle UTF-8 arguments better. Created in transformRequestData().
 
@@ -23,6 +24,18 @@ try {
 
                 break;
 
+	// get object_id by its FQDN
+	// using function searchByMgmtHostname()
+	// soffanias@gmail.com
+	case 'searchByMgmtHostname':
+		require_once 'inc/init.php';
+		
+		assertStringArg ("fqdn", TRUE);
+
+		$object_id = searchByMgmtHostname(( $_REQUEST['fqdn'] ));
+
+		sendAPIResponse($object_id);
+		break;
 
         // get overall 8021q status
         //    UI equivalent: /index.php?page=8021q
